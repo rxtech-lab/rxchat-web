@@ -189,7 +189,6 @@ export async function POST(request: Request) {
             ...mcpTools,
           },
           onFinish: async ({ response }) => {
-            console.log('response', response);
             if (session.user?.id) {
               try {
                 const assistantId = getTrailingMessageId({
@@ -237,7 +236,11 @@ export async function POST(request: Request) {
           sendReasoning: true,
         });
       },
-      onError: () => {
+      onError: (error) => {
+        console.log('error', error);
+        if ('name' in (error as any)) {
+          return (error as any).message;
+        }
         return 'Oops, an error occurred!';
       },
     });
