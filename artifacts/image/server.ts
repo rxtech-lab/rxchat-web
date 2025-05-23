@@ -1,43 +1,60 @@
-import { myProvider } from '@/lib/ai/providers';
+import type { ProviderType } from '@/lib/ai/models';
+import { getModelProvider } from '@/lib/ai/providers';
 import { createDocumentHandler } from '@/lib/artifacts/server';
 import { experimental_generateImage } from 'ai';
 
-export const imageDocumentHandler = createDocumentHandler<'image'>({
-  kind: 'image',
-  onCreateDocument: async ({ title, dataStream }) => {
-    let draftContent = '';
+export const imageDocumentHandler = (
+  selectedChatModel: string,
+  selectedChatModelProvider: ProviderType,
+) =>
+  createDocumentHandler<'image'>({
+    kind: 'image',
+    selectedChatModel,
+    selectedChatModelProvider,
+    onCreateDocument: async ({ title, dataStream }) => {
+      let draftContent = '';
 
-    const { image } = await experimental_generateImage({
-      model: myProvider.imageModel('small-model'),
-      prompt: title,
-      n: 1,
-    });
+      const provider = getModelProvider(
+        selectedChatModel,
+        selectedChatModelProvider,
+      );
 
-    draftContent = image.base64;
+      const { image } = await experimental_generateImage({
+        model: provider.imageModel('small-model'),
+        prompt: title,
+        n: 1,
+      });
 
-    dataStream.writeData({
-      type: 'image-delta',
-      content: image.base64,
-    });
+      draftContent = image.base64;
 
-    return draftContent;
-  },
-  onUpdateDocument: async ({ description, dataStream }) => {
-    let draftContent = '';
+      dataStream.writeData({
+        type: 'image-delta',
+        content: image.base64,
+      });
 
-    const { image } = await experimental_generateImage({
-      model: myProvider.imageModel('small-model'),
-      prompt: description,
-      n: 1,
-    });
+      return draftContent;
+    },
+    onUpdateDocument: async ({ description, dataStream }) => {
+      let draftContent = '';
 
-    draftContent = image.base64;
+      const provider = getModelProvider(
+        selectedChatModel,
+        selectedChatModelProvider,
+      );
 
-    dataStream.writeData({
-      type: 'image-delta',
-      content: image.base64,
-    });
+      const { image } = await experimental_generateImage({
+        model: provider.imageModel('small-model'),
+        prompt: description,
+        n: 1,
+      });
 
-    return draftContent;
-  },
-});
+      draftContent = image.base64;
+
+      dataStream.writeData({
+        type: 'image-delta',
+        content: image.base64,
+      });
+
+      return draftContent;
+    },
+  });

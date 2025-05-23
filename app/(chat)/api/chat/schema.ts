@@ -1,3 +1,4 @@
+import { ProviderTypeSchema } from '@/lib/ai/models';
 import { z } from 'zod';
 
 const textPartSchema = z.object({
@@ -23,7 +24,8 @@ export const postRequestBodySchema = z.object({
       )
       .optional(),
   }),
-  selectedChatModel: z.enum(['chat-model', 'chat-model-reasoning']),
+  selectedChatModel: z.string(),
+  selectedChatModelProvider: ProviderTypeSchema,
   selectedVisibilityType: z.enum(['public', 'private']),
 });
 

@@ -20,6 +20,7 @@ import { useSearchParams } from 'next/navigation';
 import { useChatVisibility } from '@/hooks/use-chat-visibility';
 import { useAutoResume } from '@/hooks/use-auto-resume';
 import { ChatSDKError } from '@/lib/errors';
+import type { Providers, ProviderType } from '@/lib/ai/models';
 
 export function Chat({
   id,
@@ -29,6 +30,8 @@ export function Chat({
   isReadonly,
   session,
   autoResume,
+  providers,
+  selectedChatModelProvider,
 }: {
   id: string;
   initialMessages: Array<UIMessage>;
@@ -37,6 +40,8 @@ export function Chat({
   isReadonly: boolean;
   session: Session;
   autoResume: boolean;
+  providers: Providers;
+  selectedChatModelProvider: ProviderType;
 }) {
   const { mutate } = useSWRConfig();
 
@@ -69,6 +74,7 @@ export function Chat({
       message: body.messages.at(-1),
       selectedChatModel: initialChatModel,
       selectedVisibilityType: visibilityType,
+      selectedChatModelProvider: selectedChatModelProvider,
     }),
     onFinish: () => {
       mutate(unstable_serialize(getChatHistoryPaginationKey));
@@ -125,6 +131,7 @@ export function Chat({
           selectedVisibilityType={initialVisibilityType}
           isReadonly={isReadonly}
           session={session}
+          providers={providers}
         />
 
         <Messages

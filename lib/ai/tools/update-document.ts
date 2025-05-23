@@ -1,15 +1,23 @@
-import { DataStreamWriter, tool } from 'ai';
-import { Session } from 'next-auth';
-import { z } from 'zod';
-import { getDocumentById, saveDocument } from '@/lib/db/queries';
 import { documentHandlersByArtifactKind } from '@/lib/artifacts/server';
+import { getDocumentById } from '@/lib/db/queries';
+import { type DataStreamWriter, tool } from 'ai';
+import type { Session } from 'next-auth';
+import { z } from 'zod';
+import type { ProviderType } from '../models';
 
 interface UpdateDocumentProps {
   session: Session;
   dataStream: DataStreamWriter;
+  selectedChatModelProvider: ProviderType;
+  selectedChatModel: string;
 }
 
-export const updateDocument = ({ session, dataStream }: UpdateDocumentProps) =>
+export const updateDocument = ({
+  session,
+  dataStream,
+  selectedChatModelProvider,
+  selectedChatModel,
+}: UpdateDocumentProps) =>
   tool({
     description: 'Update a document with the given description.',
     parameters: z.object({
@@ -34,14 +42,20 @@ export const updateDocument = ({ session, dataStream }: UpdateDocumentProps) =>
 
       const documentHandler = documentHandlersByArtifactKind.find(
         (documentHandlerByArtifactKind) =>
-          documentHandlerByArtifactKind.kind === document.kind,
+          documentHandlerByArtifactKind(
+            selectedChatModel,
+            selectedChatModelProvider,
+          ).kind === document.kind,
       );
 
       if (!documentHandler) {
         throw new Error(`No document handler found for kind: ${document.kind}`);
       }
 
-      await documentHandler.onUpdateDocument({
+      await documentHandler(
+        selectedChatModel,
+        selectedChatModelProvider,
+      ).onUpdateDocument({
         document,
         description,
         dataStream,

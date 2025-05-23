@@ -3,9 +3,16 @@ import { notFound, redirect } from 'next/navigation';
 
 import { auth } from '@/app/(auth)/auth';
 import { Chat } from '@/components/chat';
-import { getChatById, getMessagesByChatId } from '@/lib/db/queries';
 import { DataStreamHandler } from '@/components/data-stream-handler';
-import { DEFAULT_CHAT_MODEL } from '@/lib/ai/models';
+import { entitlementsByUserType } from '@/lib/ai/entitlements';
+import {
+  DEFAULT_CHAT_MODEL,
+  getOpenRouterModels,
+  providers,
+  type ProviderType,
+  type Providers,
+} from '@/lib/ai/models';
+import { getChatById, getMessagesByChatId } from '@/lib/db/queries';
 import type { DBMessage } from '@/lib/db/schema';
 import type { Attachment, UIMessage } from 'ai';
 
@@ -51,10 +58,21 @@ export default async function Page(props: { params: Promise<{ id: string }> }) {
     }));
   }
 
+  const entitlements = entitlementsByUserType[session.user.type];
+
+  const openRouterModels = await getOpenRouterModels(entitlements);
+  const providerWithModels: Providers = {
+    ...providers,
+    openRouter: {
+      ...providers.openRouter,
+      models: openRouterModels,
+    },
+  };
   const cookieStore = await cookies();
   const chatModelFromCookie = cookieStore.get('chat-model');
+  const providerTypeFromCookie = cookieStore.get('chat-model-provider');
 
-  if (!chatModelFromCookie) {
+  if (!chatModelFromCookie || !providerTypeFromCookie) {
     return (
       <>
         <Chat
@@ -65,6 +83,8 @@ export default async function Page(props: { params: Promise<{ id: string }> }) {
           isReadonly={session?.user?.id !== chat.userId}
           session={session}
           autoResume={true}
+          providers={providerWithModels}
+          selectedChatModelProvider={'openRouter'}
         />
         <DataStreamHandler id={id} />
       </>
@@ -81,6 +101,10 @@ export default async function Page(props: { params: Promise<{ id: string }> }) {
         isReadonly={session?.user?.id !== chat.userId}
         session={session}
         autoResume={true}
+        providers={providerWithModels}
+        selectedChatModelProvider={
+          providerTypeFromCookie?.value as ProviderType
+        }
       />
       <DataStreamHandler id={id} />
     </>

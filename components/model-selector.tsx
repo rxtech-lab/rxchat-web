@@ -1,105 +1,136 @@
 'use client';
 
+import { ChevronsUpDown } from 'lucide-react';
 import { startTransition, useMemo, useOptimistic, useState } from 'react';
 
 import { saveChatModelAsCookie } from '@/app/(chat)/actions';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { chatModels } from '@/lib/ai/models';
+  Command,
+  CommandEmpty,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 
-import { CheckCircleFillIcon, ChevronDownIcon } from './icons';
-import { entitlementsByUserType } from '@/lib/ai/entitlements';
+import type { Providers } from '@/lib/ai/models';
 import type { Session } from 'next-auth';
 
 export function ModelSelector({
-  session,
   selectedModelId,
   className,
+  providers,
 }: {
   session: Session;
   selectedModelId: string;
+  providers: Providers;
 } & React.ComponentProps<typeof Button>) {
   const [open, setOpen] = useState(false);
   const [optimisticModelId, setOptimisticModelId] =
     useOptimistic(selectedModelId);
+  const [search, setSearch] = useState('');
 
-  const userType = session.user.type;
-  const { availableChatModelIds } = entitlementsByUserType[userType];
+  const selectedChatModel = useMemo(() => {
+    const provider = Object.values(providers).find((provider) =>
+      provider.models.find((model) => model.id === optimisticModelId),
+    );
 
-  const availableChatModels = chatModels.filter((chatModel) =>
-    availableChatModelIds.includes(chatModel.id),
-  );
+    return provider?.models.find((model) => model.id === optimisticModelId);
+  }, [optimisticModelId, providers]);
 
-  const selectedChatModel = useMemo(
-    () =>
-      availableChatModels.find(
-        (chatModel) => chatModel.id === optimisticModelId,
-      ),
-    [optimisticModelId, availableChatModels],
-  );
+  // Create a flat array of all models with provider information
+  const filteredModels = useMemo(() => {
+    const allModels = Object.values(providers).flatMap((provider) =>
+      provider.models
+        .map((model) => ({
+          ...model,
+          providerName: provider.provider,
+        }))
+        .filter((model) => {
+          if (search === '') {
+            return true;
+          }
+          return model.name.toLowerCase().includes(search.toLowerCase());
+        }),
+    );
+
+    // Sort to put the selected model at the top
+    return allModels.sort((a, b) => {
+      if (a.id === optimisticModelId) return -1;
+      if (b.id === optimisticModelId) return 1;
+      return 0;
+    });
+  }, [providers, search, optimisticModelId]);
 
   return (
-    <DropdownMenu open={open} onOpenChange={setOpen}>
-      <DropdownMenuTrigger
-        asChild
-        className={cn(
-          'w-fit data-[state=open]:bg-accent data-[state=open]:text-accent-foreground',
-          className,
-        )}
-      >
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
         <Button
           data-testid="model-selector"
           variant="outline"
-          className="md:px-2 md:h-[34px]"
+          role="combobox"
+          aria-expanded={open}
+          className={cn(
+            'md:px-2 md:h-[34px] justify-between md:w-[300px] w-[150px]',
+            className,
+          )}
         >
-          {selectedChatModel?.name}
-          <ChevronDownIcon />
+          <div className="flex items-center gap-2 truncate">
+            {selectedChatModel?.name || 'Select model...'}
+          </div>
+          <ChevronsUpDown />
         </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="min-w-[300px]">
-        {availableChatModels.map((chatModel) => {
-          const { id } = chatModel;
-
-          return (
-            <DropdownMenuItem
-              data-testid={`model-selector-item-${id}`}
-              key={id}
-              onSelect={() => {
-                setOpen(false);
-
-                startTransition(() => {
-                  setOptimisticModelId(id);
-                  saveChatModelAsCookie(id);
-                });
-              }}
-              data-active={id === optimisticModelId}
-              asChild
-            >
-              <button
-                type="button"
-                className="gap-4 group/item flex flex-row justify-between items-center w-full"
-              >
-                <div className="flex flex-col gap-1 items-start">
-                  <div>{chatModel.name}</div>
-                  <div className="text-xs text-muted-foreground">
-                    {chatModel.description}
+      </PopoverTrigger>
+      <PopoverContent className="max-w-2xl p-0">
+        <Command>
+          <CommandInput
+            placeholder="Search models..."
+            className="h-9"
+            value={search}
+            onValueChange={setSearch}
+          />
+          <CommandList>
+            {filteredModels.length > 0 ? (
+              filteredModels.map((model) => (
+                <CommandItem
+                  key={model.id}
+                  value={model.id}
+                  forceMount
+                  onSelect={(currentValue) => {
+                    startTransition(() => {
+                      setOptimisticModelId(currentValue);
+                      saveChatModelAsCookie(currentValue, model.providerName);
+                    });
+                    setOpen(false);
+                  }}
+                  data-testid={`model-selector-item-${model.id}`}
+                  className={cn(
+                    'flex flex-col gap-1 items-start w-full',
+                    model.id === optimisticModelId &&
+                      'bg-primary text-primary-foreground hover:!bg-primary hover:!text-primary-foreground',
+                  )}
+                >
+                  <div className="flex items-center gap-2 justify-between w-full">
+                    <span>{model.name}</span>
+                    <Badge variant="secondary" className="text-xs">
+                      {model.providerName}
+                    </Badge>
                   </div>
-                </div>
-
-                <div className="text-foreground dark:text-foreground opacity-0 group-data-[active=true]/item:opacity-100">
-                  <CheckCircleFillIcon />
-                </div>
-              </button>
-            </DropdownMenuItem>
-          );
-        })}
-      </DropdownMenuContent>
-    </DropdownMenu>
+                </CommandItem>
+              ))
+            ) : (
+              <CommandEmpty>No model found.</CommandEmpty>
+            )}
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
   );
 }

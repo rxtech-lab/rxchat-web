@@ -1,18 +1,24 @@
 'use server';
 
-import { generateText, type UIMessage } from 'ai';
-import { cookies } from 'next/headers';
+import type { VisibilityType } from '@/components/visibility-selector';
+import { mcpClient } from '@/lib/ai/mcp';
+import type { ProviderType } from '@/lib/ai/models';
+import { titleModel } from '@/lib/ai/providers';
 import {
   deleteMessagesByChatIdAfterTimestamp,
   getMessageById,
   updateChatVisiblityById,
 } from '@/lib/db/queries';
-import type { VisibilityType } from '@/components/visibility-selector';
-import { myProvider } from '@/lib/ai/providers';
+import { generateText, type UIMessage } from 'ai';
+import { cookies } from 'next/headers';
 
-export async function saveChatModelAsCookie(model: string) {
+export async function saveChatModelAsCookie(
+  model: string,
+  provider: ProviderType,
+) {
   const cookieStore = await cookies();
   cookieStore.set('chat-model', model);
+  cookieStore.set('chat-model-provider', provider);
 }
 
 export async function generateTitleFromUserMessage({
@@ -21,7 +27,7 @@ export async function generateTitleFromUserMessage({
   message: UIMessage;
 }) {
   const { text: title } = await generateText({
-    model: myProvider.languageModel('title-model'),
+    model: titleModel,
     system: `\n
     - you will generate a short title based on the first message a user begins a conversation with
     - ensure it is not more than 80 characters long
@@ -50,4 +56,19 @@ export async function updateChatVisibility({
   visibility: VisibilityType;
 }) {
   await updateChatVisiblityById({ chatId, visibility });
+}
+
+export async function getMCPTools() {
+  const mcpTools = await mcpClient.tools();
+
+  const tools: { title: string; description: string }[] = [];
+
+  for (const [key, tool] of Object.entries(mcpTools)) {
+    tools.push({
+      title: key,
+      description: tool.description ?? '',
+    });
+  }
+
+  return tools;
 }
