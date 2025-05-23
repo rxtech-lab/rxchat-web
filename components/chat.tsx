@@ -86,6 +86,13 @@ export function Chat({
           description: error.message,
         });
       }
+
+      if ('name' in (error as any)) {
+        toast({
+          type: 'error',
+          description: (error as any).message,
+        });
+      }
     },
   });
 
