@@ -24,7 +24,7 @@ import { updateDocument } from '@/lib/ai/tools/update-document';
 import { requestSuggestions } from '@/lib/ai/tools/request-suggestions';
 import { getWeather } from '@/lib/ai/tools/get-weather';
 import { isProductionEnvironment } from '@/lib/constants';
-import { myProvider } from '@/lib/ai/providers';
+import { getModelProvider } from '@/lib/ai/providers';
 import { entitlementsByUserType } from '@/lib/ai/entitlements';
 import { postRequestBodySchema, type PostRequestBody } from './schema';
 import { geolocation } from '@vercel/functions';
@@ -36,6 +36,7 @@ import { after } from 'next/server';
 import type { Chat } from '@/lib/db/schema';
 import { differenceInSeconds } from 'date-fns';
 import { ChatSDKError } from '@/lib/errors';
+import { mcpClient } from '@/lib/ai/mcp';
 
 export const maxDuration = 60;
 
@@ -72,8 +73,13 @@ export async function POST(request: Request) {
   }
 
   try {
-    const { id, message, selectedChatModel, selectedVisibilityType } =
-      requestBody;
+    const {
+      id,
+      message,
+      selectedChatModel,
+      selectedVisibilityType,
+      selectedChatModelProvider,
+    } = requestBody;
 
     const session = await auth();
 
@@ -144,32 +150,45 @@ export async function POST(request: Request) {
     const streamId = generateUUID();
     await createStreamId({ streamId, chatId: id });
 
+    const mcpTools = await mcpClient.tools();
+
+    console.log('mcpTools', mcpTools);
+
+    const provider = getModelProvider(
+      selectedChatModel,
+      selectedChatModelProvider,
+    );
+
     const stream = createDataStream({
       execute: (dataStream) => {
         const result = streamText({
-          model: myProvider.languageModel(selectedChatModel),
+          model: provider.languageModel('chat-model'),
           system: systemPrompt({ selectedChatModel, requestHints }),
           messages,
-          maxSteps: 5,
-          experimental_activeTools:
-            selectedChatModel === 'chat-model-reasoning'
-              ? []
-              : [
-                  'getWeather',
-                  'createDocument',
-                  'updateDocument',
-                  'requestSuggestions',
-                ],
+          maxSteps: 20,
           experimental_transform: smoothStream({ chunking: 'word' }),
           experimental_generateMessageId: generateUUID,
           tools: {
             getWeather,
-            createDocument: createDocument({ session, dataStream }),
-            updateDocument: updateDocument({ session, dataStream }),
+            createDocument: createDocument({
+              session,
+              dataStream,
+              selectedChatModelProvider,
+              selectedChatModel,
+            }),
+            updateDocument: updateDocument({
+              session,
+              dataStream,
+              selectedChatModelProvider,
+              selectedChatModel,
+            }),
             requestSuggestions: requestSuggestions({
               session,
               dataStream,
+              selectedChatModelProvider,
+              selectedChatModel,
             }),
+            ...mcpTools,
           },
           onFinish: async ({ response }) => {
             if (session.user?.id) {

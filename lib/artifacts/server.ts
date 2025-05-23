@@ -1,12 +1,13 @@
 import { codeDocumentHandler } from '@/artifacts/code/server';
+import type { ArtifactKind } from '@/components/artifact';
+import type { DataStreamWriter } from 'ai';
+import type { Document } from '../db/schema';
+import { saveDocument } from '../db/queries';
+import type { Session } from 'next-auth';
+import type { ProviderType } from '../ai/models';
 import { imageDocumentHandler } from '@/artifacts/image/server';
 import { sheetDocumentHandler } from '@/artifacts/sheet/server';
 import { textDocumentHandler } from '@/artifacts/text/server';
-import { ArtifactKind } from '@/components/artifact';
-import { DataStreamWriter } from 'ai';
-import { Document } from '../db/schema';
-import { saveDocument } from '../db/queries';
-import { Session } from 'next-auth';
 
 export interface SaveDocumentProps {
   id: string;
@@ -38,6 +39,8 @@ export interface DocumentHandler<T = ArtifactKind> {
 
 export function createDocumentHandler<T extends ArtifactKind>(config: {
   kind: T;
+  selectedChatModelProvider: ProviderType;
+  selectedChatModel: string;
   onCreateDocument: (params: CreateDocumentCallbackProps) => Promise<string>;
   onUpdateDocument: (params: UpdateDocumentCallbackProps) => Promise<string>;
 }): DocumentHandler<T> {
@@ -89,7 +92,12 @@ export function createDocumentHandler<T extends ArtifactKind>(config: {
 /*
  * Use this array to define the document handlers for each artifact kind.
  */
-export const documentHandlersByArtifactKind: Array<DocumentHandler> = [
+export const documentHandlersByArtifactKind: Array<
+  (
+    selectedChatModel: string,
+    selectedChatModelProvider: ProviderType,
+  ) => DocumentHandler
+> = [
   textDocumentHandler,
   codeDocumentHandler,
   imageDocumentHandler,

@@ -27,6 +27,17 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { ArrowDown } from 'lucide-react';
 import { useScrollToBottom } from '@/hooks/use-scroll-to-bottom';
 import type { VisibilityType } from './visibility-selector';
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuItem,
+} from './ui/dropdown-menu';
+import useSWR from 'swr';
+import { getMCPTools } from '@/app/(chat)/actions';
+import { SparklesIcon } from './icons';
 
 function PureMultimodalInput({
   chatId,
@@ -193,6 +204,10 @@ function PureMultimodalInput({
     }
   }, [status, scrollToBottom]);
 
+  const { data: mcpTools, isLoading } = useSWR('/api/mcp-tools', getMCPTools, {
+    revalidateOnFocus: false,
+  });
+
   return (
     <div className="relative w-full flex flex-col gap-4">
       <AnimatePresence>
@@ -291,8 +306,9 @@ function PureMultimodalInput({
         }}
       />
 
-      <div className="absolute bottom-0 p-2 w-fit flex flex-row justify-start">
+      <div className="absolute bottom-0 p-2 w-fit flex flex-row justify-start gap-2 items-center">
         <AttachmentsButton fileInputRef={fileInputRef} status={status} />
+        <MCPButton mcpTools={mcpTools ?? []} />
       </div>
 
       <div className="absolute bottom-0 right-0 p-2 w-fit flex flex-row justify-end">
@@ -402,3 +418,45 @@ const SendButton = memo(PureSendButton, (prevProps, nextProps) => {
   if (prevProps.input !== nextProps.input) return false;
   return true;
 });
+
+function PureMCPButton({
+  mcpTools,
+}: { mcpTools: { title: string; description: string }[] }) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          variant="ghost"
+          className="rounded-md rounded-bl-lg p-2 h-fit flex items-center gap-1.5 dark:border-zinc-700 hover:dark:bg-zinc-900 hover:bg-zinc-200"
+          data-testid="mcp-tools-button"
+        >
+          <SparklesIcon size={14} />
+          <span className="text-xs font-medium">Tools</span>
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent className="w-56">
+        <DropdownMenuLabel>Available MCP Tools</DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        {mcpTools.length > 0 ? (
+          mcpTools.map((tool) => (
+            <DropdownMenuItem
+              key={tool.title}
+              className="flex flex-col items-start py-2"
+            >
+              <span className="font-medium text-sm">{tool.title}</span>
+              {tool.description && (
+                <span className="text-xs text-muted-foreground mt-0.5">
+                  {tool.description}
+                </span>
+              )}
+            </DropdownMenuItem>
+          ))
+        ) : (
+          <DropdownMenuItem disabled>No tools available</DropdownMenuItem>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+const MCPButton = memo(PureMCPButton);

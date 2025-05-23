@@ -1,18 +1,26 @@
-import { generateUUID } from '@/lib/utils';
-import { DataStreamWriter, tool } from 'ai';
-import { z } from 'zod';
-import { Session } from 'next-auth';
 import {
   artifactKinds,
   documentHandlersByArtifactKind,
 } from '@/lib/artifacts/server';
+import { generateUUID } from '@/lib/utils';
+import { type DataStreamWriter, tool } from 'ai';
+import type { Session } from 'next-auth';
+import { z } from 'zod';
+import type { ProviderType } from '../models';
 
 interface CreateDocumentProps {
   session: Session;
+  selectedChatModelProvider: ProviderType;
+  selectedChatModel: string;
   dataStream: DataStreamWriter;
 }
 
-export const createDocument = ({ session, dataStream }: CreateDocumentProps) =>
+export const createDocument = ({
+  session,
+  selectedChatModelProvider,
+  selectedChatModel,
+  dataStream,
+}: CreateDocumentProps) =>
   tool({
     description:
       'Create a document for a writing or content creation activities. This tool will call other functions that will generate the contents of the document based on the title and kind.',
@@ -45,14 +53,20 @@ export const createDocument = ({ session, dataStream }: CreateDocumentProps) =>
 
       const documentHandler = documentHandlersByArtifactKind.find(
         (documentHandlerByArtifactKind) =>
-          documentHandlerByArtifactKind.kind === kind,
+          documentHandlerByArtifactKind(
+            selectedChatModel,
+            selectedChatModelProvider,
+          ).kind === kind,
       );
 
       if (!documentHandler) {
         throw new Error(`No document handler found for kind: ${kind}`);
       }
 
-      await documentHandler.onCreateDocument({
+      await documentHandler(
+        selectedChatModel,
+        selectedChatModelProvider,
+      ).onCreateDocument({
         id,
         title,
         dataStream,
