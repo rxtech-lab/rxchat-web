@@ -1,24 +1,48 @@
 'use client';
 
+import type { Vote } from '@/lib/db/schema';
+import { cn, sanitizeText } from '@/lib/utils';
+import type { UseChatHelpers } from '@ai-sdk/react';
 import type { UIMessage } from 'ai';
 import cx from 'classnames';
+import equal from 'fast-deep-equal';
 import { AnimatePresence, motion } from 'framer-motion';
 import { memo, useState } from 'react';
-import type { Vote } from '@/lib/db/schema';
 import { DocumentToolCall, DocumentToolResult } from './document';
-import { PencilEditIcon, SparklesIcon } from './icons';
+import { DocumentPreview } from './document-preview';
+import { PencilEditIcon, SparklesIcon, WarningIcon } from './icons';
 import { Markdown } from './markdown';
 import { MessageActions } from './message-actions';
-import { PreviewAttachment } from './preview-attachment';
-import { Weather } from './weather';
-import equal from 'fast-deep-equal';
-import { cn, sanitizeText } from '@/lib/utils';
-import { Button } from './ui/button';
-import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
 import { MessageEditor } from './message-editor';
-import { DocumentPreview } from './document-preview';
 import { MessageReasoning } from './message-reasoning';
-import type { UseChatHelpers } from '@ai-sdk/react';
+import { PreviewAttachment } from './preview-attachment';
+import { Button } from './ui/button';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from './ui/collapsible';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
+import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
+import { CodeView } from './code-view';
+import { CheckIcon, CircleAlertIcon } from 'lucide-react';
+import Spinner from './spiner';
+
+function parseMcpContent(obj: any) {
+  if ('content' in obj) {
+    if (Array.isArray(obj.content)) {
+      return obj.content.map((item: { type: string; text: string }) => {
+        if (item.type === 'text') {
+          return JSON.parse(item.text);
+        }
+
+        return item;
+      });
+    }
+  }
+
+  return false;
+}
 
 const PurePreviewMessage = ({
   chatId,
@@ -29,6 +53,7 @@ const PurePreviewMessage = ({
   reload,
   isReadonly,
   requiresScrollPadding,
+  status,
 }: {
   chatId: string;
   message: UIMessage;
@@ -38,6 +63,7 @@ const PurePreviewMessage = ({
   reload: UseChatHelpers['reload'];
   isReadonly: boolean;
   requiresScrollPadding: boolean;
+  status: UseChatHelpers['status'];
 }) => {
   const [mode, setMode] = useState<'view' | 'edit'>('view');
 
@@ -157,67 +183,129 @@ const PurePreviewMessage = ({
                 const { toolInvocation } = part;
                 const { toolName, toolCallId, state } = toolInvocation;
 
-                if (state === 'call') {
+                const renderCallContent = () => {
                   const { args } = toolInvocation;
 
-                  return (
-                    <div
-                      key={toolCallId}
-                      className={cx({
-                        skeleton: ['getWeather'].includes(toolName),
-                      })}
-                    >
-                      {toolName === 'getWeather' ? (
-                        <Weather />
-                      ) : toolName === 'createDocument' ? (
-                        <DocumentPreview isReadonly={isReadonly} args={args} />
-                      ) : toolName === 'updateDocument' ? (
-                        <DocumentToolCall
-                          type="update"
-                          args={args}
-                          isReadonly={isReadonly}
-                        />
-                      ) : toolName === 'requestSuggestions' ? (
-                        <DocumentToolCall
-                          type="request-suggestions"
-                          args={args}
-                          isReadonly={isReadonly}
-                        />
-                      ) : null}
-                    </div>
-                  );
-                }
+                  if (toolName === 'createDocument') {
+                    return (
+                      <DocumentPreview isReadonly={isReadonly} args={args} />
+                    );
+                  } else if (toolName === 'updateDocument') {
+                    return (
+                      <DocumentToolCall
+                        type="update"
+                        args={args}
+                        isReadonly={isReadonly}
+                      />
+                    );
+                  } else if (toolName === 'requestSuggestions') {
+                    return (
+                      <DocumentToolCall
+                        type="request-suggestions"
+                        args={args}
+                        isReadonly={isReadonly}
+                      />
+                    );
+                  } else {
+                    return (
+                      <CodeView
+                        code={JSON.stringify(args, null, 4)}
+                        language="json"
+                        maxHeight={400}
+                      />
+                    );
+                  }
+                };
 
-                if (state === 'result') {
+                const renderResultContent = () => {
+                  if (state !== 'result')
+                    return (
+                      <div className="text-muted-foreground p-4">
+                        No result data available
+                      </div>
+                    );
+
                   const { result } = toolInvocation;
 
-                  return (
-                    <div key={toolCallId}>
-                      {toolName === 'getWeather' ? (
-                        <Weather weatherAtLocation={result} />
-                      ) : toolName === 'createDocument' ? (
-                        <DocumentPreview
-                          isReadonly={isReadonly}
-                          result={result}
-                        />
-                      ) : toolName === 'updateDocument' ? (
-                        <DocumentToolResult
-                          type="update"
-                          result={result}
-                          isReadonly={isReadonly}
-                        />
-                      ) : toolName === 'requestSuggestions' ? (
-                        <DocumentToolResult
-                          type="request-suggestions"
-                          result={result}
-                          isReadonly={isReadonly}
-                        />
-                      ) : (
-                        <pre>{JSON.stringify(result, null, 2)}</pre>
-                      )}
-                    </div>
-                  );
-                }
+                  if (toolName === 'createDocument') {
+                    return (
+                      <DocumentPreview
+                        isReadonly={isReadonly}
+                        result={result}
+                      />
+                    );
+                  } else if (toolName === 'updateDocument') {
+                    return (
+                      <DocumentToolResult
+                        type="update"
+                        result={result}
+                        isReadonly={isReadonly}
+                      />
+                    );
+                  } else if (toolName === 'requestSuggestions') {
+                    return (
+                      <DocumentToolResult
+                        type="request-suggestions"
+                        result={result}
+                        isReadonly={isReadonly}
+                      />
+                    );
+                  } else {
+                    return (
+                      <CodeView
+                        code={JSON.stringify(parseMcpContent(result), null, 2)}
+                        language="json"
+                        maxHeight={400}
+                      />
+                    );
+                  }
+                };
+
+                return (
+                  <Collapsible key={toolCallId}>
+                    <CollapsibleTrigger className="flex items-center gap-2 p-3 hover:bg-muted rounded-lg border w-full text-left">
+                      <span className="font-medium">{toolName}</span>
+                      <span className="text-xs px-2 py-1 rounded">
+                        {state === 'call' ? (
+                          status === 'streaming' ? (
+                            <Spinner
+                              className="text-green-400 color-green-400"
+                              size="sm"
+                              color="black"
+                            />
+                          ) : (
+                            <CircleAlertIcon
+                              size={16}
+                              className="text-red-600"
+                            />
+                          )
+                        ) : (
+                          <CheckIcon size={16} className="text-green-600" />
+                        )}
+                      </span>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent className="mt-2">
+                      <Tabs defaultValue={state} className="w-full">
+                        <TabsList className="grid w-full grid-cols-2">
+                          <TabsTrigger value="call">Call</TabsTrigger>
+                          <TabsTrigger value="result">Result</TabsTrigger>
+                        </TabsList>
+                        <TabsContent
+                          value="call"
+                          className="mt-4 min-w-0 w-full"
+                        >
+                          {renderCallContent()}
+                        </TabsContent>
+                        <TabsContent
+                          value="result"
+                          className="mt-4 min-w-0 w-full"
+                        >
+                          {renderResultContent()}
+                        </TabsContent>
+                      </Tabs>
+                    </CollapsibleContent>
+                  </Collapsible>
+                );
               }
             })}
 
