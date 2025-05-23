@@ -152,8 +152,6 @@ export async function POST(request: Request) {
 
     const mcpTools = await mcpClient.tools();
 
-    console.log('mcpTools', mcpTools);
-
     const provider = getModelProvider(
       selectedChatModel,
       selectedChatModelProvider,
@@ -191,6 +189,7 @@ export async function POST(request: Request) {
             ...mcpTools,
           },
           onFinish: async ({ response }) => {
+            console.log('response', response);
             if (session.user?.id) {
               try {
                 const assistantId = getTrailingMessageId({
