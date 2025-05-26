@@ -5,7 +5,7 @@ import { useChat } from '@ai-sdk/react';
 import { useEffect, useState } from 'react';
 import useSWR, { useSWRConfig } from 'swr';
 import { ChatHeader } from '@/components/chat-header';
-import type { Vote } from '@/lib/db/schema';
+import type { Prompt, Vote } from '@/lib/db/schema';
 import { fetcher, fetchWithErrorHandlers, generateUUID } from '@/lib/utils';
 import { Artifact } from './artifact';
 import { MultimodalInput } from './input/multimodal-input';
@@ -32,6 +32,7 @@ export function Chat({
   autoResume,
   providers,
   selectedChatModelProvider,
+  selectedPrompt,
 }: {
   id: string;
   initialMessages: Array<UIMessage>;
@@ -42,6 +43,7 @@ export function Chat({
   autoResume: boolean;
   providers: Providers;
   selectedChatModelProvider: ProviderType;
+  selectedPrompt: Prompt | null;
 }) {
   const { mutate } = useSWRConfig();
 
@@ -167,6 +169,7 @@ export function Chat({
               setMessages={setMessages}
               append={append}
               selectedVisibilityType={visibilityType}
+              selectedPrompt={selectedPrompt}
             />
           )}
         </form>
@@ -188,6 +191,7 @@ export function Chat({
         votes={votes}
         isReadonly={isReadonly}
         selectedVisibilityType={visibilityType}
+        selectedPrompt={selectedPrompt}
       />
     </>
   );

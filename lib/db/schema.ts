@@ -191,7 +191,8 @@ export const userPrompt = pgTable(
   {
     userId: uuid('userId')
       .notNull()
-      .references(() => user.id),
+      .references(() => user.id)
+      .unique(),
     promptId: uuid('promptId')
       .notNull()
       .references(() => prompt.id),

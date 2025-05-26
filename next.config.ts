@@ -11,6 +11,9 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  serverExternalPackages: ['vm2'],
 };
+
+// export default withRspack(nextConfig);
 
 export default nextConfig;

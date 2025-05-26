@@ -1,3 +1,5 @@
+'server-only';
+
 import { transformSync } from '@swc/core';
 import { VM } from 'vm2';
 import { detectTypeScriptSyntax } from './helper';

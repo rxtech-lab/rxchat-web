@@ -1,3 +1,5 @@
+'server-only';
+
 import { createRunnerEnvironment } from '../runtime/runner-environment';
 
 /**

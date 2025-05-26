@@ -12,7 +12,11 @@ import {
   type ProviderType,
   type Providers,
 } from '@/lib/ai/models';
-import { getChatById, getMessagesByChatId } from '@/lib/db/queries';
+import {
+  getChatById,
+  getMessagesByChatId,
+  getUserPromptByUserId,
+} from '@/lib/db/queries';
 import type { DBMessage } from '@/lib/db/schema';
 import type { Attachment, UIMessage } from 'ai';
 
@@ -43,6 +47,9 @@ export default async function Page(props: { params: Promise<{ id: string }> }) {
 
   const messagesFromDb = await getMessagesByChatId({
     id,
+  });
+  const selectedPrompt = await getUserPromptByUserId({
+    userId: session.user.id,
   });
 
   function convertToUIMessages(messages: Array<DBMessage>): Array<UIMessage> {
@@ -85,6 +92,7 @@ export default async function Page(props: { params: Promise<{ id: string }> }) {
           autoResume={true}
           providers={providerWithModels}
           selectedChatModelProvider={'openRouter'}
+          selectedPrompt={selectedPrompt}
         />
         <DataStreamHandler id={id} />
       </>
@@ -105,6 +113,7 @@ export default async function Page(props: { params: Promise<{ id: string }> }) {
         selectedChatModelProvider={
           providerTypeFromCookie?.value as ProviderType
         }
+        selectedPrompt={selectedPrompt}
       />
       <DataStreamHandler id={id} />
     </>
