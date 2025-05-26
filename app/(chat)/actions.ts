@@ -76,17 +76,27 @@ export async function getMCPTools() {
   return tools;
 }
 
-export async function testPrompt(code: string) {
+export async function testPrompt(code: string): Promise<{
+  result?: string;
+  error?: string;
+}> {
   'server-only';
 
-  // only allow authenticated users to test prompts
-  const session = await auth();
-  if (!session?.user) {
-    throw new Error('Unauthorized');
-  }
+  try {
+    // only allow authenticated users to test prompts
+    const session = await auth();
+    if (!session?.user) {
+      throw new Error('Unauthorized');
+    }
 
-  const result = await createPromptRunner(code);
-  return result;
+    const result = await createPromptRunner(code);
+    return { result };
+  } catch (error) {
+    console.error(error);
+    return {
+      error: error instanceof Error ? error.message : 'Unknown error',
+    };
+  }
 }
 
 export async function selectPrompt({

@@ -117,12 +117,14 @@ export function PromptDialog({ currentPrompt }: PromptDialogProps) {
       setFormValid(false);
     } finally {
       setSubmitting(false);
+      router.refresh();
     }
   };
 
   // Handle deleting a prompt
   const handleDeletePrompt = async (prompt: Prompt) => {
     await deletePrompt(prompt.id, prompt.title);
+    router.refresh();
   };
 
   const handleOpenDialog = (e: React.MouseEvent) => {
@@ -173,7 +175,7 @@ export function PromptDialog({ currentPrompt }: PromptDialogProps) {
     if (loading) {
       return (
         <div className="flex items-center justify-center py-8">
-          <Loader2 className="w-6 h-6 animate-spin" />
+          <Loader2 className="size-6 animate-spin" />
           <span className="ml-2">Loading prompts...</span>
         </div>
       );
@@ -232,7 +234,7 @@ export function PromptDialog({ currentPrompt }: PromptDialogProps) {
               size="sm"
               className="flex items-center gap-2 mr-10"
             >
-              <Plus className="w-4 h-4" />
+              <Plus className="size-4" />
               New Prompt
             </Button>
           )}
