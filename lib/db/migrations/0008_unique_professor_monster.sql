@@ -1,0 +1,1 @@
+ALTER TABLE "UserPrompt" ADD CONSTRAINT "UserPrompt_userId_unique" UNIQUE("userId");

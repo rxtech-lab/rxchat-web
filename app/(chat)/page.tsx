@@ -13,6 +13,7 @@ import { DataStreamHandler } from '@/components/data-stream-handler';
 import { auth } from '../(auth)/auth';
 import { redirect } from 'next/navigation';
 import { entitlementsByUserType } from '@/lib/ai/entitlements';
+import { getPromptsByUserId, getUserPromptByUserId } from '@/lib/db/queries';
 
 export default async function Page() {
   const session = await auth();
@@ -26,6 +27,9 @@ export default async function Page() {
   const cookieStore = await cookies();
   const modelIdFromCookie = cookieStore.get('chat-model');
   const providerTypeFromCookie = cookieStore.get('chat-model-provider');
+  const selectedPrompt = await getUserPromptByUserId({
+    userId: session.user.id,
+  });
 
   const entitlements = entitlementsByUserType[session.user.type];
 
@@ -52,6 +56,7 @@ export default async function Page() {
           autoResume={false}
           providers={providerWithModels}
           selectedChatModelProvider={'openRouter'}
+          selectedPrompt={selectedPrompt}
         />
         <DataStreamHandler id={id} />
       </>
@@ -71,6 +76,7 @@ export default async function Page() {
         autoResume={false}
         providers={providerWithModels}
         selectedChatModelProvider={providerTypeFromCookie.value as ProviderType}
+        selectedPrompt={selectedPrompt}
       />
       <DataStreamHandler id={id} />
     </>

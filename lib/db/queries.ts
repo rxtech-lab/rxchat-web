@@ -543,7 +543,11 @@ export async function getStreamIdsByChatId({ chatId }: { chatId: string }) {
 
 export async function getPromptsByUserId({ userId }: { userId: string }) {
   try {
-    return await db.select().from(prompt).where(eq(prompt.authorId, userId));
+    return await db
+      .select()
+      .from(prompt)
+      .where(eq(prompt.authorId, userId))
+      .orderBy(desc(prompt.createdAt));
   } catch (error) {
     throw new ChatSDKError(
       'bad_request:database',
@@ -552,12 +556,22 @@ export async function getPromptsByUserId({ userId }: { userId: string }) {
   }
 }
 
-export async function getUserPromptsByUserId({ userId }: { userId: string }) {
+export async function getUserPromptByUserId({
+  userId,
+}: { userId: string }): Promise<Prompt | null> {
   try {
-    return await db
+    const prompts = await db
       .select()
       .from(userPrompt)
-      .where(eq(userPrompt.userId, userId));
+      .innerJoin(prompt, eq(userPrompt.promptId, prompt.id))
+      .where(eq(userPrompt.userId, userId))
+      .limit(1);
+
+    if (prompts.length === 0) {
+      return null;
+    }
+
+    return prompts[0].Prompt;
   } catch (error) {
     throw new ChatSDKError(
       'bad_request:database',
@@ -590,7 +604,7 @@ export async function updatePrompt({
   prompt: newPrompt,
 }: {
   promptId: string;
-  prompt: Prompt;
+  prompt: Partial<Prompt>;
 }) {
   try {
     return await db
@@ -610,16 +624,39 @@ export async function deletePrompt({ id }: { id: string }) {
   }
 }
 
+/**
+ * Selects a prompt for a user. If the user already has a selected prompt,
+ * it updates the selection to the new prompt. If not, it creates a new selection.
+ * Uses upsert pattern with unique constraint on userId for efficient database operation.
+ *
+ * @param id - The ID of the prompt to select
+ * @param userId - The ID of the user selecting the prompt
+ * @returns The result of the database operation
+ */
 export async function selectPromptById({
   id,
   userId,
 }: { id: string; userId: string }) {
   try {
-    return await db
-      .select()
-      .from(prompt)
-      .where(and(eq(prompt.id, id), eq(prompt.authorId, userId)));
+    const result = await db
+      .insert(userPrompt)
+      .values({
+        promptId: id,
+        userId,
+        selectedAt: new Date(),
+      })
+      .onConflictDoUpdate({
+        target: [userPrompt.userId],
+        set: {
+          promptId: id,
+          selectedAt: new Date(),
+        },
+      })
+      .returning();
+
+    return result;
   } catch (error) {
+    console.error(error);
     throw new ChatSDKError(
       'bad_request:database',
       'Failed to select prompt by id',

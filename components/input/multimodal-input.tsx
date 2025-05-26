@@ -1,6 +1,7 @@
 'use client';
 
 import type { Attachment, UIMessage } from 'ai';
+import type { Prompt } from '@/lib/db/schema';
 import cx from 'classnames';
 import type React from 'react';
 import {
@@ -48,6 +49,7 @@ function PureMultimodalInput({
   handleSubmit,
   className,
   selectedVisibilityType,
+  selectedPrompt,
 }: {
   chatId: string;
   input: UseChatHelpers['input'];
@@ -62,6 +64,7 @@ function PureMultimodalInput({
   handleSubmit: UseChatHelpers['handleSubmit'];
   className?: string;
   selectedVisibilityType: VisibilityType;
+  selectedPrompt: Prompt | null;
 }) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { width } = useWindowSize();
@@ -329,7 +332,7 @@ function PureMultimodalInput({
   ]);
 
   return (
-    <div className="relative w-full flex flex-col gap-4 bg-white">
+    <div className="relative w-full flex flex-col gap-4">
       {messages.length === 0 &&
         attachments.length === 0 &&
         uploadQueue.length === 0 && (
@@ -341,8 +344,8 @@ function PureMultimodalInput({
         )}
       {messages.length === 0 && <div className="h-10" />}
       <div className="relative w-full flex flex-col gap-4">
-        <div className="flex flex-row gap-2 h-32 -top-12 absolute bg-white w-full rounded-t-2xl shadow-t-lg border-t border-x border-zinc-200 p-2">
-          <PromptDialog />
+        <div className="flex flex-row gap-2 h-32 -top-12 absolute bg-white dark:bg-zinc-900 w-full rounded-t-2xl shadow-t-lg border-t border-x border-zinc-200 dark:border-zinc-700 p-2">
+          <PromptDialog currentPrompt={selectedPrompt || undefined} />
         </div>
         {InputArea}
       </div>

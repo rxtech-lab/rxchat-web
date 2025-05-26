@@ -1,12 +1,14 @@
-import {
-  appendClientMessage,
-  appendResponseMessages,
-  createDataStream,
-  smoothStream,
-  streamText,
-} from 'ai';
 import { auth, type UserType } from '@/app/(auth)/auth';
-import { type RequestHints, systemPrompt } from '@/lib/ai/prompts';
+import { createPromptRunner } from '@/lib/agent/prompt-runner/runner';
+import { entitlementsByUserType } from '@/lib/ai/entitlements';
+import { mcpClient } from '@/lib/ai/mcp';
+import { systemPrompt, type RequestHints } from '@/lib/ai/prompts';
+import { getModelProvider } from '@/lib/ai/providers';
+import { createDocument } from '@/lib/ai/tools/create-document';
+import { getWeather } from '@/lib/ai/tools/get-weather';
+import { requestSuggestions } from '@/lib/ai/tools/request-suggestions';
+import { updateDocument } from '@/lib/ai/tools/update-document';
+import { isProductionEnvironment } from '@/lib/constants';
 import {
   createStreamId,
   deleteChatById,
@@ -14,29 +16,29 @@ import {
   getMessageCountByUserId,
   getMessagesByChatId,
   getStreamIdsByChatId,
+  getUserPromptByUserId,
   saveChat,
   saveMessages,
 } from '@/lib/db/queries';
+import type { Chat } from '@/lib/db/schema';
+import { ChatSDKError } from '@/lib/errors';
 import { generateUUID, getTrailingMessageId } from '@/lib/utils';
-import { generateTitleFromUserMessage } from '../../actions';
-import { createDocument } from '@/lib/ai/tools/create-document';
-import { updateDocument } from '@/lib/ai/tools/update-document';
-import { requestSuggestions } from '@/lib/ai/tools/request-suggestions';
-import { getWeather } from '@/lib/ai/tools/get-weather';
-import { isProductionEnvironment } from '@/lib/constants';
-import { getModelProvider } from '@/lib/ai/providers';
-import { entitlementsByUserType } from '@/lib/ai/entitlements';
-import { postRequestBodySchema, type PostRequestBody } from './schema';
 import { geolocation } from '@vercel/functions';
+import {
+  appendClientMessage,
+  appendResponseMessages,
+  createDataStream,
+  smoothStream,
+  streamText,
+} from 'ai';
+import { differenceInSeconds } from 'date-fns';
+import { after } from 'next/server';
 import {
   createResumableStreamContext,
   type ResumableStreamContext,
 } from 'resumable-stream';
-import { after } from 'next/server';
-import type { Chat } from '@/lib/db/schema';
-import { differenceInSeconds } from 'date-fns';
-import { ChatSDKError } from '@/lib/errors';
-import { mcpClient } from '@/lib/ai/mcp';
+import { generateTitleFromUserMessage } from '../../actions';
+import { postRequestBodySchema, type PostRequestBody } from './schema';
 
 export const maxDuration = 60;
 
@@ -157,11 +159,30 @@ export async function POST(request: Request) {
       selectedChatModelProvider,
     );
 
+    let defaultSystemPrompt = systemPrompt({
+      selectedChatModel,
+      requestHints,
+    });
+
+    const userPrompt = await getUserPromptByUserId({
+      userId: session.user.id,
+    });
+
+    if (userPrompt) {
+      const userPromptResult = await createPromptRunner(userPrompt.code);
+      defaultSystemPrompt = `
+      ${defaultSystemPrompt}
+
+      User also provided the following prompt:
+      ${userPromptResult}
+      `;
+    }
+
     const stream = createDataStream({
       execute: (dataStream) => {
         const result = streamText({
           model: provider.languageModel('chat-model'),
-          system: systemPrompt({ selectedChatModel, requestHints }),
+          system: defaultSystemPrompt,
           messages,
           maxSteps: 20,
           experimental_transform: smoothStream({ chunking: 'word' }),

@@ -57,6 +57,13 @@
       "when": 1748249824182,
       "tag": "0007_striped_black_queen",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1748288025173,
+      "tag": "0008_unique_professor_monster",
+      "breakpoints": true
     }
   ]
 }

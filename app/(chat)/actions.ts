@@ -1,16 +1,19 @@
 'use server';
 
 import type { VisibilityType } from '@/components/visibility-selector';
+import { createPromptRunner } from '@/lib/agent/prompt-runner/runner';
 import { mcpClient } from '@/lib/ai/mcp';
 import type { ProviderType } from '@/lib/ai/models';
 import { titleModel } from '@/lib/ai/providers';
 import {
   deleteMessagesByChatIdAfterTimestamp,
   getMessageById,
+  selectPromptById,
   updateChatVisiblityById,
 } from '@/lib/db/queries';
 import { generateText, type UIMessage } from 'ai';
 import { cookies } from 'next/headers';
+import { auth } from '../(auth)/auth';
 
 export async function saveChatModelAsCookie(
   model: string,
@@ -71,4 +74,31 @@ export async function getMCPTools() {
   }
 
   return tools;
+}
+
+export async function testPrompt(code: string) {
+  'server-only';
+
+  // only allow authenticated users to test prompts
+  const session = await auth();
+  if (!session?.user) {
+    throw new Error('Unauthorized');
+  }
+
+  const result = await createPromptRunner(code);
+  return result;
+}
+
+export async function selectPrompt({
+  promptId,
+}: {
+  promptId: string;
+}) {
+  const session = await auth();
+  if (!session?.user) {
+    throw new Error('Unauthorized');
+  }
+
+  const userId = session.user.id;
+  await selectPromptById({ id: promptId, userId });
 }
