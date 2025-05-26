@@ -23,12 +23,9 @@ export async function middleware(request: NextRequest) {
     secureCookie: !isDevelopmentEnvironment,
   });
 
-  if (!token) {
-    const redirectUrl = encodeURIComponent(request.url);
-
-    return NextResponse.redirect(
-      new URL(`/api/auth/guest?redirectUrl=${redirectUrl}`, request.url),
-    );
+  // if no token and not in login route, redirect to login
+  if (!token && !pathname.startsWith('/login')) {
+    return NextResponse.redirect(new URL('/login', request.url));
   }
 
   const isGuest = guestRegex.test(token?.email ?? '');

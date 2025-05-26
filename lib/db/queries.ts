@@ -27,6 +27,10 @@ import {
   type DBMessage,
   type Chat,
   stream,
+  prompt,
+  userPrompt,
+  type Prompt,
+  type UserPrompt,
 } from './schema';
 import type { ArtifactKind } from '@/components/artifact';
 import { generateUUID } from '../utils';
@@ -533,6 +537,92 @@ export async function getStreamIdsByChatId({ chatId }: { chatId: string }) {
     throw new ChatSDKError(
       'bad_request:database',
       'Failed to get stream ids by chat id',
+    );
+  }
+}
+
+export async function getPromptsByUserId({ userId }: { userId: string }) {
+  try {
+    return await db.select().from(prompt).where(eq(prompt.authorId, userId));
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to get prompts by user id',
+    );
+  }
+}
+
+export async function getUserPromptsByUserId({ userId }: { userId: string }) {
+  try {
+    return await db
+      .select()
+      .from(userPrompt)
+      .where(eq(userPrompt.userId, userId));
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to get user prompts by user id',
+    );
+  }
+}
+
+export async function createPrompt({
+  prompt: createdPrompt,
+  userId,
+}: {
+  prompt: Prompt;
+  userId: string;
+}) {
+  try {
+    return await db.insert(prompt).values({
+      ...createdPrompt,
+      authorId: userId,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+  } catch (error) {
+    throw new ChatSDKError('bad_request:database', 'Failed to create prompt');
+  }
+}
+
+export async function updatePrompt({
+  promptId,
+  prompt: newPrompt,
+}: {
+  promptId: string;
+  prompt: Prompt;
+}) {
+  try {
+    return await db
+      .update(prompt)
+      .set(newPrompt)
+      .where(eq(prompt.id, promptId));
+  } catch (error) {
+    throw new ChatSDKError('bad_request:database', 'Failed to update prompt');
+  }
+}
+
+export async function deletePrompt({ id }: { id: string }) {
+  try {
+    return await db.delete(prompt).where(eq(prompt.id, id));
+  } catch (error) {
+    throw new ChatSDKError('bad_request:database', 'Failed to delete prompt');
+  }
+}
+
+export async function selectPromptById({
+  id,
+  userId,
+}: { id: string; userId: string }) {
+  try {
+    return await db
+      .select()
+      .from(prompt)
+      .where(and(eq(prompt.id, id), eq(prompt.authorId, userId)));
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to select prompt by id',
     );
   }
 }

@@ -1,14 +1,13 @@
 import { ChevronRight } from 'lucide-react';
 import { useState } from 'react';
+import { Button } from '../ui/button';
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from '../ui/dialog';
-import { Button } from '../ui/button';
 
 export function PromptDialog() {
   const [open, setOpen] = useState(false);

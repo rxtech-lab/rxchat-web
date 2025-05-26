@@ -168,3 +168,40 @@ export const stream = pgTable(
 );
 
 export type Stream = InferSelectModel<typeof stream>;
+
+export const prompt = pgTable('Prompt', {
+  id: uuid('id').primaryKey().notNull().defaultRandom(),
+  title: text('title').notNull(),
+  description: text('description'),
+  code: text('code').notNull(),
+  authorId: uuid('authorId')
+    .notNull()
+    .references(() => user.id),
+  visibility: varchar('visibility', { enum: ['private', 'public'] })
+    .notNull()
+    .default('private'),
+  createdAt: timestamp('createdAt').notNull(),
+  updatedAt: timestamp('updatedAt').notNull(),
+});
+
+export type Prompt = InferSelectModel<typeof prompt>;
+
+export const userPrompt = pgTable(
+  'UserPrompt',
+  {
+    userId: uuid('userId')
+      .notNull()
+      .references(() => user.id),
+    promptId: uuid('promptId')
+      .notNull()
+      .references(() => prompt.id),
+    selectedAt: timestamp('selectedAt').notNull(),
+  },
+  (table) => {
+    return {
+      pk: primaryKey({ columns: [table.userId, table.promptId] }),
+    };
+  },
+);
+
+export type UserPrompt = InferSelectModel<typeof userPrompt>;
