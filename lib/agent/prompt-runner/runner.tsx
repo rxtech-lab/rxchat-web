@@ -13,6 +13,8 @@ export async function createPromptRunner(code: string): Promise<string> {
   if (typeof result === 'string') {
     return result;
   } else {
-    throw new Error('The result of the prompt function must be a string.');
+    throw new Error(
+      `The result of the prompt function must be a string but got ${typeof result}`,
+    );
   }
 }

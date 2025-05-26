@@ -17,7 +17,7 @@ interface PromptFormProps {
   isLoading?: boolean;
 }
 
-const defaultCode = `function prompt(): string {
+const defaultCode = `async function prompt(): Promise<string> {
   return 'Hello, world!';
 }
 `;
@@ -44,6 +44,10 @@ export function PromptForm({
 
     const testPromise = testPrompt(code.trim())
       .then((result) => {
+        if ('error' in result) {
+          setCodeValid(false);
+          throw new Error(result.error);
+        }
         handleSubmit(true);
         setCodeValid(true);
         return result;
@@ -58,7 +62,8 @@ export function PromptForm({
 
     toast.promise(testPromise, {
       loading: 'Testing code...',
-      success: (result) => `Code executed successfully! Result: ${result}`,
+      success: (result) =>
+        `Code executed successfully! \nResult: ${result.result}`,
       error: (error) => `Code test failed: ${error.message || 'Unknown error'}`,
     });
   };
