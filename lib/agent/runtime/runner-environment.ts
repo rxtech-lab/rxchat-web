@@ -1,6 +1,6 @@
 import { transformSync } from '@swc/core';
 import { VM } from 'vm2';
-import { detectTypeScriptSyntax } from './runtime/helper';
+import { detectTypeScriptSyntax } from './helper';
 import axios, { type AxiosRequestConfig } from 'axios';
 
 /**
