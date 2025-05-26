@@ -18,18 +18,17 @@ describe('createRunnerEnvironment', () => {
 
     it('should execute simple promise JavaScript code successfully', async () => {
       const result = await createRunnerEnvironment(
-          `
+        `
      function prompt(systemPrompt) {
         return new Promise(async (resolve) => {
           resolve('Hello ' + systemPrompt);
         });
      }
       `,
-          "prompt('hello')",
+        "prompt('hello')",
       );
       expect(result).toBe('Hello hello');
     });
-
 
     it('should execute simple promise JavaScript code that returns an object successfully', async () => {
       const result = await createRunnerEnvironment(
