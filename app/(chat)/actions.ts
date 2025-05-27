@@ -2,7 +2,7 @@
 
 import type { VisibilityType } from '@/components/visibility-selector';
 import { createPromptRunner } from '@/lib/agent/prompt-runner/runner';
-import { mcpClient } from '@/lib/ai/mcp';
+import { createMCPClient } from '@/lib/ai/mcp';
 import type { ProviderType } from '@/lib/ai/models';
 import { titleModel } from '@/lib/ai/providers';
 import {
@@ -62,6 +62,7 @@ export async function updateChatVisibility({
 }
 
 export async function getMCPTools() {
+  const mcpClient = await createMCPClient();
   const mcpTools = await mcpClient.tools();
 
   const tools: { title: string; description: string }[] = [];

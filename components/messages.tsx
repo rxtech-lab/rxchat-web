@@ -37,12 +37,13 @@ function PureMessages({
   } = useMessages({
     chatId,
     status,
+    messages,
   });
 
   return (
     <div
       ref={messagesContainerRef}
-      className="flex flex-col min-w-0 gap-6 flex-1 overflow-y-scroll pt-4 relative w-full"
+      className="flex flex-col min-w-0 gap-6 flex-1 overflow-y-scroll pt-4 pb-12 relative w-full"
     >
       {messages.length === 0 && <Greeting />}
 
@@ -85,7 +86,6 @@ export const Messages = memo(PureMessages, (prevProps, nextProps) => {
   if (prevProps.isArtifactVisible && nextProps.isArtifactVisible) return true;
 
   if (prevProps.status !== nextProps.status) return false;
-  if (prevProps.status && nextProps.status) return false;
   if (prevProps.messages.length !== nextProps.messages.length) return false;
   if (!equal(prevProps.messages, nextProps.messages)) return false;
   if (!equal(prevProps.votes, nextProps.votes)) return false;
