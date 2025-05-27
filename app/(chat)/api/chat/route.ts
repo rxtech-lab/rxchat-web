@@ -1,7 +1,7 @@
 import { auth, type UserType } from '@/app/(auth)/auth';
 import { createPromptRunner } from '@/lib/agent/prompt-runner/runner';
 import { entitlementsByUserType } from '@/lib/ai/entitlements';
-import { mcpClient } from '@/lib/ai/mcp';
+import { createMCPClient } from '@/lib/ai/mcp';
 import { systemPrompt, type RequestHints } from '@/lib/ai/prompts';
 import { getModelProvider } from '@/lib/ai/providers';
 import { createDocument } from '@/lib/ai/tools/create-document';
@@ -152,6 +152,7 @@ export async function POST(request: Request) {
     const streamId = generateUUID();
     await createStreamId({ streamId, chatId: id });
 
+    const mcpClient = await createMCPClient();
     const mcpTools = await mcpClient.tools();
 
     const provider = getModelProvider(
@@ -210,6 +211,7 @@ export async function POST(request: Request) {
             ...mcpTools,
           },
           onFinish: async ({ response }) => {
+            await mcpClient.close();
             if (session.user?.id) {
               try {
                 const assistantId = getTrailingMessageId({

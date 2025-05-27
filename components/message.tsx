@@ -7,15 +7,18 @@ import type { UIMessage } from 'ai';
 import cx from 'classnames';
 import equal from 'fast-deep-equal';
 import { AnimatePresence, motion } from 'framer-motion';
+import { CheckIcon, CircleAlertIcon } from 'lucide-react';
 import { memo, useState } from 'react';
+import { CodeView } from './code-view';
 import { DocumentToolCall, DocumentToolResult } from './document';
 import { DocumentPreview } from './document-preview';
-import { PencilEditIcon, SparklesIcon, WarningIcon } from './icons';
+import { PencilEditIcon, SparklesIcon } from './icons';
 import { Markdown } from './markdown';
 import { MessageActions } from './message-actions';
 import { MessageEditor } from './message-editor';
 import { MessageReasoning } from './message-reasoning';
 import { PreviewAttachment } from './preview-attachment';
+import Spinner from './spiner';
 import { Button } from './ui/button';
 import {
   Collapsible,
@@ -24,9 +27,6 @@ import {
 } from './ui/collapsible';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
-import { CodeView } from './code-view';
-import { CheckIcon, CircleAlertIcon } from 'lucide-react';
-import Spinner from './spiner';
 
 function parseMcpContent(obj: any) {
   if ('content' in obj) {
@@ -72,8 +72,8 @@ const PurePreviewMessage = ({
       <motion.div
         data-testid={`message-${message.role}`}
         className="w-full mx-auto max-w-3xl px-4 group/message"
-        initial={{ y: 5, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
+        // initial={{ y: 5, opacity: 0 }}
+        // animate={{ y: 0, opacity: 1 }}
         data-role={message.role}
       >
         <div

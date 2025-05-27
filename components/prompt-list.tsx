@@ -69,15 +69,14 @@ export function PromptList({
                   key={prompt.id}
                   className={cn(
                     'group p-4 border rounded-lg cursor-pointer transition-all duration-200 hover:bg-muted/50 hover:shadow-md h-fit relative',
-                    isSelected &&
-                      'border-primary bg-gradient-to-br from-primary/10 to-primary/5 shadow-lg ring-2 ring-primary/20 hover:scale-[1.02]',
+                    isSelected && 'border-primary hover:scale-[1.02]',
                     isLoading && 'opacity-75 cursor-wait',
                   )}
                   onClick={() => !isLoading && onSelect(prompt)}
                 >
                   {isLoading && (
                     <div className="absolute inset-0 bg-background/50 rounded-lg flex items-center justify-center z-10">
-                      <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                      <Loader2 className="size-6 animate-spin text-primary" />
                     </div>
                   )}
 
