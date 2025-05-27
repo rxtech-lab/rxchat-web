@@ -210,6 +210,7 @@ export async function POST(request: Request) {
             ...mcpTools,
           },
           onFinish: async ({ response }) => {
+            await mcpClient.close();
             if (session.user?.id) {
               try {
                 const assistantId = getTrailingMessageId({
