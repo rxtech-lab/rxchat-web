@@ -134,6 +134,7 @@ export async function POST(request: Request) {
       latitude,
       city,
       country,
+      time: new Date().toISOString(),
     };
 
     await saveMessages({
