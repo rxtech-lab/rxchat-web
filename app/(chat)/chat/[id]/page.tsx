@@ -8,6 +8,7 @@ import { entitlementsByUserType } from '@/lib/ai/entitlements';
 import {
   DEFAULT_CHAT_MODEL,
   getOpenRouterModels,
+  getTestModels,
   providers,
   type ProviderType,
   type Providers,
@@ -68,11 +69,17 @@ export default async function Page(props: { params: Promise<{ id: string }> }) {
   const entitlements = entitlementsByUserType[session.user.type];
 
   const openRouterModels = await getOpenRouterModels(entitlements);
+  const testModels = getTestModels();
+
   const providerWithModels: Providers = {
     ...providers,
     openRouter: {
       ...providers.openRouter,
       models: openRouterModels,
+    },
+    test: {
+      ...providers.test,
+      models: testModels,
     },
   };
   const cookieStore = await cookies();

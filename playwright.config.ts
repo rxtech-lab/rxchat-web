@@ -29,7 +29,7 @@ export default defineConfig({
   /* Fail the build on CI if you accidentally left test.only in the source code. */
   forbidOnly: !!process.env.CI,
   /* Retry on CI only */
-  retries: 0,
+  retries: 1,
   /* Opt out of parallel tests on CI. */
   workers: process.env.CI ? 2 : 8,
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
@@ -103,5 +103,13 @@ export default defineConfig({
     url: `${baseURL}/ping`,
     timeout: 120 * 1000,
     reuseExistingServer: !process.env.CI,
+    env: {
+      IS_TEST: 'true',
+      OPENROUTER_API_KEY: 'sk-or-v1-1234567890',
+      POSTGRES_URL_TEST:
+        'postgresql://postgres:postgres@localhost:5432/postgres',
+      AUTH_SECRET: 'secret',
+      REDIS_URL: 'redis://localhost:6379',
+    },
   },
 });

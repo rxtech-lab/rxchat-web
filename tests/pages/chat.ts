@@ -1,7 +1,6 @@
+import { expect, type Page } from '@playwright/test';
 import fs from 'node:fs';
 import path from 'node:path';
-import { getOpenRouterModels } from '@/lib/ai/models';
-import { expect, type Page } from '@playwright/test';
 
 export class ChatPage {
   constructor(private page: Page) {}
@@ -24,6 +23,18 @@ export class ChatPage {
 
   public get scrollToBottomButton() {
     return this.page.getByTestId('scroll-to-bottom-button');
+  }
+
+  async signIn() {
+    const emailInput = this.page.getByRole('textbox', {
+      name: 'Email Address',
+    });
+    const passwordInput = this.page.getByRole('textbox', { name: 'Password' });
+    const signInButton = this.page.getByRole('button', { name: 'Sign in' });
+
+    await emailInput.fill('test@test.com');
+    await passwordInput.fill('password');
+    await signInButton.click();
   }
 
   async createNewChat() {
@@ -102,15 +113,8 @@ export class ChatPage {
   }
 
   public async chooseModelFromSelector(chatModelId: string) {
-    // const chatModel = chatModels.find(
-    //   (chatModel) => chatModel.id === chatModelId,
-    // );
-    // if (!chatModel) {
-    //   throw new Error(`Model with id ${chatModelId} not found`);
-    // }
-    // await this.page.getByTestId('model-selector').click();
-    // await this.page.getByTestId(`model-selector-item-${chatModelId}`).click();
-    // expect(await this.getSelectedModel()).toBe(chatModel.name);
+    await this.page.getByTestId('model-selector').click();
+    await this.page.getByTestId(`model-selector-item-${chatModelId}`).click();
   }
 
   public async getSelectedVisibility() {

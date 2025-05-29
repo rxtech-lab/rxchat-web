@@ -4,16 +4,16 @@ import type { VisibilityType } from '@/components/visibility-selector';
 import { createPromptRunner } from '@/lib/agent/prompt-runner/runner';
 import { createMCPClient } from '@/lib/ai/mcp';
 import type { ProviderType } from '@/lib/ai/models';
-import { titleModel } from '@/lib/ai/providers';
 import {
   deleteMessagesByChatIdAfterTimestamp,
   getMessageById,
   selectPromptById,
   updateChatVisiblityById,
 } from '@/lib/db/queries';
-import { generateText, type UIMessage } from 'ai';
+import { generateText, type LanguageModel, type UIMessage } from 'ai';
 import { cookies } from 'next/headers';
 import { auth } from '../(auth)/auth';
+import { isTestEnvironment } from '@/lib/constants';
 
 export async function saveChatModelAsCookie(
   model: string,
@@ -26,8 +26,10 @@ export async function saveChatModelAsCookie(
 
 export async function generateTitleFromUserMessage({
   message,
+  titleModel,
 }: {
   message: UIMessage;
+  titleModel: LanguageModel;
 }) {
   const { text: title } = await generateText({
     model: titleModel,
@@ -62,6 +64,9 @@ export async function updateChatVisibility({
 }
 
 export async function getMCPTools() {
+  if (isTestEnvironment) {
+    return [];
+  }
   const mcpClient = await createMCPClient();
   const mcpTools = await mcpClient.tools();
 

@@ -24,7 +24,11 @@ export async function middleware(request: NextRequest) {
   });
 
   // if no token and not in login route, redirect to login
-  if (!token && !pathname.startsWith('/login')) {
+  if (
+    !token &&
+    !pathname.startsWith('/login') &&
+    !pathname.startsWith('/register')
+  ) {
     return NextResponse.redirect(new URL('/login', request.url));
   }
 
