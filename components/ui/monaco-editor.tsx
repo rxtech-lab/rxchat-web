@@ -11,6 +11,7 @@ import estreeParser from 'prettier/plugins/estree';
 interface MonacoEditorProps {
   value: string;
   onChange: (value: string | undefined) => void;
+  onSave: (value: string) => void;
   language?: string;
   height?: string;
   placeholder?: string;
@@ -33,6 +34,7 @@ function MonacoEditorComponent({
   height = '400px',
   placeholder = 'Enter your code here...',
   readOnly = false,
+  onSave,
 }: MonacoEditorProps) {
   const { theme, resolvedTheme } = useTheme();
   const editorRef = useRef<any>(null);
@@ -229,6 +231,7 @@ declare global {
       if ((e.ctrlKey || e.metaKey) && e.keyCode === monaco.KeyCode.KeyS) {
         e.preventDefault();
         e.stopPropagation();
+        onSave(editor.getValue());
         formatCode();
       }
     });

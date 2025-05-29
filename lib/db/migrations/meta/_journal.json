@@ -64,6 +64,34 @@
       "when": 1748288025173,
       "tag": "0008_unique_professor_monster",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1748502821756,
+      "tag": "0009_spotty_roxanne_simpson",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1748502908116,
+      "tag": "0010_small_fallen_one",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1748507975075,
+      "tag": "0011_peaceful_captain_america",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1748508790826,
+      "tag": "0012_steady_lester",
+      "breakpoints": true
     }
   ]
 }

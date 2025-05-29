@@ -18,8 +18,10 @@ export class AuthPage {
     await this.gotoRegister();
     await this.page.getByPlaceholder('user@acme.com').click();
     await this.page.getByPlaceholder('user@acme.com').fill(email);
-    await this.page.getByLabel('Password').click();
-    await this.page.getByLabel('Password').fill(password);
+    await this.page.getByLabel('Password').first().click();
+    await this.page.getByLabel('Password').first().fill(password);
+    await this.page.getByLabel('Confirm Password').first().click();
+    await this.page.getByLabel('Confirm Password').first().fill(password);
     await this.page.getByRole('button', { name: 'Sign Up' }).click();
   }
 

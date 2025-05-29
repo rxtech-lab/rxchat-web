@@ -358,6 +358,7 @@ export const MultimodalInput = memo(
   (prevProps, nextProps) => {
     if (prevProps.input !== nextProps.input) return false;
     if (prevProps.status !== nextProps.status) return false;
+    if (prevProps.selectedPrompt !== nextProps.selectedPrompt) return false;
     if (!equal(prevProps.attachments, nextProps.attachments)) return false;
     if (prevProps.selectedVisibilityType !== nextProps.selectedVisibilityType)
       return false;
