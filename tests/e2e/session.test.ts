@@ -1,6 +1,6 @@
 import { expect, test } from '../fixtures';
 import { AuthPage } from '../pages/auth';
-import { generateRandomTestUser } from '../helpers';
+import { generateRandomTestUser, type TestUser } from '../helpers';
 import { ChatPage } from '../pages/chat';
 import { getMessageByErrorCode } from '@/lib/errors';
 
@@ -85,5 +85,127 @@ test.describe('Entitlements', () => {
     await chatPage.expectToastToContain(
       getMessageByErrorCode('rate_limit:chat'),
     );
+  });
+});
+
+test.describe('Profile', () => {
+  test.describe('Delete account', () => {
+    let authPage: AuthPage;
+    let testUser: TestUser;
+
+    test.beforeEach(async ({ page }) => {
+      authPage = new AuthPage(page);
+      testUser = generateRandomTestUser();
+      await authPage.register(testUser.email, testUser.password);
+      await authPage.expectToastToContain('Account created successfully!');
+    });
+
+    test('User should be able to delete account', async ({ page }) => {
+      // Navigate to profile page
+      await page.goto('/profile');
+
+      // Scroll down to find delete account section
+      await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+
+      // Click delete account button to open dialog
+      await page.getByTestId('delete-account-button').click();
+
+      // Enter correct password
+      await page.getByTestId('delete-password-input').fill(testUser.password);
+
+      // Enter confirmation word "DELETE"
+      await page.getByTestId('delete-confirmation-input').fill('DELETE');
+
+      // Click confirm delete button
+      await page.getByTestId('delete-account-confirm-button').click();
+
+      // Should be redirected to login page
+      await page.waitForURL('/');
+      await expect(page).toHaveURL('/');
+
+      // Verify user cannot login with old credentials
+      await authPage.login(testUser.email, testUser.password);
+      await authPage.expectToastToContain('Invalid credentials!');
+    });
+
+    test('User enters wrong password for account deletion', async ({
+      page,
+    }) => {
+      // Navigate to profile page
+      await page.goto('/profile');
+
+      // Scroll down to find delete account section
+      await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+
+      // Click delete account button to open dialog
+      await page.getByTestId('delete-account-button').click();
+
+      // Enter incorrect password
+      await page.getByTestId('delete-password-input').fill('wrongpassword');
+
+      // Enter confirmation word "DELETE"
+      await page.getByTestId('delete-confirmation-input').fill('DELETE');
+
+      // Click confirm delete button
+      await page.getByTestId('delete-account-confirm-button').click();
+
+      // Should see error message
+      await expect(
+        page.getByText('Password is incorrect').first(),
+      ).toBeVisible();
+
+      // Refresh page and verify still logged in
+      await page.reload();
+      await expect(page.getByTestId('profile-information-card')).toBeVisible();
+    });
+
+    test('User enters wrong confirmation word for account deletion', async ({
+      page,
+    }) => {
+      // Navigate to profile page
+      await page.goto('/profile');
+
+      // Scroll down to find delete account section
+      await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+
+      // Click delete account button to open dialog
+      await page.getByTestId('delete-account-button').click();
+
+      // Enter correct password
+      await page.getByTestId('delete-password-input').fill(testUser.password);
+
+      // Enter wrong confirmation word
+      await page.getByTestId('delete-confirmation-input').fill('WRONG');
+
+      // Click confirm delete button
+      await page.getByTestId('delete-account-confirm-button').click();
+
+      // Should see error message
+      await expect(
+        page.getByText('Please type DELETE to confirm').first(),
+      ).toBeVisible();
+
+      // Refresh page and verify still logged in
+      await page.reload();
+      await expect(page.getByTestId('profile-information-card')).toBeVisible();
+    });
+
+    test('User closes delete account dialog', async ({ page }) => {
+      // Navigate to profile page
+      await page.goto('/profile');
+
+      // Scroll down to find delete account section
+      await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+
+      // Click delete account button to open dialog
+      await page.getByTestId('delete-account-button').click();
+
+      // Close dialog without completing deletion
+      await page.getByTestId('delete-account-cancel-button').click();
+
+      // Should still be on profile page and logged in
+      await expect(page).toHaveURL('/profile');
+      await expect(page.getByTestId('profile-information-card')).toBeVisible();
+    });
   });
 });
