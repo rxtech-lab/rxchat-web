@@ -1,19 +1,21 @@
 import { cookies } from 'next/headers';
 
 import { Chat } from '@/components/chat';
+import { DataStreamHandler } from '@/components/data-stream-handler';
+import { entitlementsByUserType } from '@/lib/ai/entitlements';
 import {
   DEFAULT_CHAT_MODEL,
   getOpenRouterModels,
+  getTestModels,
   type Providers,
   providers,
   type ProviderType,
 } from '@/lib/ai/models';
+import { getUserPromptByUserId } from '@/lib/db/queries';
 import { generateUUID } from '@/lib/utils';
-import { DataStreamHandler } from '@/components/data-stream-handler';
-import { auth } from '../(auth)/auth';
 import { redirect } from 'next/navigation';
-import { entitlementsByUserType } from '@/lib/ai/entitlements';
-import { getPromptsByUserId, getUserPromptByUserId } from '@/lib/db/queries';
+import { auth } from '../(auth)/auth';
+import { isTestEnvironment } from '@/lib/constants';
 
 export default async function Page() {
   const session = await auth();
@@ -34,11 +36,16 @@ export default async function Page() {
   const entitlements = entitlementsByUserType[session.user.type];
 
   const openRouterModels = await getOpenRouterModels(entitlements);
+  const testModels = getTestModels();
   const providerWithModels: Providers = {
     ...providers,
     openRouter: {
       ...providers.openRouter,
       models: openRouterModels,
+    },
+    test: {
+      ...providers.test,
+      models: isTestEnvironment ? testModels : [],
     },
   };
 

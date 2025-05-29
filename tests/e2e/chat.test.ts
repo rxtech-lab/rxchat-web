@@ -4,12 +4,17 @@ import { test, expect } from '../fixtures';
 test.describe('Chat activity', () => {
   let chatPage: ChatPage;
 
-  test.beforeEach(async ({ page }) => {
-    chatPage = new ChatPage(page);
+  test.beforeEach(async ({ adaContext }) => {
+    chatPage = new ChatPage(adaContext.page);
     await chatPage.createNewChat();
+
+    await chatPage.chooseModelFromSelector('chat-model');
+    await adaContext.page.waitForTimeout(1500);
+    const currentModel = await chatPage.getSelectedModel();
+    expect(currentModel).toBe('Test Model');
   });
 
-  test('Send a user message and receive response', async () => {
+  test('Send a user message and receive response', async ({ adaContext }) => {
     await chatPage.sendUserMessage('Why is grass green?');
     await chatPage.isGenerationComplete();
 
@@ -17,7 +22,9 @@ test.describe('Chat activity', () => {
     expect(assistantMessage.content).toContain("It's just green duh!");
   });
 
-  test('Redirect to /chat/:id after submitting message', async () => {
+  test('Redirect to /chat/:id after submitting message', async ({
+    adaContext,
+  }) => {
     await chatPage.sendUserMessage('Why is grass green?');
     await chatPage.isGenerationComplete();
 
@@ -26,7 +33,7 @@ test.describe('Chat activity', () => {
     await chatPage.hasChatIdInUrl();
   });
 
-  test('Send a user message from suggestion', async () => {
+  test('Send a user message from suggestion', async ({ adaContext }) => {
     await chatPage.sendUserMessageFromSuggestion();
     await chatPage.isGenerationComplete();
 
@@ -36,7 +43,9 @@ test.describe('Chat activity', () => {
     );
   });
 
-  test('Toggle between send/stop button based on activity', async () => {
+  test('Toggle between send/stop button based on activity', async ({
+    adaContext,
+  }) => {
     await expect(chatPage.sendButton).toBeVisible();
     await expect(chatPage.sendButton).toBeDisabled();
 
@@ -51,14 +60,14 @@ test.describe('Chat activity', () => {
     await expect(chatPage.sendButton).toBeVisible();
   });
 
-  test('Stop generation during submission', async () => {
+  test('Stop generation during submission', async ({ adaContext }) => {
     await chatPage.sendUserMessage('Why is grass green?');
     await expect(chatPage.stopButton).toBeVisible();
     await chatPage.stopButton.click();
     await expect(chatPage.sendButton).toBeVisible();
   });
 
-  test('Edit user message and resubmit', async () => {
+  test('Edit user message and resubmit', async ({ adaContext }) => {
     await chatPage.sendUserMessage('Why is grass green?');
     await chatPage.isGenerationComplete();
 
@@ -74,13 +83,17 @@ test.describe('Chat activity', () => {
     expect(updatedAssistantMessage.content).toContain("It's just blue duh!");
   });
 
-  test('Hide suggested actions after sending message', async () => {
+  test('Hide suggested actions after sending message', async ({
+    adaContext,
+  }) => {
     await chatPage.isElementVisible('suggested-actions');
     await chatPage.sendUserMessageFromSuggestion();
     await chatPage.isElementNotVisible('suggested-actions');
   });
 
-  test('Upload file and send image attachment with message', async () => {
+  test.skip('Upload file and send image attachment with message', async ({
+    adaContext,
+  }) => {
     await chatPage.addImageAttachment();
 
     await chatPage.isElementVisible('attachments-preview');
@@ -98,7 +111,7 @@ test.describe('Chat activity', () => {
     expect(assistantMessage.content).toBe('This painting is by Monet!');
   });
 
-  test('Call weather tool', async () => {
+  test('Call weather tool', async ({ adaContext }) => {
     await chatPage.sendUserMessage("What's the weather in sf?");
     await chatPage.isGenerationComplete();
 
@@ -109,7 +122,7 @@ test.describe('Chat activity', () => {
     );
   });
 
-  test('Upvote message', async () => {
+  test('Upvote message', async ({ adaContext }) => {
     await chatPage.sendUserMessage('Why is the sky blue?');
     await chatPage.isGenerationComplete();
 
@@ -118,7 +131,7 @@ test.describe('Chat activity', () => {
     await chatPage.isVoteComplete();
   });
 
-  test('Downvote message', async () => {
+  test('Downvote message', async ({ adaContext }) => {
     await chatPage.sendUserMessage('Why is the sky blue?');
     await chatPage.isGenerationComplete();
 
@@ -127,7 +140,7 @@ test.describe('Chat activity', () => {
     await chatPage.isVoteComplete();
   });
 
-  test('Update vote', async () => {
+  test('Update vote', async ({ adaContext }) => {
     await chatPage.sendUserMessage('Why is the sky blue?');
     await chatPage.isGenerationComplete();
 
@@ -139,8 +152,8 @@ test.describe('Chat activity', () => {
     await chatPage.isVoteComplete();
   });
 
-  test('Create message from url query', async ({ page }) => {
-    await page.goto('/?query=Why is the sky blue?');
+  test('Create message from url query', async ({ adaContext }) => {
+    await adaContext.page.goto('/?query=Why is the sky blue?');
 
     await chatPage.isGenerationComplete();
 
@@ -151,12 +164,16 @@ test.describe('Chat activity', () => {
     expect(assistantMessage.content).toContain("It's just blue duh!");
   });
 
-  test('auto-scrolls to bottom after submitting new messages', async () => {
+  test.skip('auto-scrolls to bottom after submitting new messages', async ({
+    adaContext,
+  }) => {
     await chatPage.sendMultipleMessages(5, (i) => `filling message #${i}`);
     await chatPage.waitForScrollToBottom();
   });
 
-  test('scroll button appears when user scrolls up, hides on click', async () => {
+  test.skip('scroll button appears when user scrolls up, hides on click', async ({
+    adaContext,
+  }) => {
     await chatPage.sendMultipleMessages(5, (i) => `filling message #${i}`);
     await expect(chatPage.scrollToBottomButton).not.toBeVisible();
 

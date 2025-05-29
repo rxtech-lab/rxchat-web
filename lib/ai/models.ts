@@ -10,7 +10,12 @@ export interface ChatModel {
   description: string;
 }
 
-export const ProviderTypeSchema = z.enum(['openAI', 'openRouter', 'gemini']);
+export const ProviderTypeSchema = z.enum([
+  'openAI',
+  'openRouter',
+  'gemini',
+  'test',
+]);
 export type ProviderType = z.infer<typeof ProviderTypeSchema>;
 
 export interface ChatProvider {
@@ -35,6 +40,12 @@ export interface OpenRouterModel {
   pricing: OpenRouterPricing;
 }
 
+export interface TestModel {
+  id: string;
+  name: string;
+  description: string;
+}
+
 export type Providers = Record<ProviderType, ChatProvider>;
 
 export const providers: Providers = {
@@ -51,6 +62,11 @@ export const providers: Providers = {
   gemini: {
     id: 'gemini',
     provider: 'gemini',
+    models: [],
+  },
+  test: {
+    id: 'test',
+    provider: 'test',
     models: [],
   },
 };
@@ -75,4 +91,19 @@ export async function getOpenRouterModels(
     .filter((model) => {
       return model.pricing.prompt <= userEntitlements.maximumModelPromptPrice;
     });
+}
+
+export function getTestModels(): Array<TestModel> {
+  return [
+    {
+      id: 'chat-model-reasoning',
+      name: 'Test reasoning Model',
+      description: 'Test reasoning Model Description',
+    },
+    {
+      id: 'chat-model',
+      name: 'Test Model',
+      description: 'Test Model Description',
+    },
+  ];
 }

@@ -8,7 +8,7 @@ import { createDocument } from '@/lib/ai/tools/create-document';
 import { getWeather } from '@/lib/ai/tools/get-weather';
 import { requestSuggestions } from '@/lib/ai/tools/request-suggestions';
 import { updateDocument } from '@/lib/ai/tools/update-document';
-import { isProductionEnvironment } from '@/lib/constants';
+import { isProductionEnvironment, isTestEnvironment } from '@/lib/constants';
 import {
   createStreamId,
   deleteChatById,
@@ -70,7 +70,8 @@ export async function POST(request: Request) {
   try {
     const json = await request.json();
     requestBody = postRequestBodySchema.parse(json);
-  } catch (_) {
+  } catch (error) {
+    console.error(error);
     return new ChatSDKError('bad_request:api').toResponse();
   }
 
@@ -83,6 +84,10 @@ export async function POST(request: Request) {
       selectedChatModelProvider,
     } = requestBody;
 
+    const provider = getModelProvider(
+      selectedChatModel,
+      selectedChatModelProvider,
+    );
     const session = await auth();
 
     if (!session?.user) {
@@ -105,6 +110,7 @@ export async function POST(request: Request) {
     if (!chat) {
       const title = await generateTitleFromUserMessage({
         message,
+        titleModel: provider.languageModel('title-model'),
       });
 
       await saveChat({
@@ -153,13 +159,12 @@ export async function POST(request: Request) {
     const streamId = generateUUID();
     await createStreamId({ streamId, chatId: id });
 
-    const mcpClient = await createMCPClient();
-    const mcpTools = await mcpClient.tools();
-
-    const provider = getModelProvider(
-      selectedChatModel,
-      selectedChatModelProvider,
-    );
+    let mcpTools: Record<string, any> = {};
+    let mcpClient: any | null = null;
+    if (!isTestEnvironment) {
+      mcpClient = await createMCPClient();
+      mcpTools = await mcpClient.tools();
+    }
 
     let defaultSystemPrompt = systemPrompt({
       selectedChatModel,
@@ -179,11 +184,12 @@ export async function POST(request: Request) {
       ${userPromptResult}
       `;
     }
+    const model = provider.languageModel(selectedChatModel);
 
     const stream = createDataStream({
       execute: (dataStream) => {
         const result = streamText({
-          model: provider.languageModel('chat-model'),
+          model,
           system: defaultSystemPrompt,
           messages,
           maxSteps: 20,
@@ -212,7 +218,7 @@ export async function POST(request: Request) {
             ...mcpTools,
           },
           onFinish: async ({ response }) => {
-            await mcpClient.close();
+            await mcpClient?.close();
             if (session.user?.id) {
               try {
                 const assistantId = getTrailingMessageId({

@@ -15,35 +15,36 @@ import {
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 
-import {
-  user,
-  chat,
-  type User,
-  document,
-  type Suggestion,
-  suggestion,
-  message,
-  vote,
-  type DBMessage,
-  type Chat,
-  stream,
-  prompt,
-  userPrompt,
-  type Prompt,
-  type UserPrompt,
-} from './schema';
 import type { ArtifactKind } from '@/components/artifact';
-import { generateUUID } from '../utils';
-import { generateHashedPassword } from './utils';
 import type { VisibilityType } from '@/components/visibility-selector';
+import { isTestEnvironment } from '../constants';
 import { ChatSDKError } from '../errors';
+import { generateUUID } from '../utils';
+import {
+  chat,
+  document,
+  message,
+  prompt,
+  stream,
+  suggestion,
+  user,
+  userPrompt,
+  vote,
+  type Chat,
+  type DBMessage,
+  type Prompt,
+  type Suggestion,
+  type User,
+} from './schema';
+import { generateHashedPassword } from './utils';
 
-// Optionally, if not using email/pass login, you can
-// use the Drizzle adapter for Auth.js / NextAuth
-// https://authjs.dev/reference/adapter/drizzle
-
-// biome-ignore lint: Forbidden non-null assertion.
-const client = postgres(process.env.POSTGRES_URL!);
+const client = postgres(
+  isTestEnvironment
+    ? // biome-ignore lint: Forbidden non-null assertion.
+      process.env.POSTGRES_URL_TEST!
+    : // biome-ignore lint: Forbidden non-null assertion.
+      process.env.POSTGRES_URL!,
+);
 const db = drizzle(client);
 
 export async function getUser(email: string): Promise<Array<User>> {

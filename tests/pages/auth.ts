@@ -32,9 +32,11 @@ export class AuthPage {
     await this.page.getByRole('button', { name: 'Sign In' }).click();
   }
 
-  async logout(email: string, password: string) {
-    await this.login(email, password);
-    await this.page.waitForURL('/');
+  async logout(email: string, password: string, skipLogin = false) {
+    if (!skipLogin) {
+      await this.login(email, password);
+      await this.page.waitForURL('/');
+    }
 
     await this.openSidebar();
 
@@ -50,8 +52,8 @@ export class AuthPage {
 
     await authMenuItem.click();
 
-    const userEmail = this.page.getByTestId('user-email');
-    await expect(userEmail).toContainText('Guest');
+    const signIn = this.page.getByRole('heading', { name: 'Sign In' });
+    await expect(signIn).toBeVisible();
   }
 
   async expectToastToContain(text: string) {

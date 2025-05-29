@@ -10,18 +10,6 @@ import {
   titleModel as titleModelTest,
 } from './models.test';
 
-const openRouterProvider = createOpenRouter({
-  apiKey: process.env.OPENROUTER_API_KEY,
-});
-
-const openAIProvider = createOpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
-
-export const titleModel = openRouterProvider(
-  'google/gemini-2.5-flash-preview-05-20',
-);
-
 /**
  * Get a provider for a given model and provider type
  * @param modelId - The ID of the model to use
@@ -44,7 +32,10 @@ export function getModelProvider(
   }
 
   switch (providerType) {
-    case 'openAI':
+    case 'openAI': {
+      const openAIProvider = createOpenAI({
+        apiKey: process.env.OPENAI_API_KEY,
+      });
       return customProvider({
         languageModels: {
           'chat-model': openAIProvider(modelId),
@@ -52,17 +43,27 @@ export function getModelProvider(
           'artifact-model': openAIProvider(modelId),
         },
       });
-    case 'openRouter':
+    }
+    case 'openRouter': {
+      const openRouterProvider = createOpenRouter({
+        apiKey: process.env.OPENROUTER_API_KEY,
+      });
+
+      const titleModel = openRouterProvider(
+        'google/gemini-2.5-flash-preview-05-20',
+      );
       return customProvider({
         languageModels: {
           'chat-model': openRouterProvider(modelId),
-          'title-model': openRouterProvider(
-            'google/gemini-2.5-flash-preview-05-20', // use cheap model for title generation
-          ),
+          'title-model': titleModel,
           'artifact-model': openRouterProvider(modelId),
+          [modelId]: openRouterProvider(modelId),
         },
       });
+    }
     case 'gemini':
       throw new Error('Gemini is not supported yet');
+    case 'test':
+      throw new Error('Test provider is not supported yet');
   }
 }
