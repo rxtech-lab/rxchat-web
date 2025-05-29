@@ -1,7 +1,8 @@
-import { auth, type UserType } from '@/app/(auth)/auth';
+import { auth } from '@/app/(auth)/auth';
 import { createPromptRunner } from '@/lib/agent/prompt-runner/runner';
-import { entitlementsByUserType } from '@/lib/ai/entitlements';
+import { entitlementsByUserRole } from '@/lib/ai/entitlements';
 import { createMCPClient } from '@/lib/ai/mcp';
+import { getFilteredProviders } from '@/lib/ai/models';
 import { systemPrompt, type RequestHints } from '@/lib/ai/prompts';
 import { getModelProvider } from '@/lib/ai/providers';
 import { createDocument } from '@/lib/ai/tools/create-document';
@@ -16,6 +17,7 @@ import {
   getMessageCountByUserId,
   getMessagesByChatId,
   getStreamIdsByChatId,
+  getUserById,
   getUserPromptByUserId,
   saveChat,
   saveMessages,
@@ -94,14 +96,48 @@ export async function POST(request: Request) {
       return new ChatSDKError('unauthorized:chat').toResponse();
     }
 
-    const userType: UserType = session.user.type;
+    // Get user data from database to validate permissions
+    const user = await getUserById(session.user.id);
+    if (!user) {
+      return new ChatSDKError('unauthorized:chat').toResponse();
+    }
+
+    // Validate that user has access to the selected provider
+    if (!user.availableModelProviders.includes(selectedChatModelProvider)) {
+      return new ChatSDKError(
+        'forbidden:chat',
+        'Provider not available for user',
+      ).toResponse();
+    }
+
+    // Get user entitlements and available models to validate the selected model
+    const userEntitlements = entitlementsByUserRole[user.role];
+    const availableProviders = await getFilteredProviders(
+      user,
+      userEntitlements,
+      isTestEnvironment,
+    );
+
+    // Check if the selected model is available to this user
+    const selectedProvider = availableProviders[selectedChatModelProvider];
+    const isModelAvailable = selectedProvider?.models.some(
+      (model) => model.id === selectedChatModel,
+    );
+
+    if (!isModelAvailable) {
+      return new ChatSDKError(
+        'forbidden:chat',
+        'Model not available for user',
+      ).toResponse();
+    }
 
     const messageCount = await getMessageCountByUserId({
       id: session.user.id,
       differenceInHours: 24,
     });
 
-    if (messageCount > entitlementsByUserType[userType].maxMessagesPerDay) {
+    // Use user role-based entitlements for rate limiting
+    if (messageCount > userEntitlements.maxMessagesPerDay) {
       return new ChatSDKError('rate_limit:chat').toResponse();
     }
 

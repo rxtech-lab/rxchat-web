@@ -9,6 +9,7 @@ import {
   reasoningModel,
   titleModel as titleModelTest,
 } from './models.test';
+import { createAzure } from '@ai-sdk/azure';
 
 /**
  * Get a provider for a given model and provider type
@@ -61,6 +62,29 @@ export function getModelProvider(
         },
       });
     }
+    case 'anthropic':
+      throw new Error('Anthropic is not supported yet');
+    case 'azure': {
+      const azureProvider = createAzure({
+        apiKey: process.env.AZURE_API_KEY,
+        resourceName: process.env.AZURE_RESOURCE_NAME,
+        apiVersion: '2025-03-01-preview',
+      });
+
+      const chatModel = azureProvider(modelId, {
+        structuredOutputs: false, // disable structured outputs for all models since it will show invalid input parameters for mcp tools
+      });
+      return customProvider({
+        languageModels: {
+          'chat-model': chatModel,
+          'title-model': azureProvider('gpt-4.1'),
+          'artifact-model': chatModel,
+          [modelId]: chatModel,
+        },
+      });
+    }
+    case 'google':
+      throw new Error('Google is not supported yet');
     case 'gemini':
       throw new Error('Gemini is not supported yet');
     case 'test':
