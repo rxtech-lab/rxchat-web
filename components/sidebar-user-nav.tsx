@@ -78,6 +78,15 @@ export function SidebarUserNav({ user }: { user: User }) {
             >
               {`Toggle ${theme === 'light' ? 'dark' : 'light'} mode`}
             </DropdownMenuItem>
+            {!isGuest && (
+              <DropdownMenuItem
+                data-testid="user-nav-item-profile"
+                className="cursor-pointer"
+                onSelect={() => router.push('/profile')}
+              >
+                Manage Account
+              </DropdownMenuItem>
+            )}
             <DropdownMenuSeparator />
             <DropdownMenuItem asChild data-testid="user-nav-item-auth">
               <button

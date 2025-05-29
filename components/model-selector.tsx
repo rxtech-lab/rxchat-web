@@ -173,7 +173,7 @@ export function ModelSelector({
           <ChevronsUpDown />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[320px] sm:w-[460px] md:w-[540px] p-0">
+      <PopoverContent className="w-[320px] sm:w-[460px] md:w-[540px] p-0 ml-10">
         <div className="flex flex-col md:flex-row h-[400px]">
           {/* Provider Filter Sidebar - Desktop */}
           <div className="hidden md:flex shrink-0 md:basic-1/3 md:flex-col md:basis-1/3 md:max-w-xs border-r bg-muted/30">

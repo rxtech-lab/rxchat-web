@@ -681,3 +681,54 @@ export async function selectPromptById({
     );
   }
 }
+
+/**
+ * Updates a user's password
+ * @param id - The user ID
+ * @param password - The new password (will be hashed)
+ * @returns The updated user record
+ */
+export async function updateUserPassword({
+  id,
+  password,
+}: { id: string; password: string }) {
+  const hashedPassword = generateHashedPassword(password);
+
+  try {
+    const [updatedUser] = await db
+      .update(user)
+      .set({ password: hashedPassword })
+      .where(eq(user.id, id))
+      .returning();
+
+    return updatedUser;
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to update user password',
+    );
+  }
+}
+
+/**
+ * Deletes a user account and all associated data
+ * @param id - The user ID to delete
+ * @returns The deleted user record
+ */
+export async function deleteUserAccount({ id }: { id: string }) {
+  try {
+    // The database schema has CASCADE constraints, so deleting the user
+    // will automatically delete all associated data (chats, messages, etc.)
+    const [deletedUser] = await db
+      .delete(user)
+      .where(eq(user.id, id))
+      .returning();
+
+    return deletedUser;
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to delete user account',
+    );
+  }
+}

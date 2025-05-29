@@ -11,6 +11,11 @@ import { generateId } from 'ai';
 import { ChatPage } from './pages/chat';
 import { getUnixTime } from 'date-fns';
 
+export type TestUser = {
+  email: string;
+  password: string;
+};
+
 export type UserContext = {
   context: BrowserContext;
   page: Page;
