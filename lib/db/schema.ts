@@ -24,7 +24,7 @@ export const user = pgTable('User', {
   availableModelProviders: jsonb('availableModelProviders')
     .$type<Array<ProviderType>>()
     .notNull()
-    .default(sql`'["openAI"]'::jsonb`),
+    .default(sql`'["openRouter"]'::jsonb`),
 });
 
 export type User = InferSelectModel<typeof user>;

@@ -1,0 +1,1 @@
+ALTER TABLE "User" ALTER COLUMN "availableModelProviders" SET DEFAULT '["openRouter"]'::jsonb;

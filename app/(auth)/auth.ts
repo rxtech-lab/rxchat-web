@@ -6,7 +6,7 @@ import { authConfig } from './auth.config';
 import { DUMMY_PASSWORD } from '@/lib/constants';
 import type { DefaultJWT } from 'next-auth/jwt';
 
-export type UserType = 'guest' | 'regular' | 'paid';
+export type UserType = 'free' | 'regular' | 'premium' | 'admin';
 
 declare module 'next-auth' {
   interface Session extends DefaultSession {
@@ -67,7 +67,7 @@ export const {
       credentials: {},
       async authorize() {
         const [guestUser] = await createGuestUser();
-        return { ...guestUser, type: 'guest' };
+        return { ...guestUser, type: 'free' };
       },
     }),
   ],

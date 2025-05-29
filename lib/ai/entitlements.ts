@@ -1,27 +1,34 @@
+'server-only';
+
 import type { UserType } from '@/app/(auth)/auth';
+import { isTestEnvironment } from '../constants';
 
 export interface Entitlements {
   maxMessagesPerDay: number;
   maximumModelPromptPrice: number;
 }
 
-export const entitlementsByUserType: Record<UserType, Entitlements> = {
+export const entitlementsByUserRole: Record<UserType, Entitlements> = {
   /*
-   * For users without an account
+   * For free users
    */
-  guest: {
-    maxMessagesPerDay: 0,
+  free: {
+    maxMessagesPerDay: isTestEnvironment ? 1000 : 0,
     maximumModelPromptPrice: 0.00000015,
   },
   /*
-   * For users with an account
+   * For users with regular account
    */
   regular: {
     maxMessagesPerDay: 100,
     maximumModelPromptPrice: 0.000003,
   },
-  paid: {
+  premium: {
     maxMessagesPerDay: 1000,
     maximumModelPromptPrice: 0.000003,
+  },
+  admin: {
+    maxMessagesPerDay: 10000,
+    maximumModelPromptPrice: 1,
   },
 };

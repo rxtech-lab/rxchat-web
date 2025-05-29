@@ -2,16 +2,13 @@ import { cookies } from 'next/headers';
 
 import { Chat } from '@/components/chat';
 import { DataStreamHandler } from '@/components/data-stream-handler';
-import { entitlementsByUserType } from '@/lib/ai/entitlements';
+import { entitlementsByUserRole } from '@/lib/ai/entitlements';
 import {
   DEFAULT_CHAT_MODEL,
-  getOpenRouterModels,
-  getTestModels,
-  type Providers,
-  providers,
+  getFilteredProviders,
   type ProviderType,
 } from '@/lib/ai/models';
-import { getUserPromptByUserId } from '@/lib/db/queries';
+import { getUserPromptByUserId, getUserById } from '@/lib/db/queries';
 import { generateUUID } from '@/lib/utils';
 import { redirect } from 'next/navigation';
 import { auth } from '../(auth)/auth';
@@ -33,36 +30,77 @@ export default async function Page() {
     userId: session.user.id,
   });
 
-  const entitlements = entitlementsByUserType[session.user.type];
+  // Get user data from database to check role and available providers
+  const user = await getUserById(session.user.id);
+  if (!user) {
+    redirect('/login');
+  }
 
-  const openRouterModels = await getOpenRouterModels(entitlements);
-  const testModels = getTestModels();
-  const providerWithModels: Providers = {
-    ...providers,
-    openRouter: {
-      ...providers.openRouter,
-      models: openRouterModels,
-    },
-    test: {
-      ...providers.test,
-      models: isTestEnvironment ? testModels : [],
-    },
-  };
+  const entitlements = entitlementsByUserRole[user.role];
+  const providerWithModels = await getFilteredProviders(
+    user,
+    entitlements,
+    isTestEnvironment,
+  );
 
   if (!modelIdFromCookie || !providerTypeFromCookie) {
+    // Default to first available provider if no cookie is set
+    const availableProviders = Object.values(providerWithModels).filter(
+      (p) => p.models.length > 0,
+    );
+    const defaultProvider = availableProviders[0]?.provider || 'openRouter';
+    const defaultModel =
+      availableProviders[0]?.models[0]?.id || DEFAULT_CHAT_MODEL;
+
     return (
       <>
         <Chat
           key={id}
           id={id}
           initialMessages={[]}
-          initialChatModel={DEFAULT_CHAT_MODEL}
+          initialChatModel={defaultModel}
           initialVisibilityType="private"
           isReadonly={false}
           session={session}
           autoResume={false}
           providers={providerWithModels}
-          selectedChatModelProvider={'openRouter'}
+          selectedChatModelProvider={defaultProvider}
+          selectedPrompt={selectedPrompt}
+        />
+        <DataStreamHandler id={id} />
+      </>
+    );
+  }
+
+  // Validate that the cached model/provider is still available to the user
+  const cachedProvider =
+    providerWithModels[providerTypeFromCookie.value as ProviderType];
+  const isCachedModelAvailable = cachedProvider?.models.some(
+    (model) => model.id === modelIdFromCookie.value,
+  );
+
+  if (!isCachedModelAvailable) {
+    // Fall back to first available model if cached selection is no longer valid
+    const availableProviders = Object.values(providerWithModels).filter(
+      (p) => p.models.length > 0,
+    );
+    const defaultProvider = availableProviders[0]?.provider || 'openRouter';
+    const defaultModel =
+      availableProviders[0]?.models[0]?.id || DEFAULT_CHAT_MODEL;
+
+    return (
+      <>
+        <Chat
+          key={id}
+          id={id}
+          initialMessages={[]}
+          initialChatModel={defaultModel}
+          initialVisibilityType="private"
+          isReadonly={false}
+          session={session}
+          autoResume={false}
+          providers={providerWithModels}
+          selectedChatModelProvider={defaultProvider}
           selectedPrompt={selectedPrompt}
         />
         <DataStreamHandler id={id} />
