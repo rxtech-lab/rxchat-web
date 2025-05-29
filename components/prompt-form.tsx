@@ -2,7 +2,7 @@
 
 import { testPrompt } from '@/app/(chat)/actions';
 import type { Prompt } from '@/lib/db/schema';
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { toast } from 'sonner';
 import type { z } from 'zod';
 import type { PromptSchema } from './input/prompt.schema';
@@ -39,49 +39,56 @@ export function PromptForm({
   const [codeValid, setCodeValid] = useState(false);
   const [isTestingCode, setIsTestingCode] = useState(false);
 
-  const handleTestCode = async () => {
-    setIsTestingCode(true);
+  const handleSubmit = useCallback(
+    (skipValidation = false) => {
+      if (!codeValid && !skipValidation) {
+        return;
+      }
 
-    const testPromise = testPrompt(code.trim())
-      .then((result) => {
-        if ('error' in result) {
-          setCodeValid(false);
-          throw new Error(result.error);
-        }
-        handleSubmit(true);
-        setCodeValid(true);
-        return result;
-      })
-      .catch((error) => {
-        setCodeValid(false);
-        throw error;
-      })
-      .finally(() => {
-        setIsTestingCode(false);
+      onSubmit({
+        title: title.trim(),
+        description: description.trim() || undefined,
+        code: code.trim(),
       });
+    },
+    [code, codeValid, description, onSubmit, title],
+  );
 
-    toast.promise(testPromise, {
-      loading: 'Testing code...',
-      success: (result) =>
-        `Code executed successfully! \nResult: ${result.result}`,
-      error: (error) => `Code test failed: ${error.message || 'Unknown error'}`,
-    });
-  };
+  const handleTestCode = useCallback(
+    async (code: string) => {
+      setIsTestingCode(true);
 
-  const handleSubmit = (skipValidation = false) => {
-    if (!codeValid && !skipValidation) {
-      return;
-    }
+      const testPromise = testPrompt(code.trim())
+        .then((result) => {
+          if ('error' in result) {
+            setCodeValid(false);
+            throw new Error(result.error);
+          }
+          handleSubmit(true);
+          setCodeValid(true);
+          return result;
+        })
+        .catch((error) => {
+          setCodeValid(false);
+          throw error;
+        })
+        .finally(() => {
+          setIsTestingCode(false);
+        });
 
-    onSubmit({
-      title: title.trim(),
-      description: description.trim() || undefined,
-      code: code.trim(),
-    });
-  };
+      toast.promise(testPromise, {
+        loading: 'Testing code...',
+        success: (result) =>
+          `Code executed successfully! \nResult: ${result.result}`,
+        error: (error) =>
+          `Code test failed: ${error.message || 'Unknown error'}`,
+      });
+    },
+    [handleSubmit],
+  );
 
   return (
-    <form className="space-y-6 flex flex-col">
+    <form className="space-y-6 flex flex-col h-full">
       <div className="space-y-2">
         <Label htmlFor="title">Title *</Label>
         <Input
@@ -114,23 +121,26 @@ export function PromptForm({
             type="button"
             variant="outline"
             size="sm"
-            onClick={handleTestCode}
+            onClick={() => handleTestCode(code)}
             disabled={isLoading || isTestingCode || !code.trim()}
             className="ml-auto"
           >
             {isTestingCode ? 'Testing...' : 'Test Code'}
           </Button>
         </div>
-        <MonacoEditor
-          value={code}
-          onChange={(value) => {
-            setCode(value || '');
-            setCodeValid(false);
-          }}
-          language="typescript"
-          height="200px"
-          placeholder="Enter your TypeScript code here..."
-        />
+        <div className=" border border-border rounded-2xl p-4">
+          <MonacoEditor
+            value={code}
+            onChange={(value) => {
+              setCode(value || '');
+              setCodeValid(false);
+            }}
+            onSave={(code) => handleTestCode(code)}
+            language="typescript"
+            height="600px"
+            placeholder="Enter your TypeScript code here..."
+          />
+        </div>
       </div>
     </form>
   );

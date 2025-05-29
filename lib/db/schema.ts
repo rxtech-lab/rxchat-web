@@ -1,20 +1,30 @@
 import type { InferSelectModel } from 'drizzle-orm';
+import { sql } from 'drizzle-orm';
 import {
-  pgTable,
-  varchar,
-  timestamp,
-  json,
-  uuid,
-  text,
-  primaryKey,
-  foreignKey,
   boolean,
+  foreignKey,
+  json,
+  jsonb,
+  pgTable,
+  primaryKey,
+  text,
+  timestamp,
+  uuid,
+  varchar,
 } from 'drizzle-orm/pg-core';
+import type { ProviderType } from '../ai/models';
 
 export const user = pgTable('User', {
   id: uuid('id').primaryKey().notNull().defaultRandom(),
   email: varchar('email', { length: 64 }).notNull(),
   password: varchar('password', { length: 64 }),
+  role: varchar('role', { enum: ['admin', 'regular', 'premium', 'free'] })
+    .notNull()
+    .default('free'),
+  availableModelProviders: jsonb('availableModelProviders')
+    .$type<Array<ProviderType>>()
+    .notNull()
+    .default(sql`'["openAI"]'::jsonb`),
 });
 
 export type User = InferSelectModel<typeof user>;
@@ -25,7 +35,7 @@ export const chat = pgTable('Chat', {
   title: text('title').notNull(),
   userId: uuid('userId')
     .notNull()
-    .references(() => user.id),
+    .references(() => user.id, { onDelete: 'cascade' }),
   visibility: varchar('visibility', { enum: ['public', 'private'] })
     .notNull()
     .default('private'),
@@ -39,7 +49,7 @@ export const messageDeprecated = pgTable('Message', {
   id: uuid('id').primaryKey().notNull().defaultRandom(),
   chatId: uuid('chatId')
     .notNull()
-    .references(() => chat.id),
+    .references(() => chat.id, { onDelete: 'cascade' }),
   role: varchar('role').notNull(),
   content: json('content').notNull(),
   createdAt: timestamp('createdAt').notNull(),
@@ -51,7 +61,7 @@ export const message = pgTable('Message_v2', {
   id: uuid('id').primaryKey().notNull().defaultRandom(),
   chatId: uuid('chatId')
     .notNull()
-    .references(() => chat.id),
+    .references(() => chat.id, { onDelete: 'cascade' }),
   role: varchar('role').notNull(),
   parts: json('parts').notNull(),
   attachments: json('attachments').notNull(),
@@ -67,10 +77,10 @@ export const voteDeprecated = pgTable(
   {
     chatId: uuid('chatId')
       .notNull()
-      .references(() => chat.id),
+      .references(() => chat.id, { onDelete: 'cascade' }),
     messageId: uuid('messageId')
       .notNull()
-      .references(() => messageDeprecated.id),
+      .references(() => messageDeprecated.id, { onDelete: 'cascade' }),
     isUpvoted: boolean('isUpvoted').notNull(),
   },
   (table) => {
@@ -87,10 +97,10 @@ export const vote = pgTable(
   {
     chatId: uuid('chatId')
       .notNull()
-      .references(() => chat.id),
+      .references(() => chat.id, { onDelete: 'cascade' }),
     messageId: uuid('messageId')
       .notNull()
-      .references(() => message.id),
+      .references(() => message.id, { onDelete: 'cascade' }),
     isUpvoted: boolean('isUpvoted').notNull(),
   },
   (table) => {
@@ -114,7 +124,7 @@ export const document = pgTable(
       .default('text'),
     userId: uuid('userId')
       .notNull()
-      .references(() => user.id),
+      .references(() => user.id, { onDelete: 'cascade' }),
   },
   (table) => {
     return {
@@ -137,7 +147,7 @@ export const suggestion = pgTable(
     isResolved: boolean('isResolved').notNull().default(false),
     userId: uuid('userId')
       .notNull()
-      .references(() => user.id),
+      .references(() => user.id, { onDelete: 'cascade' }),
     createdAt: timestamp('createdAt').notNull(),
   },
   (table) => ({
@@ -145,7 +155,7 @@ export const suggestion = pgTable(
     documentRef: foreignKey({
       columns: [table.documentId, table.documentCreatedAt],
       foreignColumns: [document.id, document.createdAt],
-    }),
+    }).onDelete('cascade'),
   }),
 );
 
@@ -163,7 +173,7 @@ export const stream = pgTable(
     chatRef: foreignKey({
       columns: [table.chatId],
       foreignColumns: [chat.id],
-    }),
+    }).onDelete('cascade'),
   }),
 );
 
@@ -176,7 +186,7 @@ export const prompt = pgTable('Prompt', {
   code: text('code').notNull(),
   authorId: uuid('authorId')
     .notNull()
-    .references(() => user.id),
+    .references(() => user.id, { onDelete: 'cascade' }),
   visibility: varchar('visibility', { enum: ['private', 'public'] })
     .notNull()
     .default('private'),
@@ -191,11 +201,11 @@ export const userPrompt = pgTable(
   {
     userId: uuid('userId')
       .notNull()
-      .references(() => user.id)
+      .references(() => user.id, { onDelete: 'cascade' })
       .unique(),
     promptId: uuid('promptId')
       .notNull()
-      .references(() => prompt.id),
+      .references(() => prompt.id, { onDelete: 'cascade' }),
     selectedAt: timestamp('selectedAt').notNull(),
   },
   (table) => {

@@ -68,7 +68,7 @@ export function PromptList({
                 <div
                   key={prompt.id}
                   className={cn(
-                    'group p-4 border rounded-lg cursor-pointer transition-all duration-200 hover:bg-muted/50 hover:shadow-md h-fit relative',
+                    'group p-4 border rounded-lg cursor-pointer transition-all duration-200 hover:bg-muted/50 hover:shadow-md h-[180px] flex flex-col relative',
                     isSelected && 'border-primary hover:scale-[1.02]',
                     isLoading && 'opacity-75 cursor-wait',
                   )}
@@ -80,8 +80,8 @@ export function PromptList({
                     </div>
                   )}
 
-                  <div className="flex flex-col space-y-3">
-                    <div className="flex items-start justify-between">
+                  <div className="flex flex-col h-full">
+                    <div className="flex items-start justify-between mb-2">
                       <h4
                         className={cn(
                           'font-medium truncate flex-1 transition-colors',
@@ -92,7 +92,7 @@ export function PromptList({
                       </h4>
                       <div
                         className={cn(
-                          'flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity ml-2',
+                          'flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity ml-2 shrink-0',
                           isLoading && 'opacity-0',
                         )}
                       >
@@ -124,12 +124,12 @@ export function PromptList({
                     </div>
 
                     {prompt.description && (
-                      <p className="text-sm text-muted-foreground line-clamp-3">
+                      <p className="text-sm text-muted-foreground line-clamp-4 flex-1">
                         {prompt.description}
                       </p>
                     )}
 
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground mt-auto pt-2">
                       <span>{prompt.visibility}</span>
                       <span>•</span>
                       <span>

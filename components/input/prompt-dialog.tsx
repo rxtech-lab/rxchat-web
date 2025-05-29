@@ -123,8 +123,11 @@ export function PromptDialog({ currentPrompt }: PromptDialogProps) {
 
   // Handle deleting a prompt
   const handleDeletePrompt = async (prompt: Prompt) => {
-    await deletePrompt(prompt.id, prompt.title);
-    router.refresh();
+    const confirmed = confirm('Are you sure you want to delete this prompt?');
+    if (confirmed) {
+      await deletePrompt(prompt.id, prompt.title);
+      router.refresh();
+    }
   };
 
   const handleOpenDialog = (e: React.MouseEvent) => {
@@ -256,7 +259,7 @@ export function PromptDialog({ currentPrompt }: PromptDialogProps) {
         <ChevronRight className="size-4" />
         {currentPrompt?.title || 'Select Prompt'}
       </Button>
-      <DialogContent className="max-w-4xl h-[80vh]">
+      <DialogContent className="max-w-4xl h-[80vh] flex flex-col">
         {renderDialogHeader()}
         <Button
           size={'icon'}
