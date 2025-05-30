@@ -65,6 +65,11 @@ export const getResponseChunksByPrompt = (
     throw new Error('No recent message found!');
   }
 
+  // Handle error trigger prompt
+  if (compareMessages(recentMessage, TEST_PROMPTS.USER_ERROR_TRIGGER)) {
+    throw new Error('Model encountered an error');
+  }
+
   if (isReasoningEnabled) {
     if (compareMessages(recentMessage, TEST_PROMPTS.USER_SKY)) {
       return [

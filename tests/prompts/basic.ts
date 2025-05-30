@@ -19,6 +19,10 @@ export const TEST_PROMPTS: Record<string, CoreMessage> = {
       { type: 'text', text: 'What are the advantages of using Next.js?' },
     ],
   },
+  USER_ERROR_TRIGGER: {
+    role: 'user',
+    content: [{ type: 'text', text: 'Trigger an error please' }],
+  },
   USER_IMAGE_ATTACHMENT: {
     role: 'user',
     content: [

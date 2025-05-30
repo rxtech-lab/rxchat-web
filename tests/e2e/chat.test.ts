@@ -153,6 +153,40 @@ test.describe('Chat activity', () => {
     expect(assistantMessage.content).toContain("It's just blue duh!");
   });
 
+  // related to issue: https://github.com/rxtech-lab/rxchat-web/issues/53
+  test('User message persists after model error and page refresh', async ({
+    adaContext,
+  }) => {
+    // Send a message that will trigger an error
+    await chatPage.sendUserMessage('Trigger an error please');
+
+    // Wait a bit for the error to be processed
+    await adaContext.page.waitForTimeout(1000);
+
+    // Refresh the page
+    await adaContext.page.reload();
+
+    // Check that the user message is still visible after refresh
+    const userMessage = await chatPage.getRecentUserMessage();
+    expect(userMessage.content).toBe('Trigger an error please');
+  });
+
+  test('User message persists after page refresh', async ({ adaContext }) => {
+    // Send a message that will trigger an error
+    await chatPage.sendUserMessage('Why is the sky blue?');
+    await chatPage.isGenerationComplete();
+
+    // Refresh the page
+    await adaContext.page.reload();
+
+    // Check that the user message is still visible after refresh
+    const userMessage = await chatPage.getRecentUserMessage();
+    expect(userMessage.content).toBe('Why is the sky blue?');
+
+    const assistantMessage = await chatPage.getRecentAssistantMessage();
+    expect(assistantMessage.content).toContain("It's just blue duh!");
+  });
+
   test.skip('auto-scrolls to bottom after submitting new messages', async ({
     adaContext,
   }) => {
