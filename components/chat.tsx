@@ -79,7 +79,9 @@ export function Chat({
       selectedChatModelProvider: selectedChatModelProvider,
     }),
     onFinish: () => {
-      mutate(unstable_serialize(getChatHistoryPaginationKey));
+      setTimeout(() => {
+        mutate(unstable_serialize(getChatHistoryPaginationKey));
+      }, 1000);
     },
     onError: (error) => {
       if (error instanceof ChatSDKError) {

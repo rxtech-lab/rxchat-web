@@ -45,6 +45,8 @@ import { postRequestBodySchema, type PostRequestBody } from './schema';
 export const maxDuration = 60;
 
 let globalStreamContext: ResumableStreamContext | null = null;
+let globalMCPTools: Record<string, any> | null = null;
+let globalMCPClient: any | null = null;
 
 function getStreamContext() {
   if (!globalStreamContext) {
@@ -64,6 +66,25 @@ function getStreamContext() {
   }
 
   return globalStreamContext;
+}
+
+async function getMCPTools() {
+  if (isTestEnvironment) {
+    return { tools: {}, client: null };
+  }
+
+  if (!globalMCPTools || !globalMCPClient) {
+    try {
+      globalMCPClient = await createMCPClient();
+      globalMCPTools = await globalMCPClient.tools();
+      console.log(' > MCP tools cached globally');
+    } catch (error) {
+      console.error('Failed to initialize MCP tools:', error);
+      return { tools: {}, client: null };
+    }
+  }
+
+  return { tools: globalMCPTools, client: globalMCPClient };
 }
 
 export async function POST(request: Request) {
@@ -100,6 +121,42 @@ export async function POST(request: Request) {
     const user = await getUserById(session.user.id);
     if (!user) {
       return new ChatSDKError('unauthorized:chat').toResponse();
+    }
+
+    const chat = await getChatById({ id });
+
+    if (!chat) {
+      // Save chat immediately with a temporary title to avoid blocking
+      await saveChat({
+        id,
+        userId: session.user.id,
+        title: 'New Chat', // Temporary title
+        visibility: selectedVisibilityType,
+      });
+
+      // Generate title in background and update chat
+      after(async () => {
+        try {
+          const title = await generateTitleFromUserMessage({
+            message,
+            titleModel: provider.languageModel('title-model'),
+          });
+
+          // Update chat with generated title
+          await saveChat({
+            id,
+            userId: session.user.id,
+            title,
+            visibility: selectedVisibilityType,
+          });
+        } catch (error) {
+          console.error('Failed to generate and update chat title:', error);
+        }
+      });
+    } else {
+      if (chat.userId !== session.user.id) {
+        return new ChatSDKError('forbidden:chat').toResponse();
+      }
     }
 
     // Validate that user has access to the selected provider
@@ -141,25 +198,22 @@ export async function POST(request: Request) {
       return new ChatSDKError('rate_limit:chat').toResponse();
     }
 
-    const chat = await getChatById({ id });
-
-    if (!chat) {
-      const title = await generateTitleFromUserMessage({
-        message,
-        titleModel: provider.languageModel('title-model'),
+    // Save user message immediately to ensure correct message ordering
+    const currentTime = new Date();
+    after(async () => {
+      await saveMessages({
+        messages: [
+          {
+            chatId: id,
+            id: message.id,
+            role: 'user',
+            parts: message.parts,
+            attachments: message.experimental_attachments ?? [],
+            createdAt: currentTime,
+          },
+        ],
       });
-
-      await saveChat({
-        id,
-        userId: session.user.id,
-        title,
-        visibility: selectedVisibilityType,
-      });
-    } else {
-      if (chat.userId !== session.user.id) {
-        return new ChatSDKError('forbidden:chat').toResponse();
-      }
-    }
+    });
 
     const previousMessages = await getMessagesByChatId({ id });
 
@@ -179,28 +233,11 @@ export async function POST(request: Request) {
       time: new Date().toISOString(),
     };
 
-    await saveMessages({
-      messages: [
-        {
-          chatId: id,
-          id: message.id,
-          role: 'user',
-          parts: message.parts,
-          attachments: message.experimental_attachments ?? [],
-          createdAt: new Date(),
-        },
-      ],
-    });
-
     const streamId = generateUUID();
     await createStreamId({ streamId, chatId: id });
 
-    let mcpTools: Record<string, any> = {};
-    let mcpClient: any | null = null;
-    if (!isTestEnvironment) {
-      mcpClient = await createMCPClient();
-      mcpTools = await mcpClient.tools();
-    }
+    // Use cached MCP tools for better performance
+    const { tools: mcpTools } = await getMCPTools();
 
     let defaultSystemPrompt = systemPrompt({
       selectedChatModel,
@@ -254,7 +291,6 @@ export async function POST(request: Request) {
             ...mcpTools,
           },
           onFinish: async ({ response }) => {
-            await mcpClient?.close();
             if (session.user?.id) {
               try {
                 const assistantId = getTrailingMessageId({

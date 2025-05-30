@@ -3,7 +3,7 @@
 import { isToday, isYesterday, subMonths, subWeeks } from 'date-fns';
 import { useParams, useRouter } from 'next/navigation';
 import type { User } from 'next-auth';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
 import {
@@ -26,6 +26,7 @@ import type { Chat } from '@/lib/db/schema';
 import { fetcher } from '@/lib/utils';
 import { ChatItem } from './sidebar-history-item';
 import useSWRInfinite from 'swr/infinite';
+import { mutate as globalMutate } from 'swr';
 import { LoaderIcon } from './icons';
 
 type GroupedChats = {
@@ -105,7 +106,34 @@ export function SidebarHistory({ user }: { user: User | undefined }) {
     mutate,
   } = useSWRInfinite<ChatHistory>(getChatHistoryPaginationKey, fetcher, {
     fallbackData: [],
+    refreshInterval: 10000,
+    revalidateOnFocus: true,
+    revalidateOnReconnect: true,
+    refreshWhenHidden: false,
+    refreshWhenOffline: false,
   });
+
+  // Check for temporary titles and revalidate all pages
+  useEffect(() => {
+    if (!paginatedChatHistories || isValidating) return;
+
+    const hasTemporaryTitles = paginatedChatHistories.some((page) =>
+      page.chats.some((chat) => chat.title === 'New Chat'),
+    );
+
+    if (hasTemporaryTitles) {
+      const interval = setInterval(() => {
+        // Use global mutate to revalidate all pages for this key pattern
+        globalMutate(
+          (key) => typeof key === 'string' && key.startsWith('/api/history'),
+          undefined,
+          { revalidate: true },
+        );
+      }, 2000);
+
+      return () => clearInterval(interval);
+    }
+  }, [paginatedChatHistories, isValidating]);
 
   const router = useRouter();
   const [deleteId, setDeleteId] = useState<string | null>(null);
