@@ -19,14 +19,10 @@ export async function POST(request: NextRequest) {
     const result = await verifyPasskeyRegistration({
       response,
       challengeId,
+      name,
     });
 
     if (result.verified) {
-      // Optionally update the authenticator name if provided
-      if (name && result.authenticator) {
-        // You could add an update function here to set the name
-      }
-
       return NextResponse.json({
         verified: true,
         message: 'Passkey registered successfully',

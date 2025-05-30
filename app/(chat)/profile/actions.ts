@@ -177,3 +177,138 @@ export async function deleteAccount(
     message: 'Account deleted successfully',
   };
 }
+
+/**
+ * Server action to register a new passkey
+ */
+export async function registerPasskey(
+  prevState: ActionResult | null,
+  formData: FormData,
+): Promise<ActionResult> {
+  const session = await auth();
+
+  if (!session?.user?.id) {
+    return {
+      success: false,
+      message: 'Not authenticated',
+    };
+  }
+
+  try {
+    const name = formData.get('name') as string;
+
+    // This will be handled on the client side, but we validate the session here
+    return {
+      success: true,
+      message: 'Ready for passkey registration',
+    };
+  } catch (error) {
+    console.error('Passkey registration error:', error);
+    return {
+      success: false,
+      message: 'Failed to prepare passkey registration. Please try again.',
+    };
+  }
+}
+
+/**
+ * Server action to get user's passkeys
+ */
+export async function getUserPasskeys(): Promise<{
+  success: boolean;
+  passkeys?: Array<{
+    id: string;
+    name: string;
+    createdAt: Date;
+    lastUsed?: Date;
+  }>;
+  message?: string;
+}> {
+  const session = await auth();
+
+  if (!session?.user?.id) {
+    return {
+      success: false,
+      message: 'Not authenticated',
+    };
+  }
+
+  try {
+    const { getPasskeyAuthenticatorsByUserId } = await import(
+      '@/lib/db/queries'
+    );
+    const authenticators = await getPasskeyAuthenticatorsByUserId(
+      session.user.id,
+    );
+
+    return {
+      success: true,
+      passkeys: authenticators.map((auth) => ({
+        id: auth.credentialID,
+        name: auth.name || 'Unnamed Passkey',
+        createdAt: auth.createdAt,
+        lastUsed: auth.lastUsed || undefined,
+      })),
+    };
+  } catch (error) {
+    console.error('Get passkeys error:', error);
+    return {
+      success: false,
+      message: 'Failed to fetch passkeys',
+    };
+  }
+}
+
+/**
+ * Server action to delete a passkey
+ */
+export async function deletePasskey(
+  credentialId: string,
+): Promise<ActionResult> {
+  const session = await auth();
+
+  if (!session?.user?.id) {
+    return {
+      success: false,
+      message: 'Not authenticated',
+    };
+  }
+
+  try {
+    const {
+      deletePasskeyAuthenticator,
+      getPasskeyAuthenticatorByCredentialId,
+    } = await import('@/lib/db/queries');
+
+    // Verify the passkey belongs to the current user
+    const authenticator =
+      await getPasskeyAuthenticatorByCredentialId(credentialId);
+
+    if (!authenticator) {
+      return {
+        success: false,
+        message: 'Passkey not found',
+      };
+    }
+
+    if (authenticator.userId !== session.user.id) {
+      return {
+        success: false,
+        message: 'Unauthorized',
+      };
+    }
+
+    await deletePasskeyAuthenticator(credentialId);
+
+    return {
+      success: true,
+      message: 'Passkey deleted successfully',
+    };
+  } catch (error) {
+    console.error('Delete passkey error:', error);
+    return {
+      success: false,
+      message: 'Failed to delete passkey',
+    };
+  }
+}

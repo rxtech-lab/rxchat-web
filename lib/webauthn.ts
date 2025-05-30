@@ -19,6 +19,7 @@ import {
   getPasskeyAuthenticatorByCredentialId,
   createPasskeyAuthenticator,
   updatePasskeyAuthenticatorCounter,
+  getPasskeyAuthenticatorsByEmail,
 } from '@/lib/db/queries';
 
 // Environment variables with defaults for development
@@ -93,11 +94,13 @@ export async function generatePasskeyRegistrationOptions({
 export async function verifyPasskeyRegistration({
   response,
   challengeId,
+  name,
   expectedOrigin = webAuthnConfig.origin,
   expectedRPID = webAuthnConfig.rpID,
 }: {
   response: RegistrationResponseJSON;
   challengeId: string;
+  name?: string;
   expectedOrigin?: string;
   expectedRPID?: string;
 }) {
@@ -140,6 +143,7 @@ export async function verifyPasskeyRegistration({
     credentialDeviceType: registrationInfo.credentialDeviceType,
     credentialBackedUp: registrationInfo.credentialBackedUp,
     transports: registrationInfo.credential.transports || [],
+    name: name || 'Unnamed Passkey',
   });
 
   return {
@@ -153,14 +157,24 @@ export async function verifyPasskeyRegistration({
  */
 export async function generatePasskeyAuthenticationOptions({
   userId,
+  email,
 }: {
   userId?: string;
+  email?: string;
 } = {}) {
   let allowCredentials: { id: string; transports?: any[] }[] = [];
 
   // If userId is provided, get their specific authenticators
   if (userId) {
     const userAuthenticators = await getPasskeyAuthenticatorsByUserId(userId);
+    allowCredentials = userAuthenticators.map((authenticator) => ({
+      id: authenticator.credentialID,
+      transports: authenticator.transports,
+    }));
+  }
+  // If email is provided (and no userId), get authenticators by email
+  else if (email) {
+    const userAuthenticators = await getPasskeyAuthenticatorsByEmail(email);
     allowCredentials = userAuthenticators.map((authenticator) => ({
       id: authenticator.credentialID,
       transports: authenticator.transports,

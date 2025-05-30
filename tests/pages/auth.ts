@@ -31,7 +31,7 @@ export class AuthPage {
     await this.page.getByPlaceholder('user@acme.com').fill(email);
     await this.page.getByLabel('Password').click();
     await this.page.getByLabel('Password').fill(password);
-    await this.page.getByRole('button', { name: 'Sign In' }).click();
+    await this.page.getByRole('button', { name: 'Sign In' }).first().click();
   }
 
   async logout(email: string, password: string, skipLogin = false) {

@@ -17,8 +17,13 @@ import {
   Plus,
   Shield,
   Smartphone,
+  Trash2,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { registerPasskey, isWebAuthnSupported } from '@/lib/webauthn-client';
+import { getUserPasskeys, deletePasskey } from '@/app/(chat)/profile/actions';
+import { toast } from 'sonner';
+import { PasskeyNameDialog } from './passkey-name-dialog';
 
 /**
  * Sign-in method type definition
@@ -30,6 +35,16 @@ interface SignInMethod {
   icon: React.ComponentType<{ className?: string }>;
   primary?: boolean;
   enabled?: boolean;
+}
+
+/**
+ * Passkey type definition
+ */
+interface Passkey {
+  id: string;
+  name: string;
+  createdAt: Date;
+  lastUsed?: Date;
 }
 
 /**
@@ -53,6 +68,96 @@ export function SignInMethodsCard() {
   const [addingMethod, setAddingMethod] = useState<'passkey' | 'email' | null>(
     null,
   );
+  const [passkeys, setPasskeys] = useState<Passkey[]>([]);
+  const [isWebAuthnAvailable, setIsWebAuthnAvailable] = useState(false);
+  const [showNameDialog, setShowNameDialog] = useState(false);
+  const [deletingPasskeyId, setDeletingPasskeyId] = useState<string | null>(
+    null,
+  );
+
+  // Check WebAuthn support and load passkeys on mount
+  useEffect(() => {
+    setIsWebAuthnAvailable(isWebAuthnSupported());
+    loadPasskeys();
+  }, []);
+
+  const loadPasskeys = async () => {
+    try {
+      const result = await getUserPasskeys();
+      if (result.success && result.passkeys) {
+        setPasskeys(result.passkeys);
+      }
+    } catch (error) {
+      console.error('Failed to load passkeys:', error);
+    }
+  };
+
+  const handleAddPasskey = () => {
+    if (!isWebAuthnAvailable) {
+      toast.error('Passkeys are not supported on this device');
+      return;
+    }
+    setShowNameDialog(true);
+  };
+
+  const handlePasskeyNameConfirm = async (name: string) => {
+    setIsAdding(true);
+    setAddingMethod('passkey');
+
+    try {
+      const result = await registerPasskey(name);
+
+      if (result.success) {
+        toast.success(result.message);
+        await loadPasskeys(); // Reload passkeys after successful registration
+        setShowNameDialog(false);
+      } else {
+        toast.error(result.message);
+      }
+    } catch (error) {
+      console.error('Passkey registration error:', error);
+      toast.error('Failed to register passkey');
+    } finally {
+      setIsAdding(false);
+      setAddingMethod(null);
+    }
+  };
+
+  const handleNameDialogOpenChange = (open: boolean) => {
+    setShowNameDialog(open);
+    if (!open) {
+      // Reset states when dialog is closed
+      setIsAdding(false);
+      setAddingMethod(null);
+    }
+  };
+
+  const handleDeletePasskey = async (passkeyId: string) => {
+    setDeletingPasskeyId(passkeyId);
+
+    try {
+      const confirm = window.confirm(
+        'Are you sure you want to delete this passkey?',
+      );
+      if (!confirm) {
+        return;
+      }
+      // We'll implement this server action next
+      const result = await deletePasskey(passkeyId);
+
+      if (result.success) {
+        toast.success('Passkey deleted successfully');
+        await loadPasskeys(); // Reload passkeys after deletion
+      } else {
+        toast.error(result.message);
+      }
+    } catch (error) {
+      console.error('Passkey deletion error:', error);
+      toast.error('Failed to delete passkey');
+    } finally {
+      setDeletingPasskeyId(null);
+    }
+  };
 
   // Current active sign-in methods
   const currentMethods: SignInMethod[] = [
@@ -64,34 +169,28 @@ export function SignInMethodsCard() {
       primary: true,
       enabled: true,
     },
+    ...passkeys.map((passkey) => ({
+      id: passkey.id,
+      type: 'Passkey',
+      identifier: passkey.name,
+      icon: Smartphone,
+      primary: false,
+      enabled: true,
+    })),
   ];
-
-  const handleAddPasskey = async () => {
-    setIsAdding(true);
-    setAddingMethod('passkey');
-
-    // Simulate passkey registration (no actual implementation)
-    setTimeout(() => {
-      setIsAdding(false);
-      setAddingMethod(null);
-      // Show success message or add to list
-    }, 2000);
-  };
-
-  const handleAddEmail = () => {
-    setAddingMethod('email');
-    // This would typically open a form or redirect to add secondary email
-  };
 
   // Available methods to add
   const availableMethods: AvailableMethod[] = [
     {
       id: 'passkey',
       type: 'Passkey',
-      description: "Use your device's biometric authentication",
+      description: isWebAuthnAvailable
+        ? "Use your device's biometric authentication"
+        : 'Not supported on this device',
       icon: Smartphone,
       action: handleAddPasskey,
-      disabled: isAdding && addingMethod === 'passkey',
+      disabled:
+        !isWebAuthnAvailable || (isAdding && addingMethod === 'passkey'),
       loading: isAdding && addingMethod === 'passkey',
     },
     // You can easily add more methods here
@@ -111,6 +210,9 @@ export function SignInMethodsCard() {
    */
   const renderCurrentMethod = (method: SignInMethod) => {
     const IconComponent = method.icon;
+    const isPasskey = method.type === 'Passkey';
+    const isDeleting = deletingPasskeyId === method.id;
+
     return (
       <div
         key={method.id}
@@ -128,6 +230,18 @@ export function SignInMethodsCard() {
             <Badge variant="secondary" className="text-xs">
               Primary
             </Badge>
+          )}
+          {isPasskey && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => handleDeletePasskey(method.id)}
+              disabled={isDeleting}
+              className="text-destructive hover:text-destructive hover:bg-destructive/10"
+            >
+              <Trash2 className="size-4" />
+              {isDeleting && <span className="ml-1">Deleting...</span>}
+            </Button>
           )}
           <CheckCircle2 className="size-4 text-green-500" />
         </div>
@@ -209,10 +323,20 @@ export function SignInMethodsCard() {
           <Info className="size-4" />
           <AlertDescription>
             Additional sign-in methods help secure your account and provide
-            backup access options. Passkey functionality is coming soon.
+            backup access options.{' '}
+            {!isWebAuthnAvailable &&
+              'Passkeys require a compatible device with biometric authentication.'}
           </AlertDescription>
         </Alert>
       </CardContent>
+
+      {/* Passkey Name Dialog */}
+      <PasskeyNameDialog
+        open={showNameDialog}
+        onOpenChange={handleNameDialogOpenChange}
+        onConfirm={handlePasskeyNameConfirm}
+        isLoading={isAdding}
+      />
     </Card>
   );
 }

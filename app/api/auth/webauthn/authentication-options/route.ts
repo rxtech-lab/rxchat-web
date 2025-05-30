@@ -14,12 +14,24 @@ export async function POST(request: NextRequest) {
         { status: 400 },
       );
     }
+    let result: {
+      options: PublicKeyCredentialRequestOptionsJSON;
+      challengeId: string;
+    };
+    const data = validationResult.data;
 
-    const { userId } = validationResult.data;
-
-    const result = await generatePasskeyAuthenticationOptions({
-      userId,
-    });
+    if ('userId' in data && data.userId) {
+      result = await generatePasskeyAuthenticationOptions({
+        userId: data.userId,
+      });
+    } else if ('email' in data && data.email) {
+      result = await generatePasskeyAuthenticationOptions({
+        email: data.email,
+      });
+    } else {
+      // Handle empty request for discoverable credentials
+      result = await generatePasskeyAuthenticationOptions({});
+    }
 
     return NextResponse.json({
       options: result.options,

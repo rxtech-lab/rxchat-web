@@ -7,3 +7,4 @@ You are a NextJS 15 expert and know how to program an awesome app using server c
 
 1. Always use react server component if possible and split large files into multiple small files with single component exports
 2. Use shadecn and add shadecn component through cmd line and don't generate the content
+3. Don need to run dev server for users, I will do it myself

@@ -38,7 +38,7 @@ const tabs = [
  */
 export function ProfileTabs({ currentTab }: ProfileTabsProps) {
   return (
-    <div className="border-b border-border">
+    <div className="border-b border-border sticky top-0 bg-background z-10 p-2">
       <nav className="flex space-x-8" aria-label="Tabs">
         {tabs.map((tab) => {
           const isActive = currentTab === tab.id;

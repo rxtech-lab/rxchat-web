@@ -879,3 +879,34 @@ export async function deletePasskeyAuthenticator(
     );
   }
 }
+
+/**
+ * Get all passkey authenticators for a user by email
+ */
+export async function getPasskeyAuthenticatorsByEmail(
+  email: string,
+): Promise<Array<PasskeyAuthenticator>> {
+  try {
+    // First get the user by email
+    const users = await getUser(email);
+    if (users.length === 0) {
+      return [];
+    }
+
+    const user = users[0];
+
+    // Then get their authenticators
+    const authenticators = await db
+      .select()
+      .from(passkeyAuthenticator)
+      .where(eq(passkeyAuthenticator.userId, user.id))
+      .orderBy(desc(passkeyAuthenticator.createdAt));
+
+    return authenticators;
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to fetch passkey authenticators by email',
+    );
+  }
+}
