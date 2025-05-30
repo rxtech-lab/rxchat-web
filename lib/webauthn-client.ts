@@ -6,9 +6,15 @@ import {
 /**
  * Client-side WebAuthn registration handler
  */
-export async function registerPasskey(name?: string): Promise<{
+export async function registerPasskey(
+  name?: string,
+  email?: string,
+): Promise<{
   success: boolean;
   message: string;
+  userId?: string;
+  signedIn?: boolean;
+  currentPasskeyCount?: number;
 }> {
   try {
     // Get registration options from server
@@ -19,14 +25,17 @@ export async function registerPasskey(name?: string): Promise<{
         headers: {
           'Content-Type': 'application/json',
         },
+        body: JSON.stringify(email ? { email } : {}),
       },
     );
 
     if (!optionsResponse.ok) {
-      throw new Error('Failed to get registration options');
+      const errorData = await optionsResponse.json();
+      throw new Error(errorData.error || 'Failed to get registration options');
     }
 
-    const { options, challengeId } = await optionsResponse.json();
+    const { options, challengeId, currentPasskeyCount } =
+      await optionsResponse.json();
 
     // Start WebAuthn registration
     const response = await startRegistration({ optionsJSON: options });
@@ -43,20 +52,28 @@ export async function registerPasskey(name?: string): Promise<{
           response,
           challengeId,
           name: name || 'My Passkey',
+          email: email,
         }),
       },
     );
 
-    if (!verificationResponse.ok) {
-      throw new Error('Failed to verify registration');
-    }
-
     const verificationResult = await verificationResponse.json();
+
+    if (!verificationResponse.ok) {
+      return {
+        success: false,
+        message: verificationResult.error || 'Failed to verify registration',
+      };
+    }
 
     if (verificationResult.verified) {
       return {
         success: true,
-        message: 'Passkey registered successfully',
+        message:
+          verificationResult.message || 'Passkey registered successfully',
+        userId: verificationResult.userId,
+        signedIn: verificationResult.signedIn || false,
+        currentPasskeyCount: currentPasskeyCount + 1, // Increment since we just added one
       };
     } else {
       return {

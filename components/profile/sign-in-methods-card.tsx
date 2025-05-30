@@ -18,6 +18,7 @@ import {
   Shield,
   Smartphone,
   Trash2,
+  Clock,
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { registerPasskey, isWebAuthnSupported } from '@/lib/webauthn-client';
@@ -97,6 +98,7 @@ export function SignInMethodsCard() {
       toast.error('Passkeys are not supported on this device');
       return;
     }
+
     setShowNameDialog(true);
   };
 
@@ -108,7 +110,7 @@ export function SignInMethodsCard() {
       const result = await registerPasskey(name);
 
       if (result.success) {
-        toast.success(result.message);
+        toast.success(`Passkey "${name}" added successfully!`);
         await loadPasskeys(); // Reload passkeys after successful registration
         setShowNameDialog(false);
       } else {
@@ -136,17 +138,20 @@ export function SignInMethodsCard() {
     setDeletingPasskeyId(passkeyId);
 
     try {
+      const passkeyToDelete = passkeys.find((p) => p.id === passkeyId);
+      const passkeyName = passkeyToDelete?.name || 'this passkey';
+
       const confirm = window.confirm(
-        'Are you sure you want to delete this passkey?',
+        `Are you sure you want to delete "${passkeyName}"? You won't be able to use it to sign in anymore.`,
       );
       if (!confirm) {
         return;
       }
-      // We'll implement this server action next
+
       const result = await deletePasskey(passkeyId);
 
       if (result.success) {
-        toast.success('Passkey deleted successfully');
+        toast.success(`Passkey "${passkeyName}" deleted successfully`);
         await loadPasskeys(); // Reload passkeys after deletion
       } else {
         toast.error(result.message);
@@ -156,6 +161,36 @@ export function SignInMethodsCard() {
       toast.error('Failed to delete passkey');
     } finally {
       setDeletingPasskeyId(null);
+    }
+  };
+
+  /**
+   * Format date for display
+   */
+  const formatDate = (date: Date) => {
+    return new Intl.DateTimeFormat('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    }).format(date);
+  };
+
+  /**
+   * Format time for display
+   */
+  const formatRelativeTime = (date: Date) => {
+    const now = new Date();
+    const diffInHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60);
+
+    if (diffInHours < 1) {
+      return 'Just now';
+    } else if (diffInHours < 24) {
+      return `${Math.floor(diffInHours)} hours ago`;
+    } else if (diffInHours < 7 * 24) {
+      const days = Math.floor(diffInHours / 24);
+      return `${days} day${days > 1 ? 's' : ''} ago`;
+    } else {
+      return formatDate(date);
     }
   };
 
@@ -183,9 +218,9 @@ export function SignInMethodsCard() {
   const availableMethods: AvailableMethod[] = [
     {
       id: 'passkey',
-      type: 'Passkey',
+      type: 'Add Another Passkey',
       description: isWebAuthnAvailable
-        ? "Use your device's biometric authentication"
+        ? `Add a passkey for another device (${passkeys.length} currently configured)`
         : 'Not supported on this device',
       icon: Smartphone,
       action: handleAddPasskey,
@@ -193,16 +228,6 @@ export function SignInMethodsCard() {
         !isWebAuthnAvailable || (isAdding && addingMethod === 'passkey'),
       loading: isAdding && addingMethod === 'passkey',
     },
-    // You can easily add more methods here
-    // {
-    //   id: 'backup-email',
-    //   type: 'Backup Email',
-    //   description: 'Add a secondary email address',
-    //   icon: Mail,
-    //   action: handleAddEmail,
-    //   disabled: isAdding && addingMethod === 'email',
-    //   loading: isAdding && addingMethod === 'email',
-    // },
   ];
 
   /**
@@ -212,17 +237,29 @@ export function SignInMethodsCard() {
     const IconComponent = method.icon;
     const isPasskey = method.type === 'Passkey';
     const isDeleting = deletingPasskeyId === method.id;
+    const passkey = isPasskey ? passkeys.find((p) => p.id === method.id) : null;
 
     return (
       <div
         key={method.id}
-        className="flex items-center justify-between p-3 border rounded-lg"
+        className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
+        data-testid={`current-method-${method.type}`}
       >
         <div className="flex items-center gap-3">
           <IconComponent className="size-5 text-muted-foreground" />
-          <div>
+          <div className="flex-1">
             <p className="text-sm font-medium">{method.type}</p>
             <p className="text-xs text-muted-foreground">{method.identifier}</p>
+            {passkey && (
+              <div className="flex items-center gap-2 mt-1">
+                <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                  <Clock className="size-3" />
+                  {passkey.lastUsed
+                    ? `Last used ${formatRelativeTime(passkey.lastUsed)}`
+                    : `Created ${formatDate(passkey.createdAt)}`}
+                </div>
+              </div>
+            )}
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -238,9 +275,10 @@ export function SignInMethodsCard() {
               onClick={() => handleDeletePasskey(method.id)}
               disabled={isDeleting}
               className="text-destructive hover:text-destructive hover:bg-destructive/10"
+              title={`Delete ${method.identifier}`}
             >
               <Trash2 className="size-4" />
-              {isDeleting && <span className="ml-1">Deleting...</span>}
+              {isDeleting && <span className="ml-1 text-xs">Deleting...</span>}
             </Button>
           )}
           <CheckCircle2 className="size-4 text-green-500" />
@@ -257,7 +295,7 @@ export function SignInMethodsCard() {
     return (
       <div
         key={method.id}
-        className="flex items-center justify-between p-3 border rounded-lg"
+        className="flex items-center justify-between p-4 border rounded-lg border-dashed hover:bg-muted/50 transition-colors"
       >
         <div className="flex items-center gap-3">
           <IconComponent className="size-5 text-muted-foreground" />
@@ -273,6 +311,7 @@ export function SignInMethodsCard() {
           size="sm"
           onClick={method.action}
           disabled={method.disabled}
+          data-testid={`add-${method.id}-button`}
         >
           {method.loading ? (
             <>Adding...</>
@@ -295,21 +334,28 @@ export function SignInMethodsCard() {
           Sign-in Methods
         </CardTitle>
         <CardDescription>
-          Manage how you sign into your account. Add additional methods for
-          better security.
+          Manage how you sign into your account. You can add multiple passkeys
+          for different devices.
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-6">
         {/* Current Methods */}
         <div className="space-y-3">
-          <h4 className="text-sm font-medium">Current Methods</h4>
+          <div className="flex items-center justify-between">
+            <h4 className="text-sm font-medium">Current Methods</h4>
+            {passkeys.length > 0 && (
+              <Badge variant="outline" className="text-xs">
+                {passkeys.length} passkey{passkeys.length > 1 ? 's' : ''}
+              </Badge>
+            )}
+          </div>
           <div className="space-y-3">
             {currentMethods.map(renderCurrentMethod)}
           </div>
         </div>
 
         {/* Add New Method */}
-        {availableMethods.length > 0 && (
+        {availableMethods.length > 0 && isWebAuthnAvailable && (
           <div className="space-y-3">
             <h4 className="text-sm font-medium">Add New Method</h4>
             <div className="grid gap-3">
@@ -322,10 +368,15 @@ export function SignInMethodsCard() {
         <Alert>
           <Info className="size-4" />
           <AlertDescription>
-            Additional sign-in methods help secure your account and provide
-            backup access options.{' '}
-            {!isWebAuthnAvailable &&
-              'Passkeys require a compatible device with biometric authentication.'}
+            {isWebAuthnAvailable ? (
+              <>
+                You can add unlimited passkeys for all your devices (computer,
+                phone, security key). Each device you use regularly should have
+                its own passkey for convenient and secure access.
+              </>
+            ) : (
+              'Passkeys require a compatible device with biometric authentication or security keys.'
+            )}
           </AlertDescription>
         </Alert>
       </CardContent>

@@ -56,13 +56,7 @@ export default function Page() {
       <div className="w-full max-w-md overflow-hidden rounded-2xl flex flex-col gap-12">
         <div className="flex flex-col items-center justify-center gap-2 px-4 text-center sm:px-16">
           <h3 className="text-xl font-semibold dark:text-zinc-50">Sign In</h3>
-          <p className="text-sm text-gray-500 dark:text-zinc-400">
-            Use your email and password to sign in
-          </p>
-        </div>
-        <AuthForm action={handleSubmit} defaultEmail={email}>
-          <SubmitButton isSuccessful={isSuccessful}>Sign in</SubmitButton>
-          <p className="text-center text-sm text-gray-600 mt-4 dark:text-zinc-400">
+          <p className="text-center text-sm text-gray-600 dark:text-zinc-400">
             {"Don't have an account? "}
             <Link
               href="/register"
@@ -72,6 +66,9 @@ export default function Page() {
             </Link>
             {' for free.'}
           </p>
+        </div>
+        <AuthForm action={handleSubmit} defaultEmail={email}>
+          <SubmitButton isSuccessful={isSuccessful}>Sign in</SubmitButton>
         </AuthForm>
       </div>
     </div>

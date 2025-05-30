@@ -1,31 +1,93 @@
-import {
-  generateRegistrationOptions,
-  verifyRegistrationResponse,
-  generateAuthenticationOptions,
-  verifyAuthenticationResponse,
-} from '@simplewebauthn/server';
 import type {
-  RegistrationResponseJSON,
   AuthenticationResponseJSON,
+  RegistrationResponseJSON,
+} from '@simplewebauthn/server';
+import {
+  generateAuthenticationOptions,
+  generateRegistrationOptions,
+  verifyAuthenticationResponse,
+  verifyRegistrationResponse,
 } from '@simplewebauthn/server';
 
+import {
+  createPasskeyAuthenticator,
+  createUserWithoutPassword,
+  getPasskeyAuthenticatorByCredentialId,
+  getPasskeyAuthenticatorsByEmail,
+  getPasskeyAuthenticatorsByUserId,
+  updatePasskeyAuthenticatorCounter,
+} from '@/lib/db/queries';
 import {
   createChallenge,
-  getChallenge,
   deleteChallenge,
+  getChallenge,
 } from '@/lib/webauthn-challenges';
-import {
-  getPasskeyAuthenticatorsByUserId,
-  getPasskeyAuthenticatorByCredentialId,
-  createPasskeyAuthenticator,
-  updatePasskeyAuthenticatorCounter,
-  getPasskeyAuthenticatorsByEmail,
-} from '@/lib/db/queries';
+
+/**
+ * WebAuthn Implementation with Graceful Challenge Handling
+ *
+ * HANDLING EXPIRED CHALLENGES:
+ *
+ * The current implementation handles expired challenges by returning a specific error code
+ * 'CHALLENGE_EXPIRED' when a challenge expires but the passkey is still valid.
+ *
+ * Frontend Usage Example:
+ *
+ * ```typescript
+ * try {
+ *   const response = await fetch('/api/auth/webauthn/authentication-verification', {
+ *     method: 'POST',
+ *     headers: { 'Content-Type': 'application/json' },
+ *     body: JSON.stringify({ response: authResponse, challengeId })
+ *   });
+ *
+ *   if (!response.ok) {
+ *     const error = await response.json();
+ *
+ *     if (error.message === 'CHALLENGE_EXPIRED') {
+ *       // Challenge expired - restart authentication flow
+ *       const retryResponse = await fetch('/api/auth/webauthn/authentication-options', {
+ *         method: 'POST',
+ *         headers: { 'Content-Type': 'application/json' },
+ *         body: JSON.stringify({ email: userEmail }) // or userId if known
+ *       });
+ *
+ *       const { options, challengeId: newChallengeId } = await retryResponse.json();
+ *
+ *       // Show user a message: "Session expired, please authenticate again"
+ *       const newAuthResponse = await startAuthentication(options);
+ *
+ *       // Retry with new challenge
+ *       return await verifyAuthentication(newAuthResponse, newChallengeId);
+ *     }
+ *
+ *     throw new Error(error.message);
+ *   }
+ *
+ *   return await response.json();
+ * } catch (error) {
+ *   console.error('Authentication failed:', error);
+ * }
+ * ```
+ *
+ * BENEFITS OF THIS APPROACH:
+ *
+ * 1. **Security**: Challenges still expire to prevent replay attacks
+ * 2. **User Experience**: Users don't lose their progress, just need to re-authenticate
+ * 3. **Reliability**: Handles network delays, browser backgrounding, etc.
+ * 4. **Transparency**: Clear error codes help frontend handle different scenarios
+ *
+ * The `handleExpiredChallenge` function can also be used server-side to restart
+ * authentication flows when you detect expired challenges.
+ */
 
 // Environment variables with defaults for development
-const RP_NAME = process.env.WEBAUTHN_RP_NAME || 'RxChat';
-const RP_ID = process.env.WEBAUTHN_RP_ID || 'localhost';
-const ORIGIN = process.env.WEBAUTHN_ORIGIN || 'http://localhost:3000';
+const RP_NAME = process.env.NEXT_PUBLIC_WEBAUTHN_RP_NAME || 'RxChat';
+const RP_ID = process.env.NEXT_PUBLIC_WEBAUTHN_RP_ID || 'localhost';
+const ORIGIN =
+  process.env.NEXT_PUBLIC_WEBAUTHN_ORIGIN || 'http://localhost:3000';
+
+const CHALLENGE_TTL_SECONDS = 300;
 
 export interface WebAuthnConfig {
   rpName: string;
@@ -51,14 +113,20 @@ export async function generatePasskeyRegistrationOptions({
   userName: string;
   userDisplayName: string;
 }) {
-  // Get existing authenticators for this user
-  const existingAuthenticators = await getPasskeyAuthenticatorsByUserId(userId);
+  let excludeCredentials: { id: string; transports?: any[] }[] = [];
 
-  // Convert to format expected by SimpleWebAuthn v13
-  const excludeCredentials = existingAuthenticators.map((authenticator) => ({
-    id: authenticator.credentialID,
-    transports: authenticator.transports,
-  }));
+  // Skip checking existing authenticators for temporary users (new registrations)
+  if (!userId.startsWith('temp_')) {
+    // Get existing authenticators for this user
+    const existingAuthenticators =
+      await getPasskeyAuthenticatorsByUserId(userId);
+
+    // Convert to format expected by SimpleWebAuthn v13
+    excludeCredentials = existingAuthenticators.map((authenticator) => ({
+      id: authenticator.credentialID,
+      transports: authenticator.transports,
+    }));
+  }
 
   const options = await generateRegistrationOptions({
     rpName: webAuthnConfig.rpName,
@@ -79,7 +147,7 @@ export async function generatePasskeyRegistrationOptions({
     challenge: options.challenge,
     userId,
     type: 'registration',
-    ttlSeconds: 300, // 5 minutes
+    ttlSeconds: CHALLENGE_TTL_SECONDS, // 5 minutes
   });
 
   return {
@@ -89,25 +157,58 @@ export async function generatePasskeyRegistrationOptions({
 }
 
 /**
+ * Extend the TTL of an existing challenge if it's close to expiring
+ * Note: Since Redis handles TTL automatically, this function creates a new challenge
+ * with the same data but extended expiration time if the current one is about to expire
+ */
+export async function extendChallengeIfNeeded(
+  challengeId: string,
+  extensionSeconds = 300,
+) {
+  const challengeRecord = await getChallenge(challengeId);
+
+  if (!challengeRecord) {
+    return null;
+  }
+
+  // Since Redis handles TTL automatically and we don't store it in the challenge object,
+  // we'll create a new challenge with extended TTL and return it
+  // This is useful for long-running authentication processes
+  const newChallenge = await createChallenge({
+    challenge: challengeRecord.challenge,
+    userId: challengeRecord.userId,
+    type: challengeRecord.type,
+    ttlSeconds: extensionSeconds,
+  });
+
+  // Delete the old challenge
+  await deleteChallenge(challengeId);
+
+  return newChallenge;
+}
+
+/**
  * Verify passkey registration response
  */
 export async function verifyPasskeyRegistration({
   response,
   challengeId,
   name,
+  email,
   expectedOrigin = webAuthnConfig.origin,
   expectedRPID = webAuthnConfig.rpID,
 }: {
   response: RegistrationResponseJSON;
   challengeId: string;
   name?: string;
+  email?: string;
   expectedOrigin?: string;
   expectedRPID?: string;
 }) {
   // Get and validate the challenge
   const challengeRecord = await getChallenge(challengeId);
   if (!challengeRecord || challengeRecord.type !== 'registration') {
-    throw new Error('Invalid or expired challenge');
+    throw new Error('CHALLENGE_EXPIRED');
   }
 
   if (!challengeRecord.userId) {
@@ -132,10 +233,23 @@ export async function verifyPasskeyRegistration({
 
   const { registrationInfo } = verification;
 
+  let actualUserId = challengeRecord.userId;
+
+  // If this is a new user registration (temporary user ID), create the user account first
+  if (challengeRecord.userId.startsWith('temp_')) {
+    if (!email) {
+      throw new Error('Email is required for new user registration');
+    }
+
+    // Create a new user account without a password since this is passkey-only registration
+    const newUser = await createUserWithoutPassword(email);
+    actualUserId = newUser.id;
+  }
+
   // Store the authenticator in the database
   const authenticator = await createPasskeyAuthenticator({
     credentialID: registrationInfo.credential.id,
-    userId: challengeRecord.userId,
+    userId: actualUserId,
     credentialPublicKey: Buffer.from(
       registrationInfo.credential.publicKey,
     ).toString('base64'),
@@ -149,6 +263,7 @@ export async function verifyPasskeyRegistration({
   return {
     verified: true,
     authenticator,
+    userId: actualUserId,
   };
 }
 
@@ -158,9 +273,11 @@ export async function verifyPasskeyRegistration({
 export async function generatePasskeyAuthenticationOptions({
   userId,
   email,
+  challengeTTLSeconds = CHALLENGE_TTL_SECONDS,
 }: {
   userId?: string;
   email?: string;
+  challengeTTLSeconds?: number;
 } = {}) {
   let allowCredentials: { id: string; transports?: any[] }[] = [];
 
@@ -192,7 +309,7 @@ export async function generatePasskeyAuthenticationOptions({
     challenge: options.challenge,
     userId,
     type: 'authentication',
-    ttlSeconds: 300, // 5 minutes
+    ttlSeconds: challengeTTLSeconds,
   });
 
   return {
@@ -218,7 +335,18 @@ export async function verifyPasskeyAuthentication({
   // Get and validate the challenge
   const challengeRecord = await getChallenge(challengeId);
   if (!challengeRecord || challengeRecord.type !== 'authentication') {
-    throw new Error('Invalid or expired challenge');
+    // Check if the credential exists to provide better error messaging
+    const authenticator = await getPasskeyAuthenticatorByCredentialId(
+      response.id,
+    );
+
+    if (authenticator) {
+      // The user has a valid passkey but the challenge expired
+      throw new Error('CHALLENGE_EXPIRED');
+    } else {
+      // The credential doesn't exist in our system
+      throw new Error('Invalid or expired challenge');
+    }
   }
 
   // Get the authenticator
@@ -264,5 +392,37 @@ export async function verifyPasskeyAuthentication({
     verified: true,
     userId: authenticator.userId,
     authenticator,
+  };
+}
+
+/**
+ * Handle expired challenge scenario by allowing graceful restart
+ */
+export async function handleExpiredChallenge({
+  credentialId,
+  email,
+}: {
+  credentialId: string;
+  email?: string;
+}) {
+  // Verify the credential exists
+  const authenticator =
+    await getPasskeyAuthenticatorByCredentialId(credentialId);
+
+  if (!authenticator) {
+    throw new Error('Credential not found');
+  }
+
+  // Generate new authentication options for this user
+  const { options, challengeId } = await generatePasskeyAuthenticationOptions({
+    userId: authenticator.userId,
+    email,
+  });
+
+  return {
+    options,
+    challengeId,
+    userId: authenticator.userId,
+    message: 'Challenge expired. Please authenticate again with your passkey.',
   };
 }
