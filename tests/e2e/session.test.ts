@@ -209,3 +209,122 @@ test.describe('Profile', () => {
     });
   });
 });
+
+test.describe
+  .serial('Passkey', () => {
+    let authPage: AuthPage;
+
+    test.beforeEach(async ({ passkeyContext }) => {
+      // Reset browser state before each test
+      await passkeyContext.page.context().clearCookies();
+
+      authPage = new AuthPage(passkeyContext.page);
+    });
+
+    test('cannot login with passkey if email is not registered', async ({
+      passkeyContext,
+    }) => {
+      await authPage.loginWithPasskey();
+      // check if we still in login page
+      await expect(passkeyContext.page.getByRole('heading')).toContainText(
+        'Sign In',
+      );
+    });
+
+    test('register and login with passkey', async ({ passkeyContext }) => {
+      const testUser = generateRandomTestUser();
+      await authPage.registerWithPasskey(testUser.email);
+      await authPage.isAtChatPage();
+
+      await authPage.logout(testUser.email, testUser.password, true);
+      await authPage.loginWithPasskey();
+      await authPage.isAtChatPage();
+
+      await authPage.logout(testUser.email, testUser.password, true, true);
+    });
+
+    test('cannot register with passkey if email is already registered', async ({
+      passkeyContext,
+    }) => {
+      const testUser = generateRandomTestUser();
+
+      await authPage.register(testUser.email, testUser.password);
+      await authPage.isAtChatPage();
+
+      await authPage.logout(testUser.email, testUser.password, true);
+      await authPage.registerWithPasskey(testUser.email);
+      await passkeyContext.page.waitForTimeout(2000);
+      // check if we still in register page
+      await expect(passkeyContext.page.getByRole('heading')).toContainText(
+        'Sign Up',
+      );
+    });
+
+    test('should be able to add passkey through profile page', async ({
+      passkeyContext,
+    }) => {
+      const testUser = generateRandomTestUser();
+      await authPage.register(testUser.email, testUser.password);
+      await authPage.isAtChatPage();
+
+      await passkeyContext.page.goto('/profile');
+      await passkeyContext.page.getByTestId('add-passkey-button').click();
+      // enter passkey name
+      await passkeyContext.page
+        .getByRole('textbox', { name: 'Passkey Name' })
+        .fill('Test Passkey');
+      // click on create passkey
+      await passkeyContext.page
+        .getByTestId('passkey-name-dialog-create-button')
+        .click();
+      // check if we are at chat page
+      // check if passkey is added
+      await expect(
+        passkeyContext.page.getByTestId('current-method-Passkey'),
+      ).toBeVisible();
+
+      await authPage.logout(testUser.email, testUser.password, true);
+      await authPage.loginWithPasskey();
+      await authPage.isAtChatPage();
+    });
+
+    test('should handle duplicate passkey error when adding multiple passkeys', async ({
+      passkeyContext,
+    }) => {
+      const testUser = generateRandomTestUser();
+      await authPage.register(testUser.email, testUser.password);
+      await authPage.isAtChatPage();
+
+      await passkeyContext.page.goto('/profile');
+
+      // Add first passkey
+      await passkeyContext.page.getByTestId('add-passkey-button').click();
+      await passkeyContext.page
+        .getByRole('textbox', { name: 'Passkey Name' })
+        .fill('Test Passkey 1');
+      await passkeyContext.page
+        .getByTestId('passkey-name-dialog-create-button')
+        .click();
+
+      // Wait for first passkey to be added successfully
+      await expect(
+        passkeyContext.page.getByTestId('current-method-Passkey'),
+      ).toBeVisible();
+
+      // Try to add second passkey with different name
+      await passkeyContext.page.getByTestId('add-passkey-button').click();
+      await passkeyContext.page
+        .getByRole('textbox', { name: 'Passkey Name' })
+        .fill('Test Passkey 2');
+      await passkeyContext.page
+        .getByTestId('passkey-name-dialog-create-button')
+        .click();
+
+      // Wait a moment for any potential error messages
+      await passkeyContext.page.waitForTimeout(2000);
+      // textbox still exists
+      await expect(
+        passkeyContext.page.getByRole('textbox', { name: 'Passkey Name' }),
+      ).toBeVisible();
+    });
+  });

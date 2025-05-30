@@ -14,6 +14,7 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Separator } from './ui/separator';
+import { useRouter } from 'next/navigation';
 
 export function AuthForm({
   action,
@@ -35,6 +36,8 @@ export function AuthForm({
   const [registrationStep, setRegistrationStep] = useState<
     'email' | 'password'
   >('email');
+
+  const router = useRouter();
 
   useEffect(() => {
     // Check if WebAuthn is supported and show passkey option
@@ -75,7 +78,7 @@ export function AuthForm({
 
         if (signInResult?.ok) {
           toast.success('Signed in successfully with passkey');
-          window.location.href = '/';
+          router.refresh();
         } else {
           toast.error('Failed to complete sign-in');
         }
@@ -242,6 +245,7 @@ export function AuthForm({
                   className="w-full"
                   onClick={handlePasskeyRegistration}
                   disabled={isPasskeyRegistering || !email}
+                  data-testid="passkey-register-button"
                 >
                   <Key className="size-4 mr-2" />
                   {isPasskeyRegistering
@@ -333,6 +337,7 @@ export function AuthForm({
             className="w-full"
             onClick={handlePasskeySignIn}
             disabled={isPasskeyLoading}
+            data-testid="passkey-login-button"
           >
             <Key className="size-4 mr-2" />
             {isPasskeyLoading ? 'Signing in...' : 'Sign in with Passkey'}

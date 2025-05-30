@@ -2,11 +2,13 @@ import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 import { generatePasskeyAuthenticationOptions } from '@/lib/webauthn';
 import { authenticationOptionsSchema } from './schema';
+import { isTestEnvironment } from '@/lib/constants';
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const validationResult = authenticationOptionsSchema.safeParse(body);
+    const timeout = isTestEnvironment ? 2000 : undefined;
 
     if (!validationResult.success) {
       return NextResponse.json(
@@ -23,14 +25,18 @@ export async function POST(request: NextRequest) {
     if ('userId' in data && data.userId) {
       result = await generatePasskeyAuthenticationOptions({
         userId: data.userId,
+        challengeTTLSeconds: timeout,
       });
     } else if ('email' in data && data.email) {
       result = await generatePasskeyAuthenticationOptions({
         email: data.email,
+        challengeTTLSeconds: timeout,
       });
     } else {
       // Handle empty request for discoverable credentials
-      result = await generatePasskeyAuthenticationOptions({});
+      result = await generatePasskeyAuthenticationOptions({
+        challengeTTLSeconds: timeout,
+      });
     }
 
     return NextResponse.json({

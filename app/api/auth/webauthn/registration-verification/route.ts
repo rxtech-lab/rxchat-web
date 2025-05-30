@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { auth, signIn } from '@/app/(auth)/auth';
 import { verifyPasskeyRegistration } from '@/lib/webauthn';
+import { ChatSDKError } from '@/lib/errors';
 
 const registrationVerificationSchema = z.object({
   response: z.any(), // WebAuthn response object
@@ -86,6 +87,18 @@ export async function POST(request: NextRequest) {
     );
   } catch (error) {
     console.error('WebAuthn registration verification error:', error);
+
+    // Handle specific case where user already exists
+    if (
+      error instanceof ChatSDKError &&
+      error.cause === 'User with this email already exists'
+    ) {
+      return NextResponse.json(
+        { error: 'Account already exists' },
+        { status: 400 },
+      );
+    }
+
     return NextResponse.json(
       { error: 'Failed to verify registration' },
       { status: 500 },

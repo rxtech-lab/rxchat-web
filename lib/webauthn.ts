@@ -87,6 +87,8 @@ const RP_ID = process.env.NEXT_PUBLIC_WEBAUTHN_RP_ID || 'localhost';
 const ORIGIN =
   process.env.NEXT_PUBLIC_WEBAUTHN_ORIGIN || 'http://localhost:3000';
 
+const CHALLENGE_TTL_SECONDS = 300;
+
 export interface WebAuthnConfig {
   rpName: string;
   rpID: string;
@@ -145,7 +147,7 @@ export async function generatePasskeyRegistrationOptions({
     challenge: options.challenge,
     userId,
     type: 'registration',
-    ttlSeconds: 300, // 5 minutes
+    ttlSeconds: CHALLENGE_TTL_SECONDS, // 5 minutes
   });
 
   return {
@@ -271,9 +273,11 @@ export async function verifyPasskeyRegistration({
 export async function generatePasskeyAuthenticationOptions({
   userId,
   email,
+  challengeTTLSeconds = CHALLENGE_TTL_SECONDS,
 }: {
   userId?: string;
   email?: string;
+  challengeTTLSeconds?: number;
 } = {}) {
   let allowCredentials: { id: string; transports?: any[] }[] = [];
 
@@ -305,7 +309,7 @@ export async function generatePasskeyAuthenticationOptions({
     challenge: options.challenge,
     userId,
     type: 'authentication',
-    ttlSeconds: 300, // 5 minutes
+    ttlSeconds: challengeTTLSeconds,
   });
 
   return {

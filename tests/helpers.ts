@@ -25,9 +25,23 @@ export type UserContext = {
     name: string;
     email: string;
   };
+};
+
+export type PasskeyAuthenticatedContext = Omit<UserContext, 'user'> & {
   passkey: {
     authenticatorId: string;
     asserted: () => Promise<void>;
+    addCredential: (credential: {
+      credentialId: string;
+      isResidentCredential: boolean;
+      rpId: string;
+      privateKey: string;
+      userHandle: string;
+      signCount: number;
+    }) => Promise<void>;
+    getCredentials: () => Promise<any[]>;
+    clearCredentials: () => Promise<void>;
+    client: any; // CDP client for advanced operations
   };
 };
 
@@ -87,6 +101,37 @@ export async function createAuthenticatedContext({
   const user = await newPage.request.get('/api/user');
   const userData = await user.json();
 
+  return {
+    context: newContext,
+    page: newPage,
+    request: newContext.request,
+    user: userData,
+  };
+}
+
+export async function createPasskeyAuthenticatedContext({
+  browser,
+  name,
+}: {
+  browser: Browser;
+  name: string;
+}): Promise<PasskeyAuthenticatedContext> {
+  const directory = path.join(__dirname, '../playwright/.sessions');
+
+  if (!fs.existsSync(directory)) {
+    fs.mkdirSync(directory, { recursive: true });
+  }
+
+  const storageFile = path.join(directory, `${name}.json`);
+  const context = await browser.newContext();
+  const page = await context.newPage();
+
+  await context.storageState({ path: storageFile });
+  await page.close();
+
+  const newContext = await browser.newContext({ storageState: storageFile });
+  const newPage = await newContext.newPage();
+
   // add passkey support
   const client = await newContext.newCDPSession(newPage);
   await client.send('WebAuthn.enable');
@@ -103,19 +148,57 @@ export async function createAuthenticatedContext({
       },
     },
   );
+
   const asserted = () =>
-    new Promise<void>((resolve) =>
-      client.once('WebAuthn.credentialAsserted', () => resolve()),
-    );
+    new Promise<void>((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        reject(new Error('Passkey assertion timeout after 10 seconds'));
+      }, 10000);
+
+      client.once('WebAuthn.credentialAsserted', () => {
+        clearTimeout(timeout);
+        resolve();
+      });
+    });
+
+  const addCredential = async (credential: {
+    credentialId: string;
+    isResidentCredential: boolean;
+    rpId: string;
+    privateKey: string;
+    userHandle: string;
+    signCount: number;
+  }) => {
+    await client.send('WebAuthn.addCredential', {
+      authenticatorId,
+      credential,
+    });
+  };
+
+  const getCredentials = async () => {
+    const result = await client.send('WebAuthn.getCredentials', {
+      authenticatorId,
+    });
+    return result.credentials;
+  };
+
+  const clearCredentials = async () => {
+    await client.send('WebAuthn.clearCredentials', {
+      authenticatorId,
+    });
+  };
 
   return {
     context: newContext,
     page: newPage,
     request: newContext.request,
-    user: userData,
     passkey: {
       authenticatorId,
       asserted,
+      addCredential,
+      getCredentials,
+      clearCredentials,
+      client,
     },
   };
 }

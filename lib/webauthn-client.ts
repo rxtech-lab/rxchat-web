@@ -14,6 +14,7 @@ export async function registerPasskey(
   message: string;
   userId?: string;
   signedIn?: boolean;
+  currentPasskeyCount?: number;
 }> {
   try {
     // Get registration options from server
@@ -29,10 +30,12 @@ export async function registerPasskey(
     );
 
     if (!optionsResponse.ok) {
-      throw new Error('Failed to get registration options');
+      const errorData = await optionsResponse.json();
+      throw new Error(errorData.error || 'Failed to get registration options');
     }
 
-    const { options, challengeId } = await optionsResponse.json();
+    const { options, challengeId, currentPasskeyCount } =
+      await optionsResponse.json();
 
     // Start WebAuthn registration
     const response = await startRegistration({ optionsJSON: options });
@@ -54,11 +57,14 @@ export async function registerPasskey(
       },
     );
 
-    if (!verificationResponse.ok) {
-      throw new Error('Failed to verify registration');
-    }
-
     const verificationResult = await verificationResponse.json();
+
+    if (!verificationResponse.ok) {
+      return {
+        success: false,
+        message: verificationResult.error || 'Failed to verify registration',
+      };
+    }
 
     if (verificationResult.verified) {
       return {
@@ -67,6 +73,7 @@ export async function registerPasskey(
           verificationResult.message || 'Passkey registered successfully',
         userId: verificationResult.userId,
         signedIn: verificationResult.signedIn || false,
+        currentPasskeyCount: currentPasskeyCount + 1, // Increment since we just added one
       };
     } else {
       return {

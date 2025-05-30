@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { auth } from '@/app/(auth)/auth';
 import { generatePasskeyRegistrationOptions } from '@/lib/webauthn';
+import { getPasskeyAuthenticatorsByUserId } from '@/lib/db/queries';
 
 const registrationOptionsSchema = z.object({
   email: z.string().email('Invalid email address').optional(),
@@ -18,6 +19,11 @@ export async function POST(request: NextRequest) {
 
     // For authenticated users (adding additional passkeys)
     if (session?.user?.id) {
+      // Get current passkey count for informational purposes
+      const existingPasskeys = await getPasskeyAuthenticatorsByUserId(
+        session.user.id,
+      );
+
       const name = session.user.name ?? session.user.email ?? 'User';
 
       const result = await generatePasskeyRegistrationOptions({
@@ -29,6 +35,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({
         options: result.options,
         challengeId: result.challengeId,
+        currentPasskeyCount: existingPasskeys.length,
       });
     } else {
       if (!parseResult.success) {
@@ -62,6 +69,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       options: result.options,
       challengeId: result.challengeId,
+      currentPasskeyCount: 0,
     });
   } catch (error) {
     console.error('WebAuthn registration options error:', error);

@@ -44,7 +44,7 @@ export default defineConfig({
   },
 
   /* Configure global timeout for each test */
-  timeout: 120 * 1000, // 120 seconds
+  timeout: process.env.CI ? 120 * 1000 : 30 * 1000, // 120 seconds
   expect: {
     timeout: 120 * 1000,
   },

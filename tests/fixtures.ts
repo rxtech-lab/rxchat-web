@@ -1,14 +1,32 @@
 import { expect as baseExpect, test as baseTest } from '@playwright/test';
-import { createAuthenticatedContext, type UserContext } from './helpers';
+import {
+  createAuthenticatedContext,
+  createPasskeyAuthenticatedContext,
+  type PasskeyAuthenticatedContext,
+  type UserContext,
+} from './helpers';
 import { getUnixTime } from 'date-fns';
 
 interface Fixtures {
   adaContext: UserContext;
   babbageContext: UserContext;
   curieContext: UserContext;
+  passkeyContext: PasskeyAuthenticatedContext;
 }
 
 export const test = baseTest.extend<{}, Fixtures>({
+  passkeyContext: [
+    async ({ browser }, use, workerInfo) => {
+      const passkey = await createPasskeyAuthenticatedContext({
+        browser,
+        name: `passkey-${workerInfo.workerIndex}-${getUnixTime(new Date())}`,
+      });
+
+      await use(passkey);
+      await passkey.context.close();
+    },
+    { scope: 'worker' },
+  ],
   adaContext: [
     async ({ browser }, use, workerInfo) => {
       const ada = await createAuthenticatedContext({

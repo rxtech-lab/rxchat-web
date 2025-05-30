@@ -14,10 +14,30 @@ export class AuthPage {
     await expect(this.page.getByRole('heading')).toContainText('Sign Up');
   }
 
+  async registerWithPasskey(email: string) {
+    await this.page.goto('/register');
+    await this.page.getByRole('textbox', { name: 'Email' }).fill(email);
+    await this.page.getByTestId('passkey-register-button').click();
+  }
+
+  async loginWithPasskey() {
+    await this.page.goto('/login');
+    await this.page.getByTestId('passkey-login-button').click();
+  }
+
+  async isAtChatPage() {
+    await this.page.waitForURL('/');
+    await expect(this.page.getByPlaceholder('Send a message...')).toBeVisible();
+  }
+
   async register(email: string, password: string) {
     await this.gotoRegister();
     await this.page.getByPlaceholder('user@acme.com').click();
     await this.page.getByPlaceholder('user@acme.com').fill(email);
+
+    // click on continue
+    await this.page.getByRole('button', { name: 'Continue' }).click();
+
     await this.page.getByLabel('Password').first().click();
     await this.page.getByLabel('Password').first().fill(password);
     await this.page.getByLabel('Confirm Password').first().click();
@@ -34,13 +54,20 @@ export class AuthPage {
     await this.page.getByRole('button', { name: 'Sign In' }).first().click();
   }
 
-  async logout(email: string, password: string, skipLogin = false) {
+  async logout(
+    email: string,
+    password: string,
+    skipLogin = false,
+    skipSidebar = false,
+  ) {
     if (!skipLogin) {
       await this.login(email, password);
       await this.page.waitForURL('/');
     }
 
-    await this.openSidebar();
+    if (!skipSidebar) {
+      await this.openSidebar();
+    }
 
     const userNavButton = this.page.getByTestId('user-nav-button');
     await expect(userNavButton).toBeVisible();

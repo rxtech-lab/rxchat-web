@@ -89,9 +89,23 @@ export async function createUser(email: string, password: string) {
 
 export async function createUserWithoutPassword(email: string) {
   try {
+    // Check if user already exists
+    const existingUsers = await getUser(email);
+    if (existingUsers.length > 0) {
+      throw new ChatSDKError(
+        'bad_request:auth',
+        'User with this email already exists',
+      );
+    }
+
     const [newUser] = await db.insert(user).values({ email }).returning();
     return newUser;
   } catch (error) {
+    // Re-throw ChatSDKError as is
+    if (error instanceof ChatSDKError) {
+      throw error;
+    }
+
     throw new ChatSDKError(
       'bad_request:database',
       'Failed to create user without password',
