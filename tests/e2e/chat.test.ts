@@ -83,6 +83,35 @@ test.describe('Chat activity', () => {
     expect(updatedAssistantMessage.content).toContain("It's just blue duh!");
   });
 
+  test('Message editor initializes with correct content from parts array', async ({
+    adaContext,
+  }) => {
+    const originalMessage = 'Test message for editor initialization';
+    await chatPage.sendUserMessage(originalMessage);
+    await chatPage.isGenerationComplete();
+
+    const userMessage = await chatPage.getRecentUserMessage();
+
+    // Click edit button to open the editor
+    await userMessage.element.hover();
+    const editButton = userMessage.element.getByTestId('message-edit-button');
+    await expect(editButton).toBeVisible();
+    await editButton.click();
+
+    // Verify the editor textarea contains the original message content
+    const messageEditor = userMessage.element.getByTestId('message-editor');
+    await expect(messageEditor).toBeVisible();
+
+    const editorValue = await messageEditor.inputValue();
+    expect(editorValue).toBe(originalMessage);
+
+    // Cancel the edit to clean up
+    const cancelButton = userMessage.element.getByRole('button', {
+      name: 'Cancel',
+    });
+    await cancelButton.click();
+  });
+
   test('Hide suggested actions after sending message', async ({
     adaContext,
   }) => {

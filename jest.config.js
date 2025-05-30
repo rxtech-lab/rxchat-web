@@ -2,11 +2,20 @@ const { createDefaultPreset } = require('ts-jest');
 
 const tsJestTransformCfg = createDefaultPreset().transform;
 
-/** @type {import("jest").Config} **/
+/** @type {import('jest').Config} */
 module.exports = {
   testEnvironment: 'node',
-  transform: {
-    ...tsJestTransformCfg,
+  transformIgnorePatterns: ['<rootDir>/node_modules/'],
+  testMatch: ['**/*.spec.ts', '**/*.spec.tsx', '**/*.spec.js', '**/*.spec.jsx'],
+  moduleNameMapper: {
+    '^@/(.*)$': '<rootDir>/$1',
   },
-  testPathIgnorePatterns: ['/node_modules/', 'tests', 'lib/ai/models.test.ts'],
+  transform: {
+    '\\.[jt]sx?$': [
+      'babel-jest',
+      {
+        configFile: './babel.config.test.js',
+      },
+    ],
+  },
 };
