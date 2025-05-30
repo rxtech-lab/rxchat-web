@@ -1,32 +1,83 @@
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
-import { auth } from '@/app/(auth)/auth';
+import { z } from 'zod';
+import { auth, signIn } from '@/app/(auth)/auth';
 import { verifyPasskeyRegistration } from '@/lib/webauthn';
+
+const registrationVerificationSchema = z.object({
+  response: z.any(), // WebAuthn response object
+  challengeId: z.string(),
+  name: z.string().optional(),
+  email: z.string().email().optional(),
+});
 
 export async function POST(request: NextRequest) {
   try {
     const session = await auth();
 
-    if (!session?.user?.id) {
+    // Parse request body
+    const rawBody = await request.json();
+    const parseResult = registrationVerificationSchema.safeParse(rawBody);
+
+    if (!parseResult.success) {
       return NextResponse.json(
-        { error: 'Authentication required' },
-        { status: 401 },
+        { error: 'Invalid request body', details: parseResult.error.issues },
+        { status: 400 },
       );
     }
 
-    const { response, challengeId, name } = await request.json();
+    const { response, challengeId, name, email } = parseResult.data;
+
+    // For authenticated users, email is not required
+    // For unauthenticated users (new registrations), email is required
+    if (!session?.user?.id && !email) {
+      return NextResponse.json(
+        { error: 'Email is required for new user registration' },
+        { status: 400 },
+      );
+    }
 
     const result = await verifyPasskeyRegistration({
       response,
       challengeId,
       name,
+      email,
     });
 
     if (result.verified) {
-      return NextResponse.json({
-        verified: true,
-        message: 'Passkey registered successfully',
-      });
+      // For new user registrations (when there's no existing session), automatically sign them in
+      if (!session?.user?.id) {
+        try {
+          await signIn('webauthn', {
+            userId: result.userId,
+            redirect: false,
+          });
+
+          return NextResponse.json({
+            verified: true,
+            message: 'Passkey registered successfully and signed in',
+            userId: result.userId,
+            signedIn: true,
+          });
+        } catch (signInError) {
+          console.error('Auto sign-in after registration failed:', signInError);
+          // Still return success for registration even if sign-in fails
+          return NextResponse.json({
+            verified: true,
+            message: 'Passkey registered successfully, but auto sign-in failed',
+            userId: result.userId,
+            signedIn: false,
+          });
+        }
+      } else {
+        // For existing users adding additional passkeys
+        return NextResponse.json({
+          verified: true,
+          message: 'Passkey registered successfully',
+          userId: result.userId,
+          signedIn: false, // Already signed in
+        });
+      }
     }
 
     return NextResponse.json(

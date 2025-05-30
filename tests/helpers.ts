@@ -57,6 +57,8 @@ export async function createAuthenticatedContext({
   await page.goto('http://localhost:3000/register');
   await page.getByPlaceholder('user@acme.com').click();
   await page.getByPlaceholder('user@acme.com').fill(email);
+  await page.getByRole('button', { name: 'Continue' }).click();
+
   await page.getByRole('textbox', { name: 'Password' }).first().click();
   await page.getByRole('textbox', { name: 'Password' }).first().fill(password);
 

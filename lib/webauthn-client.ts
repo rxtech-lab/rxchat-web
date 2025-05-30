@@ -6,9 +6,14 @@ import {
 /**
  * Client-side WebAuthn registration handler
  */
-export async function registerPasskey(name?: string): Promise<{
+export async function registerPasskey(
+  name?: string,
+  email?: string,
+): Promise<{
   success: boolean;
   message: string;
+  userId?: string;
+  signedIn?: boolean;
 }> {
   try {
     // Get registration options from server
@@ -19,6 +24,7 @@ export async function registerPasskey(name?: string): Promise<{
         headers: {
           'Content-Type': 'application/json',
         },
+        body: JSON.stringify(email ? { email } : {}),
       },
     );
 
@@ -43,6 +49,7 @@ export async function registerPasskey(name?: string): Promise<{
           response,
           challengeId,
           name: name || 'My Passkey',
+          email: email,
         }),
       },
     );
@@ -56,7 +63,10 @@ export async function registerPasskey(name?: string): Promise<{
     if (verificationResult.verified) {
       return {
         success: true,
-        message: 'Passkey registered successfully',
+        message:
+          verificationResult.message || 'Passkey registered successfully',
+        userId: verificationResult.userId,
+        signedIn: verificationResult.signedIn || false,
       };
     } else {
       return {

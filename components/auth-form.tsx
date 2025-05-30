@@ -3,6 +3,7 @@
 import {
   authenticateWithPasskey,
   isWebAuthnSupported,
+  registerPasskey,
 } from '@/lib/webauthn-client';
 import { Key } from 'lucide-react';
 import { signIn } from 'next-auth/react';
@@ -30,13 +31,17 @@ export function AuthForm({
   const [email, setEmail] = useState(defaultEmail);
   const [showPasskeyOption, setShowPasskeyOption] = useState(false);
   const [isPasskeyLoading, setIsPasskeyLoading] = useState(false);
+  const [isPasskeyRegistering, setIsPasskeyRegistering] = useState(false);
+  const [registrationStep, setRegistrationStep] = useState<
+    'email' | 'password'
+  >('email');
 
   useEffect(() => {
-    // Check if WebAuthn is supported and show passkey option for sign-in
-    if (!isRegister && isWebAuthnSupported()) {
+    // Check if WebAuthn is supported and show passkey option
+    if (isWebAuthnSupported()) {
       setShowPasskeyOption(true);
     }
-  }, [isRegister]);
+  }, []);
 
   const handlePasskeySignIn = async () => {
     setIsPasskeyLoading(true);
@@ -85,11 +90,56 @@ export function AuthForm({
     }
   };
 
+  const handlePasskeyRegistration = async () => {
+    if (!email) {
+      toast.error('Please enter your email address first');
+      return;
+    }
+
+    setIsPasskeyRegistering(true);
+
+    try {
+      const result = await registerPasskey(`${email} Passkey`, email);
+
+      if (result.success) {
+        if (result.signedIn) {
+          toast.success(
+            'Passkey registered and signed in successfully! Redirecting...',
+          );
+          // Give user time to see the success message, then redirect
+          setTimeout(() => {
+            window.location.href = '/';
+          }, 1500);
+        } else {
+          toast.success(
+            'Passkey registered successfully! You can now sign in with your passkey.',
+          );
+        }
+      } else {
+        toast.error(result.message);
+      }
+    } catch (error) {
+      console.error('Passkey registration error:', error);
+      toast.error('Failed to register passkey');
+    } finally {
+      setIsPasskeyRegistering(false);
+    }
+  };
+
+  const handleContinueToPassword = () => {
+    if (!email) {
+      toast.error('Please enter your email address');
+      return;
+    }
+    setRegistrationStep('password');
+  };
+
   // Show registration form
   if (isRegister) {
     return (
       <div className="flex flex-col gap-4 px-4 sm:px-16">
         <Form action={action} className="flex flex-col gap-4">
+          {/* Email field - always shown */}
           <div className="flex flex-col gap-2">
             <Label
               htmlFor="email"
@@ -100,54 +150,120 @@ export function AuthForm({
 
             <Input
               id="email"
-              name="email"
+              name={registrationStep === 'password' ? '' : 'email'}
               className="bg-muted text-md md:text-sm"
               type="email"
               placeholder="user@acme.com"
               autoComplete="email webauthn"
-              required
-              autoFocus
+              required={registrationStep === 'email'}
+              autoFocus={registrationStep === 'email'}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
+              readOnly={registrationStep === 'password'}
             />
           </div>
 
-          <div className="flex flex-col gap-2">
-            <Label
-              htmlFor="password"
-              className="text-zinc-600 font-normal dark:text-zinc-400"
-            >
-              Password
-            </Label>
+          {/* Hidden email field for password step to ensure email is submitted */}
+          {registrationStep === 'password' && (
+            <input type="hidden" name="email" value={email} />
+          )}
 
-            <Input
-              id="password"
-              name="password"
-              className="bg-muted text-md md:text-sm"
-              type="password"
-              required
-            />
-          </div>
+          {/* Password fields - only shown in password step */}
+          {registrationStep === 'password' && (
+            <>
+              <div className="flex flex-col gap-2">
+                <Label
+                  htmlFor="password"
+                  className="text-zinc-600 font-normal dark:text-zinc-400"
+                >
+                  Password
+                </Label>
 
-          <div className="flex flex-col gap-2">
-            <Label
-              htmlFor="confirmPassword"
-              className="text-zinc-600 font-normal dark:text-zinc-400"
-            >
-              Confirm Password
-            </Label>
+                <Input
+                  id="password"
+                  name="password"
+                  className="bg-muted text-md md:text-sm"
+                  type="password"
+                  required
+                  autoFocus
+                />
+              </div>
 
-            <Input
-              id="confirmPassword"
-              name="confirmPassword"
-              className="bg-muted text-md md:text-sm"
-              type="password"
-              required
-            />
-          </div>
+              <div className="flex flex-col gap-2">
+                <Label
+                  htmlFor="confirmPassword"
+                  className="text-zinc-600 font-normal dark:text-zinc-400"
+                >
+                  Confirm Password
+                </Label>
 
-          {children}
+                <Input
+                  id="confirmPassword"
+                  name="confirmPassword"
+                  className="bg-muted text-md md:text-sm"
+                  type="password"
+                  required
+                />
+              </div>
+
+              {children}
+            </>
+          )}
         </Form>
+
+        {/* Email step - show Continue and Passkey options */}
+        {registrationStep === 'email' && (
+          <>
+            <Button
+              type="button"
+              className="w-full"
+              onClick={handleContinueToPassword}
+              disabled={!email}
+            >
+              Continue
+            </Button>
+
+            {showPasskeyOption && (
+              <>
+                <div className="relative">
+                  <div className="absolute inset-0 flex items-center">
+                    <Separator className="w-full" />
+                  </div>
+                  <div className="relative flex justify-center text-xs uppercase">
+                    <span className="bg-background px-2 text-muted-foreground">
+                      Or
+                    </span>
+                  </div>
+                </div>
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full"
+                  onClick={handlePasskeyRegistration}
+                  disabled={isPasskeyRegistering || !email}
+                >
+                  <Key className="size-4 mr-2" />
+                  {isPasskeyRegistering
+                    ? 'Registering...'
+                    : 'Register with Passkey'}
+                </Button>
+              </>
+            )}
+          </>
+        )}
+
+        {/* Password step - show Back button */}
+        {registrationStep === 'password' && (
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full"
+            onClick={() => setRegistrationStep('email')}
+          >
+            Back to Email
+          </Button>
+        )}
       </div>
     );
   }
