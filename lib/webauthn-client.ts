@@ -178,10 +178,25 @@ export async function authenticateWithPasskey(
   } catch (error: any) {
     console.error('Passkey authentication error:', error);
 
+    // Enhanced error logging for debugging Android issues
+    console.error('Error details:', {
+      name: error.name,
+      message: error.message,
+      stack: error.stack,
+      userAgent:
+        typeof navigator !== 'undefined' ? navigator.userAgent : 'unknown',
+    });
+
     if (error.name === 'NotAllowedError') {
+      // More specific error message for Android debugging
+      const isAndroid =
+        typeof navigator !== 'undefined' &&
+        /Android/i.test(navigator.userAgent);
       return {
         success: false,
-        message: 'Authentication was cancelled or not allowed',
+        message: isAndroid
+          ? 'Authentication was cancelled, timed out, or not allowed. Please ensure your device has a screen lock (PIN, pattern, or biometric) enabled and try again.'
+          : 'Authentication was cancelled or not allowed',
       };
     }
 
@@ -189,6 +204,22 @@ export async function authenticateWithPasskey(
       return {
         success: false,
         message: 'Passkeys are not supported on this device',
+      };
+    }
+
+    if (error.name === 'InvalidStateError') {
+      return {
+        success: false,
+        message:
+          'Authentication failed due to device state. Please ensure your screen lock is enabled.',
+      };
+    }
+
+    if (error.name === 'SecurityError') {
+      return {
+        success: false,
+        message:
+          'Security error occurred. Please ensure you are using HTTPS and the correct domain.',
       };
     }
 

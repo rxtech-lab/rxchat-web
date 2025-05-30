@@ -134,12 +134,12 @@ export async function generatePasskeyRegistrationOptions({
     userID: new Uint8Array(Buffer.from(userId)),
     userName,
     userDisplayName,
+    timeout: 120000, // 2 minutes
     excludeCredentials,
     authenticatorSelection: {
-      residentKey: 'preferred',
-      userVerification: 'preferred',
+      residentKey: 'discouraged',
+      userVerification: 'discouraged',
     },
-    supportedAlgorithmIDs: [-7, -257], // ES256 and RS256
   });
 
   // Store the challenge in database with 5-minute expiration
@@ -301,7 +301,8 @@ export async function generatePasskeyAuthenticationOptions({
   const options = await generateAuthenticationOptions({
     rpID: webAuthnConfig.rpID,
     allowCredentials,
-    userVerification: 'preferred',
+    userVerification: 'discouraged',
+    timeout: 120000, // 2 minutes timeout for Android compatibility
   });
 
   // Store the challenge with 5-minute expiration
