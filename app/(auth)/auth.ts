@@ -1,7 +1,7 @@
 import { compare } from 'bcrypt-ts';
 import NextAuth, { type DefaultSession } from 'next-auth';
 import Credentials from 'next-auth/providers/credentials';
-import { createGuestUser, getUser } from '@/lib/db/queries';
+import { createGuestUser, getUser, getUserById } from '@/lib/db/queries';
 import { authConfig } from './auth.config';
 import { DUMMY_PASSWORD } from '@/lib/constants';
 import type { DefaultJWT } from 'next-auth/jwt';
@@ -68,6 +68,30 @@ export const {
       async authorize() {
         const [guestUser] = await createGuestUser();
         return { ...guestUser, type: 'free' };
+      },
+    }),
+    Credentials({
+      id: 'webauthn',
+      credentials: {
+        userId: { type: 'text' },
+      },
+      async authorize({ userId }: any) {
+        if (!userId) {
+          return null;
+        }
+
+        try {
+          const user = await getUserById(userId);
+
+          if (!user) {
+            return null;
+          }
+
+          return { ...user, type: 'regular' };
+        } catch (error) {
+          console.error('WebAuthn authorization error:', error);
+          return null;
+        }
       },
     }),
   ],

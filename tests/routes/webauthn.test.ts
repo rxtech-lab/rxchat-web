@@ -125,6 +125,30 @@ test.describe
       authenticationChallengeId = data.challengeId;
     });
 
+    test('Ada can generate authentication option using email', async ({
+      adaContext,
+    }) => {
+      const response = await adaContext.request.post(
+        '/api/auth/webauthn/authentication-options',
+        {
+          data: {
+            email: adaContext.user.email,
+          },
+        },
+      );
+
+      expect(response.status()).toBe(200);
+      const data = await response.json();
+
+      expect(data).toHaveProperty('options');
+      expect(data).toHaveProperty('challengeId');
+      expect(data.options).toHaveProperty('challenge');
+      expect(data.options).toHaveProperty('rpId');
+      expect(data.options).toHaveProperty('allowCredentials');
+
+      authenticationChallengeId = data.challengeId;
+    });
+
     test('Ada cannot verify authentication with invalid challenge', async ({
       adaContext,
     }) => {
