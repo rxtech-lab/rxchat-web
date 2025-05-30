@@ -11,6 +11,7 @@ import {
   timestamp,
   uuid,
   varchar,
+  integer,
 } from 'drizzle-orm/pg-core';
 import type { ProviderType } from '../ai/models';
 
@@ -28,6 +29,34 @@ export const user = pgTable('User', {
 });
 
 export type User = InferSelectModel<typeof user>;
+
+export const passkeyAuthenticator = pgTable('PasskeyAuthenticator', {
+  credentialID: text('credentialID').primaryKey().notNull(),
+  userId: uuid('userId')
+    .notNull()
+    .references(() => user.id, { onDelete: 'cascade' }),
+  credentialPublicKey: text('credentialPublicKey').notNull(),
+  counter: integer('counter').notNull().default(0),
+  credentialDeviceType: varchar('credentialDeviceType', {
+    enum: ['singleDevice', 'multiDevice'],
+  }).notNull(),
+  credentialBackedUp: boolean('credentialBackedUp').notNull(),
+  transports: jsonb('transports')
+    .$type<
+      Array<
+        'usb' | 'nfc' | 'ble' | 'smart-card' | 'hybrid' | 'internal' | 'cable'
+      >
+    >()
+    .notNull()
+    .default(sql`'[]'::jsonb`),
+  name: varchar('name', { length: 255 }),
+  createdAt: timestamp('createdAt').notNull().defaultNow(),
+  lastUsed: timestamp('lastUsed'),
+});
+
+export type PasskeyAuthenticator = InferSelectModel<
+  typeof passkeyAuthenticator
+>;
 
 export const chat = pgTable('Chat', {
   id: uuid('id').primaryKey().notNull().defaultRandom(),

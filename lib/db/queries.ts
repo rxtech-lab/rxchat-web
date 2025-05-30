@@ -30,11 +30,13 @@ import {
   user,
   userPrompt,
   vote,
+  passkeyAuthenticator,
   type Chat,
   type DBMessage,
   type Prompt,
   type Suggestion,
   type User,
+  type PasskeyAuthenticator,
 } from './schema';
 import { generateHashedPassword } from './utils';
 
@@ -729,6 +731,151 @@ export async function deleteUserAccount({ id }: { id: string }) {
     throw new ChatSDKError(
       'bad_request:database',
       'Failed to delete user account',
+    );
+  }
+}
+
+// Passkey Authenticator Functions
+
+/**
+ * Create a new passkey authenticator for a user
+ */
+export async function createPasskeyAuthenticator({
+  credentialID,
+  userId,
+  credentialPublicKey,
+  counter,
+  credentialDeviceType,
+  credentialBackedUp,
+  transports,
+  name,
+}: {
+  credentialID: string;
+  userId: string;
+  credentialPublicKey: string;
+  counter: number;
+  credentialDeviceType: 'singleDevice' | 'multiDevice';
+  credentialBackedUp: boolean;
+  transports: Array<
+    'usb' | 'nfc' | 'ble' | 'smart-card' | 'hybrid' | 'internal' | 'cable'
+  >;
+  name?: string;
+}): Promise<PasskeyAuthenticator> {
+  try {
+    const [authenticator] = await db
+      .insert(passkeyAuthenticator)
+      .values({
+        credentialID,
+        userId,
+        credentialPublicKey,
+        counter,
+        credentialDeviceType,
+        credentialBackedUp,
+        transports,
+        name,
+        lastUsed: new Date(),
+      })
+      .returning();
+
+    return authenticator;
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to create passkey authenticator',
+    );
+  }
+}
+
+/**
+ * Get all passkey authenticators for a user
+ */
+export async function getPasskeyAuthenticatorsByUserId(
+  userId: string,
+): Promise<Array<PasskeyAuthenticator>> {
+  try {
+    const authenticators = await db
+      .select()
+      .from(passkeyAuthenticator)
+      .where(eq(passkeyAuthenticator.userId, userId))
+      .orderBy(desc(passkeyAuthenticator.createdAt));
+
+    return authenticators;
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to fetch passkey authenticators',
+    );
+  }
+}
+
+/**
+ * Get a specific passkey authenticator by credential ID
+ */
+export async function getPasskeyAuthenticatorByCredentialId(
+  credentialID: string,
+): Promise<PasskeyAuthenticator | null> {
+  try {
+    const [authenticator] = await db
+      .select()
+      .from(passkeyAuthenticator)
+      .where(eq(passkeyAuthenticator.credentialID, credentialID))
+      .limit(1);
+
+    return authenticator || null;
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to fetch passkey authenticator',
+    );
+  }
+}
+
+/**
+ * Update the counter and last used timestamp for a passkey authenticator
+ */
+export async function updatePasskeyAuthenticatorCounter({
+  credentialID,
+  counter,
+}: {
+  credentialID: string;
+  counter: number;
+}): Promise<PasskeyAuthenticator> {
+  try {
+    const [authenticator] = await db
+      .update(passkeyAuthenticator)
+      .set({
+        counter,
+        lastUsed: new Date(),
+      })
+      .where(eq(passkeyAuthenticator.credentialID, credentialID))
+      .returning();
+
+    return authenticator;
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to update passkey authenticator',
+    );
+  }
+}
+
+/**
+ * Delete a passkey authenticator
+ */
+export async function deletePasskeyAuthenticator(
+  credentialID: string,
+): Promise<PasskeyAuthenticator> {
+  try {
+    const [authenticator] = await db
+      .delete(passkeyAuthenticator)
+      .where(eq(passkeyAuthenticator.credentialID, credentialID))
+      .returning();
+
+    return authenticator;
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to delete passkey authenticator',
     );
   }
 }
