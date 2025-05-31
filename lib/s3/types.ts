@@ -13,6 +13,17 @@ export interface UploadResult {
   downloadUrl: string;
 }
 
+export interface PresignedUploadResult {
+  /**
+   * Pre-signed URL for uploading the file
+   */
+  uploadUrl: string;
+  /**
+   * Key of the file to be uploaded
+   */
+  key: string;
+}
+
 export interface GetFileOptions {
   /**
    * The time to live of the pre-signed URL in seconds
@@ -22,6 +33,14 @@ export interface GetFileOptions {
 
 export interface S3 {
   uploadFile(file: File): Promise<UploadResult>;
+  /**
+   * Get a pre-signed URL for uploading a file without actually uploading it
+   */
+  getPresignedUploadUrl(
+    key: string,
+    mimeType: string,
+    options?: GetFileOptions,
+  ): Promise<PresignedUploadResult>;
   /**
    * Delete a file from the S3 bucket
    */

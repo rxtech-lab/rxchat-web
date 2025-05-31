@@ -27,13 +27,16 @@ import { generateRandomTestUser } from '@/tests/helpers';
 const createMockVectorStoreDocument = (
   userId: string,
   overrides: Partial<VectorStoreDocument> = {},
-) => ({
+): VectorStoreDocument => ({
   content: 'This is a test document content for vector store.',
   userId,
   key: `test-key-${generateId()}`,
   originalFileName: 'test-document.txt',
   mimeType: 'text/plain',
   size: 1024,
+  id: crypto.randomUUID(),
+  createdAt: new Date(),
+  status: 'completed',
   ...overrides,
 });
 
@@ -110,9 +113,7 @@ describe('Vector Store Queries', () => {
     beforeEach(async () => {
       // Create multiple test documents with slight delays to ensure ordering
       const doc1 = await createVectorStoreDocument(
-        createMockVectorStoreDocument(testUserId, {
-          content: 'First document',
-        }),
+        createMockVectorStoreDocument(testUserId, {}),
       );
       // Small delay to ensure different timestamps
       await new Promise((resolve) => setTimeout(resolve, 10));
@@ -220,6 +221,7 @@ describe('Vector Store Queries', () => {
 
   describe('getDocumentsByIds', () => {
     let documentIds: string[] = [];
+    let doc3: VectorStoreDocument;
 
     beforeEach(async () => {
       // Create test documents
@@ -233,6 +235,13 @@ describe('Vector Store Queries', () => {
       const doc2 = await createVectorStoreDocument(
         createMockVectorStoreDocument(testUserId, {
           content: 'Document 2',
+        }),
+      );
+
+      doc3 = await createVectorStoreDocument(
+        createMockVectorStoreDocument(testUserId, {
+          content: 'Document 3',
+          status: 'pending',
         }),
       );
 
@@ -261,6 +270,15 @@ describe('Vector Store Queries', () => {
       const result = await getDocumentsByIds({ ids: [] });
 
       expect(result).toEqual([]);
+    });
+
+    test('should return only complete docs', async () => {
+      const result = await getDocumentsByIds({
+        ids: [...documentIds, doc3.id],
+        status: 'completed',
+      });
+
+      expect(result).toHaveLength(2);
     });
 
     test('should return only existing documents for mixed valid/invalid IDs', async () => {

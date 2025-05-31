@@ -17,6 +17,7 @@ export const DUMMY_PASSWORD = generateDummyPassword();
 export const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB
 
 export const ALLOWED_FILE_TYPES = [
+  // Images
   'image/jpeg',
   'image/png',
   'image/gif',
@@ -25,5 +26,77 @@ export const ALLOWED_FILE_TYPES = [
   'image/tiff',
   'image/bmp',
   'image/x-icon',
-  'application/pdf', // Added PDF support
+  // Documents
+  'application/pdf',
+  // Text files
+  'text/plain',
+  'text/markdown',
+  'text/html',
+  'text/css',
+  'text/javascript',
+  'text/csv',
+  'text/xml',
+  // Code files
+  'application/json',
+  'application/javascript',
+  'application/typescript',
+  'application/x-python',
+  'application/x-java-source',
+  'application/x-csharp',
+  'application/x-php',
+  'application/x-ruby',
+  'application/x-go',
+  'application/x-rust',
+  'application/x-swift',
+  'application/x-kotlin',
+  'application/x-scala',
+  'application/x-shell',
+  'application/x-yaml',
+  'application/x-toml',
 ];
+
+// File type detection by extension (for files without proper MIME types)
+export const FILE_EXTENSION_MIME_MAP: Record<string, string> = {
+  // Text files
+  '.txt': 'text/plain',
+  '.md': 'text/markdown',
+  '.markdown': 'text/markdown',
+  '.html': 'text/html',
+  '.htm': 'text/html',
+  '.css': 'text/css',
+  '.csv': 'text/csv',
+  '.xml': 'text/xml',
+  // Code files
+  '.js': 'text/javascript',
+  '.jsx': 'text/javascript',
+  '.ts': 'application/typescript',
+  '.tsx': 'application/typescript',
+  '.json': 'application/json',
+  '.py': 'application/x-python',
+  '.java': 'application/x-java-source',
+  '.cs': 'application/x-csharp',
+  '.php': 'application/x-php',
+  '.rb': 'application/x-ruby',
+  '.go': 'application/x-go',
+  '.rs': 'application/x-rust',
+  '.swift': 'application/x-swift',
+  '.kt': 'application/x-kotlin',
+  '.scala': 'application/x-scala',
+  '.sh': 'application/x-shell',
+  '.bash': 'application/x-shell',
+  '.zsh': 'application/x-shell',
+  '.yml': 'application/x-yaml',
+  '.yaml': 'application/x-yaml',
+  '.toml': 'application/x-toml',
+  '.c': 'text/plain',
+  '.cpp': 'text/plain',
+  '.h': 'text/plain',
+  '.hpp': 'text/plain',
+  '.sql': 'text/plain',
+  '.r': 'text/plain',
+  '.m': 'text/plain',
+  '.vim': 'text/plain',
+  '.dockerfile': 'text/plain',
+  '.gitignore': 'text/plain',
+  '.env': 'text/plain',
+};

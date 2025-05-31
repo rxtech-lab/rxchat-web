@@ -21,19 +21,19 @@ import {
   chat,
   document,
   message,
+  passkeyAuthenticator,
   prompt,
   stream,
   suggestion,
   user,
   userPrompt,
   vote,
-  passkeyAuthenticator,
   type Chat,
   type DBMessage,
+  type PasskeyAuthenticator,
   type Prompt,
   type Suggestion,
   type User,
-  type PasskeyAuthenticator,
 } from '../schema';
 import { generateHashedPassword } from '../utils';
 import { db } from './client';

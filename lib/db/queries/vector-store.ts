@@ -1,13 +1,17 @@
 import { ChatSDKError } from '@/lib/errors';
+import { and, desc, eq, gt, inArray, lt, ne, type SQL } from 'drizzle-orm';
+import type { PgDatabase } from 'drizzle-orm/pg-core';
 import { vectorStoreDocument, type VectorStoreDocument } from '../schema';
 import { db } from './client';
-import { desc, and, eq, type SQL, gt, lt, inArray } from 'drizzle-orm';
+
+type DatabaseConnection = typeof db | PgDatabase<any>;
 
 export async function createVectorStoreDocument(
-  doc: Omit<VectorStoreDocument, 'id' | 'createdAt'>,
+  doc: Omit<VectorStoreDocument, 'createdAt'>,
+  dbConnection: DatabaseConnection = db,
 ) {
   try {
-    const newDoc = await db
+    const newDoc = await dbConnection
       .insert(vectorStoreDocument)
       .values({
         ...doc,
@@ -29,23 +33,32 @@ export async function getDocumentsByUserId({
   limit,
   startingAfter,
   endingBefore,
+  dbConnection = db,
 }: {
   userId: string;
   limit: number;
   startingAfter: string | null;
   endingBefore: string | null;
+  dbConnection?: DatabaseConnection;
 }) {
   try {
     const extendedLimit = limit + 1;
 
     const query = (whereCondition?: SQL<any>) =>
-      db
+      dbConnection
         .select()
         .from(vectorStoreDocument)
         .where(
           whereCondition
-            ? and(whereCondition, eq(vectorStoreDocument.userId, userId))
-            : eq(vectorStoreDocument.userId, userId),
+            ? and(
+                whereCondition,
+                eq(vectorStoreDocument.userId, userId),
+                ne(vectorStoreDocument.status, 'pending'),
+              )
+            : and(
+                eq(vectorStoreDocument.userId, userId),
+                ne(vectorStoreDocument.status, 'pending'),
+              ),
         )
         .orderBy(desc(vectorStoreDocument.createdAt))
         .limit(extendedLimit);
@@ -53,7 +66,7 @@ export async function getDocumentsByUserId({
     let filteredDocs: Array<VectorStoreDocument> = [];
 
     if (startingAfter) {
-      const [selectedVectorDocs] = await db
+      const [selectedVectorDocs] = await dbConnection
         .select()
         .from(vectorStoreDocument)
         .where(eq(vectorStoreDocument.id, startingAfter))
@@ -70,7 +83,7 @@ export async function getDocumentsByUserId({
         gt(vectorStoreDocument.createdAt, selectedVectorDocs.createdAt),
       );
     } else if (endingBefore) {
-      const [selectedVectorDocs] = await db
+      const [selectedVectorDocs] = await dbConnection
         .select()
         .from(vectorStoreDocument)
         .where(eq(vectorStoreDocument.id, endingBefore))
@@ -108,20 +121,32 @@ export async function getDocumentsByUserId({
   }
 }
 
+// Added status filter to allow filtering by document status (pending, completed, failed)
 export async function getDocumentsByIds({
   ids,
+  status,
+  dbConnection = db,
 }: {
   ids: Array<string>;
+  status?: 'pending' | 'completed' | 'failed';
+  dbConnection?: DatabaseConnection;
 }) {
   if (ids.length === 0) {
     return [];
   }
 
   try {
-    const docs = await db
+    const docs = await dbConnection
       .select()
       .from(vectorStoreDocument)
-      .where(inArray(vectorStoreDocument.id, ids))
+      .where(
+        status
+          ? and(
+              inArray(vectorStoreDocument.id, ids),
+              eq(vectorStoreDocument.status, status),
+            )
+          : inArray(vectorStoreDocument.id, ids),
+      )
       .orderBy(desc(vectorStoreDocument.createdAt));
 
     return docs;
@@ -135,15 +160,17 @@ export async function getDocumentsByIds({
 
 export async function deleteDocumentsByIds({
   ids,
+  dbConnection = db,
 }: {
   ids: Array<string>;
+  dbConnection?: DatabaseConnection;
 }) {
   if (ids.length === 0) {
     return;
   }
 
   try {
-    const deletedDocs = await db
+    const deletedDocs = await dbConnection
       .delete(vectorStoreDocument)
       .where(inArray(vectorStoreDocument.id, ids));
 
@@ -158,15 +185,62 @@ export async function deleteDocumentsByIds({
 
 export async function deleteDocumentById({
   id,
+  dbConnection = db,
 }: {
   id: string;
+  dbConnection?: DatabaseConnection;
 }) {
   try {
-    await db.delete(vectorStoreDocument).where(eq(vectorStoreDocument.id, id));
+    await dbConnection
+      .delete(vectorStoreDocument)
+      .where(eq(vectorStoreDocument.id, id));
   } catch (error) {
     throw new ChatSDKError(
       'bad_request:database',
       'An error occurred while executing a database query.',
+    );
+  }
+}
+
+export async function updateVectorStoreDocument({
+  id,
+  updates,
+  dbConnection = db,
+}: {
+  id: string;
+  updates: Partial<Omit<VectorStoreDocument, 'id' | 'createdAt'>>;
+  dbConnection?: DatabaseConnection;
+}) {
+  try {
+    const updatedDoc = await dbConnection
+      .update(vectorStoreDocument)
+      .set(updates)
+      .where(eq(vectorStoreDocument.id, id))
+      .returning();
+
+    return updatedDoc[0];
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'An error occurred while executing a database query.',
+    );
+  }
+}
+
+export async function getVectorStoreDocumentById({ id }: { id: string }) {
+  try {
+    const [selectedDocument] = await db
+      .select()
+      .from(vectorStoreDocument)
+      .where(eq(vectorStoreDocument.id, id))
+      .orderBy(desc(vectorStoreDocument.createdAt))
+      .limit(1);
+
+    return selectedDocument;
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to get document by id',
     );
   }
 }

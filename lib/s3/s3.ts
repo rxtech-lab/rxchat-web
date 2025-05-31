@@ -6,7 +6,12 @@ import {
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { nanoid } from 'nanoid';
-import type { S3, GetFileOptions, UploadResult } from './types';
+import type {
+  S3,
+  GetFileOptions,
+  UploadResult,
+  PresignedUploadResult,
+} from './types';
 import { ALLOWED_FILE_TYPES, MAX_FILE_SIZE } from '../constants';
 
 /**
@@ -25,14 +30,25 @@ export class S3Client implements S3 {
       );
     }
 
-    // Initialize AWS S3 client with environment variables
-    this.client = new AWSS3Client({
+    // Prepare S3 client configuration with custom endpoint support
+    const clientConfig: any = {
       region: process.env.AWS_REGION || 'auto',
       credentials: {
         accessKeyId: process.env.AWS_ACCESS_KEY_ID,
         secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
       },
-    });
+    };
+
+    // Add custom endpoint if AWS_S3_ENDPOINT is provided
+    // This enables support for S3-compatible services like MinIO, DigitalOcean Spaces, etc.
+    if (process.env.AWS_S3_ENDPOINT) {
+      clientConfig.endpoint = process.env.AWS_S3_ENDPOINT;
+      // Force path-style addressing for custom endpoints (required for most S3-compatible services)
+      clientConfig.forcePathStyle = true;
+    }
+
+    // Initialize AWS S3 client with environment variables
+    this.client = new AWSS3Client(clientConfig);
 
     if (!process.env.AWS_S3_BUCKET_NAME) {
       throw new Error('AWS_S3_BUCKET_NAME environment variable is required');
@@ -156,5 +172,35 @@ export class S3Client implements S3 {
 
     const url = await getSignedUrl(this.client, getCommand, { expiresIn: ttl });
     return url;
+  }
+
+  /**
+   * Get a pre-signed URL for uploading a file without actually uploading it
+   * @param key - The S3 key for the file
+   * @param mimeType - The MIME type of the file
+   * @param options - Optional parameters including TTL
+   * @returns Promise containing the pre-signed upload URL and key
+   */
+  async getPresignedUploadUrl(
+    key: string,
+    mimeType: string,
+    options?: GetFileOptions,
+  ): Promise<PresignedUploadResult> {
+    const ttl = options?.ttl || 3600; // Default to 1 hour
+
+    const putCommand = new PutObjectCommand({
+      Bucket: this.bucketName,
+      Key: key,
+      ContentType: mimeType,
+    });
+
+    const uploadUrl = await getSignedUrl(this.client, putCommand, {
+      expiresIn: ttl,
+    });
+
+    return {
+      uploadUrl,
+      key,
+    };
   }
 }

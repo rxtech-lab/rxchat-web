@@ -249,7 +249,7 @@ export type UserPrompt = InferSelectModel<typeof userPrompt>;
 export const vectorStoreDocument = pgTable('VectorStoreDocument', {
   id: uuid('id').primaryKey().notNull().defaultRandom(),
   createdAt: timestamp('createdAt').notNull(),
-  content: text('content').notNull(),
+  content: text('content'),
   userId: uuid('userId')
     .notNull()
     .references(() => user.id, { onDelete: 'cascade' }),
@@ -257,6 +257,11 @@ export const vectorStoreDocument = pgTable('VectorStoreDocument', {
   originalFileName: text('originalFileName').notNull(),
   mimeType: text('mimeType').notNull(),
   size: integer('size').notNull(),
+  status: varchar('status', {
+    enum: ['pending', 'completed', 'failed'],
+  })
+    .notNull()
+    .default('pending'),
 });
 
 export type VectorStoreDocument = InferSelectModel<typeof vectorStoreDocument>;
