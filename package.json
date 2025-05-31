@@ -17,7 +17,7 @@
     "db:check": "drizzle-kit check",
     "db:up": "drizzle-kit up",
     "test": "export PLAYWRIGHT=True && pnpm exec playwright test",
-    "test:unit": "jest",
+    "test:unit": "jest --forceExit",
     "test:unit:watch": "jest --watch",
     "test:unit:coverage": "jest --coverage"
   },

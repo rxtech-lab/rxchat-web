@@ -2,7 +2,7 @@ import { codeDocumentHandler } from '@/artifacts/code/server';
 import type { ArtifactKind } from '@/components/artifact';
 import type { DataStreamWriter } from 'ai';
 import type { Document } from '../db/schema';
-import { saveDocument } from '../db/queries';
+import { saveDocument } from '../db/queries/queries';
 import type { Session } from 'next-auth';
 import type { ProviderType } from '../ai/models';
 import { imageDocumentHandler } from '@/artifacts/image/server';

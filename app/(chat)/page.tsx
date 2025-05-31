@@ -8,7 +8,7 @@ import {
   getFilteredProviders,
   type ProviderType,
 } from '@/lib/ai/models';
-import { getUserPromptByUserId, getUserById } from '@/lib/db/queries';
+import { getUserPromptByUserId, getUserById } from '@/lib/db/queries/queries';
 import { generateUUID } from '@/lib/utils';
 import { redirect } from 'next/navigation';
 import { auth } from '../(auth)/auth';

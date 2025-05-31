@@ -38,7 +38,7 @@ export function PasswordResetForm() {
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <Key className="h-5 w-5" />
+          <Key className="size-5" />
           Reset Password
         </CardTitle>
         <CardDescription>
@@ -103,9 +103,9 @@ export function PasswordResetForm() {
           {state && (
             <Alert variant={state.success ? 'default' : 'destructive'}>
               {state.success ? (
-                <CheckCircle2 className="h-4 w-4" />
+                <CheckCircle2 className="size-4" />
               ) : (
-                <AlertCircle className="h-4 w-4" />
+                <AlertCircle className="size-4" />
               )}
               <AlertDescription>{state.message}</AlertDescription>
             </Alert>

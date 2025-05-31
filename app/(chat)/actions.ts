@@ -9,7 +9,7 @@ import {
   getMessageById,
   selectPromptById,
   updateChatVisiblityById,
-} from '@/lib/db/queries';
+} from '@/lib/db/queries/queries';
 import { generateText, type LanguageModel, type UIMessage } from 'ai';
 import { cookies } from 'next/headers';
 import { auth } from '../(auth)/auth';

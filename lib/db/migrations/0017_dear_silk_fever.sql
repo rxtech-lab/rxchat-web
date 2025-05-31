@@ -1,0 +1,1 @@
+ALTER TABLE "VectorStoreDocument" ADD COLUMN "originalFileName" text NOT NULL;

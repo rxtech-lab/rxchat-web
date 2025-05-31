@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { auth } from '@/app/(auth)/auth';
 import { generatePasskeyRegistrationOptions } from '@/lib/webauthn';
-import { getPasskeyAuthenticatorsByUserId } from '@/lib/db/queries';
+import { getPasskeyAuthenticatorsByUserId } from '@/lib/db/queries/queries';
 
 const registrationOptionsSchema = z.object({
   email: z.string().email('Invalid email address').optional(),

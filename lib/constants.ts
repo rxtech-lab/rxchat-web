@@ -6,7 +6,8 @@ export const isTestEnvironment = Boolean(
   process.env.PLAYWRIGHT_TEST_BASE_URL ||
     process.env.PLAYWRIGHT ||
     process.env.CI_PLAYWRIGHT ||
-    process.env.IS_TEST === 'true',
+    process.env.IS_TEST === 'true' ||
+    process.env.NODE_ENV === 'test',
 );
 
 export const guestRegex = /^guest-\d+$/;
