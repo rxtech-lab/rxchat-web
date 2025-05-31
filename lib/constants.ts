@@ -100,3 +100,28 @@ export const FILE_EXTENSION_MIME_MAP: Record<string, string> = {
   '.gitignore': 'text/plain',
   '.env': 'text/plain',
 };
+
+export const DEBOUNCE_TIME = 1000;
+
+/**
+ * Array of image MIME types for easy filtering
+ */
+export const IMAGE_MIME_TYPES = [
+  'image/jpeg',
+  'image/png',
+  'image/gif',
+  'image/webp',
+  'image/svg+xml',
+  'image/tiff',
+  'image/bmp',
+  'image/x-icon',
+];
+
+/**
+ * Check if a file type is an image
+ * @param mimeType - The MIME type to check
+ * @returns true if the MIME type is an image
+ */
+export const isImageType = (mimeType: string): boolean => {
+  return IMAGE_MIME_TYPES.includes(mimeType);
+};

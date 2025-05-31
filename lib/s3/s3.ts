@@ -11,8 +11,10 @@ import type {
   GetFileOptions,
   UploadResult,
   PresignedUploadResult,
+  ImageUploadResult,
+  ImageUploadOptions,
 } from './types';
-import { ALLOWED_FILE_TYPES, MAX_FILE_SIZE } from '../constants';
+import { ALLOWED_FILE_TYPES, MAX_FILE_SIZE, isImageType } from '../constants';
 
 /**
  * S3Client implementation for file operations
@@ -21,6 +23,7 @@ import { ALLOWED_FILE_TYPES, MAX_FILE_SIZE } from '../constants';
 export class S3Client implements S3 {
   private client: AWSS3Client;
   private bucketName: string;
+  private customEndpoint: string | null = null;
 
   constructor() {
     // check if access key and secret key are set
@@ -45,6 +48,10 @@ export class S3Client implements S3 {
       clientConfig.endpoint = process.env.AWS_S3_ENDPOINT;
       // Force path-style addressing for custom endpoints (required for most S3-compatible services)
       clientConfig.forcePathStyle = true;
+    }
+
+    if (process.env.AWS_S3_CUSTOM_DOMAIN) {
+      this.customEndpoint = process.env.AWS_S3_CUSTOM_DOMAIN;
     }
 
     // Initialize AWS S3 client with environment variables
@@ -141,6 +148,122 @@ export class S3Client implements S3 {
       key,
       downloadUrl,
     };
+  }
+
+  /**
+   * Upload an image with public access to S3
+   * @param file - The image file to upload
+   * @param options - Upload options including path prefix and TTL
+   * @returns Promise containing public URL, key, and content type
+   */
+  async uploadImage(
+    file: File,
+    options?: ImageUploadOptions,
+  ): Promise<ImageUploadResult> {
+    // Validate file before upload
+    this.validateFile(file);
+
+    // Verify it's an image
+    if (!isImageType(file.type)) {
+      throw new Error(`File type "${file.type}" is not a supported image type`);
+    }
+
+    // Generate unique key for the image
+    const fileExtension = file.name.split('.').pop();
+    const pathPrefix = options?.pathPrefix || 'images';
+    const key = `${pathPrefix}/${nanoid()}.${fileExtension}`;
+
+    // Convert File to ArrayBuffer for upload
+    const arrayBuffer = await file.arrayBuffer();
+    const buffer = new Uint8Array(arrayBuffer);
+
+    // Upload image to S3 with public-read ACL
+    const putCommand = new PutObjectCommand({
+      Bucket: this.bucketName,
+      Key: key,
+      Body: buffer,
+      ContentType: file.type,
+      ACL: options?.isPublic !== false ? 'public-read' : undefined,
+      Metadata: {
+        'original-filename': file.name,
+        'upload-timestamp': new Date().toISOString(),
+      },
+    });
+
+    await this.client.send(putCommand);
+
+    // Generate public URL for the image
+    const publicUrl = this.getPublicUrl(key);
+
+    return {
+      url: publicUrl,
+      key,
+      contentType: file.type,
+    };
+  }
+
+  /**
+   * Get a pre-signed URL for uploading an image
+   * @param filename - The original filename
+   * @param mimeType - The MIME type of the image
+   * @param options - Upload options including path prefix and TTL
+   * @returns Promise containing presigned upload URL, key, and public URL
+   */
+  async getPresignedImageUploadUrl(
+    filename: string,
+    mimeType: string,
+    options?: ImageUploadOptions,
+  ): Promise<PresignedUploadResult & { publicUrl: string }> {
+    // Verify it's an image type
+    if (!isImageType(mimeType)) {
+      throw new Error(`MIME type "${mimeType}" is not a supported image type`);
+    }
+
+    const ttl = options?.ttl || 3600; // Default to 1 hour
+    const fileExtension = filename.split('.').pop();
+    const pathPrefix = options?.pathPrefix || 'images';
+    const key = `${pathPrefix}/${nanoid()}.${fileExtension}`;
+
+    const putCommand = new PutObjectCommand({
+      Bucket: this.bucketName,
+      Key: key,
+      ContentType: mimeType,
+      ACL: options?.isPublic !== false ? 'public-read' : undefined,
+    });
+
+    const uploadUrl = await getSignedUrl(this.client, putCommand, {
+      expiresIn: ttl,
+    });
+
+    const publicUrl = this.getPublicUrl(key);
+
+    return {
+      uploadUrl,
+      key,
+      publicUrl,
+    };
+  }
+
+  /**
+   * Generate public URL for a file in the S3 bucket
+   * @param key - The S3 key of the file
+   * @returns The public URL
+   */
+  private getPublicUrl(key: string): string {
+    if (this.customEndpoint) {
+      const endpoint = this.customEndpoint.replace(/\/$/, ''); // Remove trailing slash
+      return `${endpoint}/${key}`;
+    }
+
+    if (process.env.AWS_S3_ENDPOINT) {
+      // For custom endpoints (like MinIO, DigitalOcean Spaces)
+      const endpoint = process.env.AWS_S3_ENDPOINT.replace(/\/$/, ''); // Remove trailing slash
+      return `${endpoint}/${this.bucketName}/${key}`;
+    }
+
+    // For AWS S3
+    const region = process.env.AWS_REGION || 'us-east-1';
+    return `https://${this.bucketName}.s3.${region}.amazonaws.com/${key}`;
   }
 
   /**
