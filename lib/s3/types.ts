@@ -24,6 +24,42 @@ export interface PresignedUploadResult {
   key: string;
 }
 
+/**
+ * Result for image uploads with public access
+ */
+export interface ImageUploadResult {
+  /**
+   * Public URL for the uploaded image
+   */
+  url: string;
+  /**
+   * Key of the uploaded image
+   */
+  key: string;
+  /**
+   * Content type of the image
+   */
+  contentType: string;
+}
+
+/**
+ * Options for image uploads
+ */
+export interface ImageUploadOptions {
+  /**
+   * Whether to make the image publicly accessible
+   */
+  isPublic?: boolean;
+  /**
+   * Custom path prefix for the image (defaults to 'images/')
+   */
+  pathPrefix?: string;
+  /**
+   * TTL for presigned URLs in seconds
+   */
+  ttl?: number;
+}
+
 export interface GetFileOptions {
   /**
    * The time to live of the pre-signed URL in seconds
@@ -33,6 +69,21 @@ export interface GetFileOptions {
 
 export interface S3 {
   uploadFile(file: File): Promise<UploadResult>;
+  /**
+   * Upload an image with public access
+   */
+  uploadImage(
+    file: File,
+    options?: ImageUploadOptions,
+  ): Promise<ImageUploadResult>;
+  /**
+   * Get a pre-signed URL for uploading an image
+   */
+  getPresignedImageUploadUrl(
+    filename: string,
+    mimeType: string,
+    options?: ImageUploadOptions,
+  ): Promise<PresignedUploadResult & { publicUrl: string }>;
   /**
    * Get a pre-signed URL for uploading a file without actually uploading it
    */

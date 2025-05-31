@@ -323,28 +323,39 @@ export async function deleteDocument({ id }: { id: string }) {
         throw new ChatSDKError('forbidden:document', 'Access denied');
       }
 
-      // Delete from database
-      await deleteDocumentById({ id: parsed.data.id, dbConnection: tx });
+      // Run all deletion operations in parallel
+      const deletionPromises = [
+        // Delete from database
+        deleteDocumentById({ id: parsed.data.id, dbConnection: tx }),
 
-      // Delete from S3 if key exists
-      if (document.key) {
-        try {
-          const s3Client = new S3Client();
-          await s3Client.deleteFile(document.key);
-        } catch (s3Error) {
-          console.error('S3 deletion error:', s3Error);
-          // Continue with vector store deletion even if S3 fails
-        }
-      }
+        // Delete from S3 if key exists
+        document.key
+          ? (async () => {
+              try {
+                const s3Client = new S3Client();
+                if (document.key) {
+                  await s3Client.deleteFile(document.key);
+                }
+              } catch (s3Error) {
+                console.error('S3 deletion error:', s3Error);
+                // Don't throw, just log the error
+              }
+            })()
+          : Promise.resolve(),
 
-      // Delete from vector store
-      try {
-        const vectorStore = createVectorStoreClient();
-        await vectorStore.deleteDocument(parsed.data.id);
-      } catch (vectorError) {
-        console.error('Vector store deletion error:', vectorError);
-        // Don't fail the entire operation if vector store deletion fails
-      }
+        // Delete from vector store
+        (async () => {
+          try {
+            const vectorStore = createVectorStoreClient();
+            await vectorStore.deleteDocument(parsed.data.id);
+          } catch (vectorError) {
+            console.error('Vector store deletion error:', vectorError);
+            // Don't throw, just log the error
+          }
+        })(),
+      ];
+
+      await Promise.allSettled(deletionPromises);
     });
 
     // Note: Removed revalidatePath to prevent page refresh

@@ -8,22 +8,23 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet';
+import { DEBOUNCE_TIME } from '@/lib/constants';
+import type { VectorStoreDocument } from '@/lib/db/schema';
 import { createDocuments } from '@/lib/document/actions/action_client';
 import { fetcher } from '@/lib/utils';
 import {
   getDocumentsPaginationKey,
   type DocumentHistory,
 } from '@/lib/utils/pagination';
+import { useDebounce } from '@uidotdev/usehooks';
 import { isToday, isYesterday, subMonths, subWeeks } from 'date-fns';
 import { FileIcon, LoaderIcon, PlusIcon, SearchIcon } from 'lucide-react';
 import type { User } from 'next-auth';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { mutate as globalMutate } from 'swr';
 import useSWRInfinite from 'swr/infinite';
-import { useDebounceCallback } from 'usehooks-ts';
 import { DocumentItem } from './document-item';
-import type { VectorStoreDocument } from '@/lib/db/schema';
 
 type GroupedDocuments = {
   today: VectorStoreDocument[];
@@ -78,18 +79,11 @@ export function SidebarDocuments({
   onOpenChange: (open: boolean) => void;
 }) {
   const [searchQuery, setSearchQuery] = useState('');
-  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Debounce search query to avoid too many API calls
-  const debouncedSetSearch = useDebounceCallback((query: string) => {
-    setDebouncedSearchQuery(query);
-  }, 300);
-
-  useEffect(() => {
-    debouncedSetSearch(searchQuery);
-  }, [searchQuery, debouncedSetSearch]);
+  const debouncedSearchQuery = useDebounce(searchQuery, DEBOUNCE_TIME);
 
   const {
     data: paginatedDocumentHistories,
@@ -173,9 +167,13 @@ export function SidebarDocuments({
             })
             .finally(() => {
               setIsUploading(false);
+              if (fileInputRef.current) {
+                fileInputRef.current.value = '';
+              }
             }),
         {
           success: `${files.length} documents uploaded successfully`,
+          error: 'Failed to upload documents',
         },
       );
     },
@@ -197,7 +195,6 @@ export function SidebarDocuments({
     documents: VectorStoreDocument[],
   ) => {
     if (documents.length === 0) return null;
-    console.log(`Rendering group: ${title}`, documents);
 
     return (
       <div key={title} className="space-y-2">

@@ -1,20 +1,20 @@
-import { put } from '@vercel/blob';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
 import { auth } from '@/app/(auth)/auth';
+import { createS3Client } from '@/lib/s3';
+import {
+  isImageType,
+  MAX_FILE_SIZE,
+  ALLOWED_FILE_TYPES,
+} from '@/lib/constants';
+import { getPresignedUploadUrl } from '@/lib/document/actions/action_server';
 
-// Use Blob instead of File since File is not available in Node.js environment
-const FileSchema = z.object({
-  file: z
-    .instanceof(Blob)
-    .refine((file) => file.size <= 5 * 1024 * 1024, {
-      message: 'File size should be less than 5MB',
-    })
-    // Update the file type based on the kind of files you want to accept
-    .refine((file) => ['image/jpeg', 'image/png'].includes(file.type), {
-      message: 'File type should be JPEG or PNG',
-    }),
+// Schema for JSON body with file metadata
+const FileMetadataSchema = z.object({
+  filename: z.string().min(1),
+  size: z.number().positive(),
+  mimeType: z.string().min(1),
 });
 
 export async function POST(request: Request) {
@@ -24,42 +24,98 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  if (request.body === null) {
-    return new Response('Request body is empty', { status: 400 });
-  }
-
   try {
-    const formData = await request.formData();
-    const file = formData.get('file') as Blob;
+    const body = await request.json();
 
-    if (!file) {
-      return NextResponse.json({ error: 'No file uploaded' }, { status: 400 });
-    }
+    const validatedData = FileMetadataSchema.safeParse(body);
 
-    const validatedFile = FileSchema.safeParse({ file });
-
-    if (!validatedFile.success) {
-      const errorMessage = validatedFile.error.errors
-        .map((error) => error.message)
+    if (!validatedData.success) {
+      const errorMessage = validatedData.error.errors
+        .map((error) => `${error.path.join('.')}: ${error.message}`)
         .join(', ');
 
       return NextResponse.json({ error: errorMessage }, { status: 400 });
     }
 
-    // Get filename from formData since Blob doesn't have name property
-    const filename = (formData.get('file') as File).name;
-    const fileBuffer = await file.arrayBuffer();
+    const { filename, size, mimeType } = validatedData.data;
+
+    // Validate file size
+    if (size > MAX_FILE_SIZE) {
+      return NextResponse.json(
+        {
+          error: `File size ${Math.round(size / (1024 * 1024))}MB exceeds maximum allowed size of ${Math.round(MAX_FILE_SIZE / (1024 * 1024))}MB`,
+        },
+        { status: 400 },
+      );
+    }
+
+    // Validate file type
+    if (!ALLOWED_FILE_TYPES.includes(mimeType)) {
+      return NextResponse.json(
+        {
+          error: `File type "${mimeType}" is not allowed. Allowed types: ${ALLOWED_FILE_TYPES.join(', ')}`,
+        },
+        { status: 400 },
+      );
+    }
 
     try {
-      const data = await put(`${filename}`, fileBuffer, {
-        access: 'public',
-      });
+      // Check if the file is an image
+      if (isImageType(mimeType)) {
+        // Handle image upload using S3 presigned URL
+        const s3Client = createS3Client();
 
-      return NextResponse.json(data);
+        const result = await s3Client.getPresignedImageUploadUrl(
+          filename,
+          mimeType,
+          {
+            isPublic: true,
+            pathPrefix: 'images',
+          },
+        );
+
+        return NextResponse.json({
+          type: 'image',
+          uploadUrl: result.uploadUrl,
+          publicUrl: result.publicUrl,
+          key: result.key,
+          filename,
+          contentType: mimeType,
+        });
+      } else {
+        // Handle document upload using existing document system
+        const result = await getPresignedUploadUrl({
+          fileName: filename,
+          fileSize: size,
+          mimeType: mimeType,
+        });
+
+        if ('error' in result) {
+          return NextResponse.json({ error: result.error }, { status: 500 });
+        }
+
+        return NextResponse.json({
+          type: 'document',
+          uploadUrl: result.url,
+          documentId: result.id,
+          filename,
+          contentType: mimeType,
+        });
+      }
     } catch (error) {
-      return NextResponse.json({ error: 'Upload failed' }, { status: 500 });
+      console.error('Upload error:', error);
+      return NextResponse.json(
+        {
+          error:
+            error instanceof Error
+              ? error.message
+              : 'Failed to generate upload URL',
+        },
+        { status: 500 },
+      );
     }
   } catch (error) {
+    console.error('Request processing error:', error);
     return NextResponse.json(
       { error: 'Failed to process request' },
       { status: 500 },

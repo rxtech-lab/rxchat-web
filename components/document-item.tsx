@@ -1,6 +1,6 @@
 'use client';
 
-import { memo } from 'react';
+import { memo, useState } from 'react';
 import { toast } from 'sonner';
 import {
   SidebarMenuAction,
@@ -18,6 +18,7 @@ import {
   MoreHorizontalIcon,
   TrashIcon,
   DownloadIcon,
+  Loader2Icon,
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import type { VectorStoreDocument } from '@/lib/db/schema';
@@ -29,24 +30,31 @@ const PureDocumentItem = ({
   vectorDocument: VectorStoreDocument;
   onDelete: (documentId: string) => void;
 }) => {
+  const [isDeleting, setIsDeleting] = useState(false);
+
   const handleDelete = async () => {
     try {
+      const promise = async () => {
+        setIsDeleting(true);
+        const response = await fetch(`/api/documents/${vectorDocument.id}`, {
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.message || 'Failed to delete document');
+        }
+
+        onDelete(vectorDocument.id);
+      };
       toast.promise(
-        async () => {
-          const response = await fetch(`/api/documents/${vectorDocument.id}`, {
-            method: 'DELETE',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-          });
-
-          if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.message || 'Failed to delete document');
-          }
-
-          onDelete(vectorDocument.id);
-        },
+        () =>
+          promise().finally(() => {
+            setIsDeleting(false);
+          }),
         {
           loading: 'Deleting document...',
           success: 'Document deleted successfully',
@@ -91,12 +99,22 @@ const PureDocumentItem = ({
 
   return (
     <SidebarMenuItem>
-      <SidebarMenuButton asChild className="h-auto p-3">
+      <SidebarMenuButton
+        asChild
+        className={`h-auto p-3 ${isDeleting ? 'opacity-50 pointer-events-none' : ''}`}
+      >
         <div className="flex items-start gap-3 w-full">
-          <FileIcon
-            size={20}
-            className="mt-0.5 shrink-0 text-muted-foreground"
-          />
+          {isDeleting ? (
+            <Loader2Icon
+              size={20}
+              className="mt-0.5 shrink-0 text-muted-foreground animate-spin"
+            />
+          ) : (
+            <FileIcon
+              size={20}
+              className="mt-0.5 shrink-0 text-muted-foreground"
+            />
+          )}
           <div className="flex-1 min-w-0 space-y-1">
             <div
               className="text-sm font-medium truncate leading-tight"
@@ -117,7 +135,7 @@ const PureDocumentItem = ({
         </div>
       </SidebarMenuButton>
       <DropdownMenu>
-        <DropdownMenuTrigger asChild>
+        <DropdownMenuTrigger asChild disabled={isDeleting}>
           <SidebarMenuAction showOnHover>
             <MoreHorizontalIcon />
             <span className="sr-only">More actions</span>
