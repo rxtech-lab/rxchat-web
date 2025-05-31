@@ -1,0 +1,160 @@
+import {
+  S3Client as AWSS3Client,
+  PutObjectCommand,
+  DeleteObjectCommand,
+  GetObjectCommand,
+} from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import { nanoid } from 'nanoid';
+import type { S3, GetFileOptions, UploadResult } from './types';
+import { ALLOWED_FILE_TYPES, MAX_FILE_SIZE } from '../constants';
+
+/**
+ * S3Client implementation for file operations
+ * Provides methods to upload, delete, and get pre-signed URLs for files
+ */
+export class S3Client implements S3 {
+  private client: AWSS3Client;
+  private bucketName: string;
+
+  constructor() {
+    // check if access key and secret key are set
+    if (!process.env.AWS_ACCESS_KEY_ID || !process.env.AWS_SECRET_ACCESS_KEY) {
+      throw new Error(
+        'AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY must be set',
+      );
+    }
+
+    // Initialize AWS S3 client with environment variables
+    this.client = new AWSS3Client({
+      region: process.env.AWS_REGION || 'auto',
+      credentials: {
+        accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+      },
+    });
+
+    if (!process.env.AWS_S3_BUCKET_NAME) {
+      throw new Error('AWS_S3_BUCKET_NAME environment variable is required');
+    }
+
+    this.bucketName = process.env.AWS_S3_BUCKET_NAME;
+  }
+
+  /**
+   * Validate file size and type before upload
+   * @param file - The file to validate
+   * @param options - Upload options including size and type restrictions
+   */
+  private validateFile(file: File): void {
+    const maxFileSize = MAX_FILE_SIZE;
+
+    // Check file size
+    if (file.size > maxFileSize) {
+      throw new Error(
+        `File size ${this.formatFileSize(file.size)} exceeds maximum allowed size of ${this.formatFileSize(maxFileSize)}`,
+      );
+    }
+
+    // Check file type
+    if (!ALLOWED_FILE_TYPES.includes(file.type)) {
+      throw new Error(
+        `File type "${file.type}" is not allowed. Allowed types: ${ALLOWED_FILE_TYPES.join(', ')}`,
+      );
+    }
+  }
+
+  /**
+   * Format file size in human readable format
+   * @param bytes - File size in bytes
+   * @returns Formatted file size string
+   */
+  private formatFileSize(bytes: number): string {
+    const units = ['B', 'KB', 'MB', 'GB'];
+    let size = bytes;
+    let unitIndex = 0;
+
+    while (size >= 1024 && unitIndex < units.length - 1) {
+      size /= 1024;
+      unitIndex++;
+    }
+
+    return `${size.toFixed(1)} ${units[unitIndex]}`;
+  }
+
+  /**
+   * Upload a file to S3 and return upload and download URLs
+   * @param file - The file to upload
+   * @param options - Upload options including size and type restrictions
+   * @returns Promise containing upload URL, key, and download URL
+   */
+  async uploadFile(file: File): Promise<UploadResult> {
+    // Validate file before upload
+    this.validateFile(file);
+
+    // Generate unique key for the file
+    const fileExtension = file.name.split('.').pop();
+    const key = `uploads/${nanoid()}.${fileExtension}`;
+
+    // Convert File to ArrayBuffer for upload
+    const arrayBuffer = await file.arrayBuffer();
+    const buffer = new Uint8Array(arrayBuffer);
+
+    // Upload file to S3
+    const putCommand = new PutObjectCommand({
+      Bucket: this.bucketName,
+      Key: key,
+      Body: buffer,
+      ContentType: file.type,
+      Metadata: {
+        'original-filename': file.name,
+        'upload-timestamp': new Date().toISOString(),
+      },
+    });
+
+    await this.client.send(putCommand);
+
+    // Generate pre-signed URLs
+    const uploadUrl = await getSignedUrl(this.client, putCommand, {
+      expiresIn: 3600,
+    });
+    const downloadUrl = await this.getFileUrl(key, { ttl: 3600 });
+
+    return {
+      uploadUrl,
+      key,
+      downloadUrl,
+    };
+  }
+
+  /**
+   * Delete a file from S3
+   * @param key - The S3 key of the file to delete
+   */
+  async deleteFile(key: string): Promise<void> {
+    const deleteCommand = new DeleteObjectCommand({
+      Bucket: this.bucketName,
+      Key: key,
+    });
+
+    await this.client.send(deleteCommand);
+  }
+
+  /**
+   * Get a pre-signed URL for downloading a file
+   * @param key - The S3 key of the file
+   * @param options - Optional parameters including TTL
+   * @returns Promise containing the pre-signed download URL
+   */
+  async getFileUrl(key: string, options?: GetFileOptions): Promise<string> {
+    const ttl = options?.ttl || 3600; // Default to 1 hour
+
+    const getCommand = new GetObjectCommand({
+      Bucket: this.bucketName,
+      Key: key,
+    });
+
+    const url = await getSignedUrl(this.client, getCommand, { expiresIn: ttl });
+    return url;
+  }
+}

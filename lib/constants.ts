@@ -12,3 +12,17 @@ export const isTestEnvironment = Boolean(
 export const guestRegex = /^guest-\d+$/;
 
 export const DUMMY_PASSWORD = generateDummyPassword();
+
+export const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB
+
+export const ALLOWED_FILE_TYPES = [
+  'image/jpeg',
+  'image/png',
+  'image/gif',
+  'image/webp',
+  'image/svg+xml',
+  'image/tiff',
+  'image/bmp',
+  'image/x-icon',
+  'application/pdf', // Added PDF support
+];
