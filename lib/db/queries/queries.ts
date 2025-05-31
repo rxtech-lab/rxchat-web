@@ -12,14 +12,11 @@ import {
   lt,
   type SQL,
 } from 'drizzle-orm';
-import { drizzle } from 'drizzle-orm/postgres-js';
-import postgres from 'postgres';
 
 import type { ArtifactKind } from '@/components/artifact';
 import type { VisibilityType } from '@/components/visibility-selector';
 import { isTestEnvironment } from '../../constants';
 import { ChatSDKError } from '../../errors';
-import { generateUUID } from '../../utils';
 import {
   chat,
   document,
@@ -73,9 +70,12 @@ export async function createUser(email: string, password: string) {
   const hashedPassword = generateHashedPassword(password);
 
   try {
-    return await db.insert(user).values({ email, password: hashedPassword }).returning({
-      id: user.id
-    });
+    return await db
+      .insert(user)
+      .values({ email, password: hashedPassword })
+      .returning({
+        id: user.id,
+      });
   } catch (error) {
     throw new ChatSDKError('bad_request:database', 'Failed to create user');
   }

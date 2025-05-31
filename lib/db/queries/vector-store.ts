@@ -1,5 +1,5 @@
 import { ChatSDKError } from '@/lib/errors';
-import { chat, vectorStoreDocument, type VectorStoreDocument } from '../schema';
+import { vectorStoreDocument, type VectorStoreDocument } from '../schema';
 import { db } from './client';
 import { desc, and, eq, type SQL, gt, lt, inArray } from 'drizzle-orm';
 

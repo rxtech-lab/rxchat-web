@@ -4,7 +4,6 @@ import {
   createPrompt,
   updatePrompt,
   deletePrompt,
-  selectPromptById,
 } from '@/lib/db/queries/queries';
 import { ChatSDKError } from '@/lib/errors';
 import type { Prompt } from '@/lib/db/schema';
