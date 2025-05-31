@@ -2,7 +2,6 @@ import { auth } from '@/app/(auth)/auth';
 import {
   listDocuments,
   searchDocuments,
-  deleteDocument,
 } from '@/lib/document/actions/action_server';
 
 import { ChatSDKError } from '@/lib/errors';

@@ -103,6 +103,9 @@ export const FILE_EXTENSION_MIME_MAP: Record<string, string> = {
 
 export const DEBOUNCE_TIME = 1000;
 
+// Maximum number of documents to return in search results
+export const MAX_K = 10;
+
 /**
  * Array of image MIME types for easy filtering
  */
