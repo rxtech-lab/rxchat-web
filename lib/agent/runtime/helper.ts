@@ -1,5 +1,3 @@
-import type { SandboxConsole } from './types';
-
 /**
  * Auto-detect if code contains TypeScript syntax
  * @param code Source code to analyze
