@@ -5,7 +5,7 @@ import {
   deleteUserAccount,
   updateUserPassword,
   getUserById,
-} from '@/lib/db/queries';
+} from '@/lib/db/queries/queries';
 import { compare } from 'bcrypt-ts';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
@@ -68,7 +68,7 @@ export async function resetPassword(
 
   try {
     // Get user from database to verify current password
-    const { getUserById } = await import('@/lib/db/queries');
+    const { getUserById } = await import('@/lib/db/queries/queries');
     const user = await getUserById(session.user.id);
 
     if (!user || !user.password) {
@@ -235,7 +235,7 @@ export async function getUserPasskeys(): Promise<{
 
   try {
     const { getPasskeyAuthenticatorsByUserId } = await import(
-      '@/lib/db/queries'
+      '@/lib/db/queries/queries'
     );
     const authenticators = await getPasskeyAuthenticatorsByUserId(
       session.user.id,
@@ -278,7 +278,7 @@ export async function deletePasskey(
     const {
       deletePasskeyAuthenticator,
       getPasskeyAuthenticatorByCredentialId,
-    } = await import('@/lib/db/queries');
+    } = await import('@/lib/db/queries/queries');
 
     // Verify the passkey belongs to the current user
     const authenticator =

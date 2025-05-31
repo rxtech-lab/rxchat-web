@@ -1,4 +1,4 @@
-import { getDocumentById, saveSuggestions } from '@/lib/db/queries';
+import { getDocumentById, saveSuggestions } from '@/lib/db/queries/queries';
 import type { Suggestion } from '@/lib/db/schema';
 import { generateUUID } from '@/lib/utils';
 import { type DataStreamWriter, streamObject, tool } from 'ai';

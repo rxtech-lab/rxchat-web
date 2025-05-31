@@ -15,7 +15,7 @@ import {
   getMessagesByChatId,
   getUserPromptByUserId,
   getUserById,
-} from '@/lib/db/queries';
+} from '@/lib/db/queries/queries';
 import type { DBMessage } from '@/lib/db/schema';
 import type { Attachment, UIMessage } from 'ai';
 import { isTestEnvironment } from '@/lib/constants';

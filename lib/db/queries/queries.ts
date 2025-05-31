@@ -17,9 +17,9 @@ import postgres from 'postgres';
 
 import type { ArtifactKind } from '@/components/artifact';
 import type { VisibilityType } from '@/components/visibility-selector';
-import { isTestEnvironment } from '../constants';
-import { ChatSDKError } from '../errors';
-import { generateUUID } from '../utils';
+import { isTestEnvironment } from '../../constants';
+import { ChatSDKError } from '../../errors';
+import { generateUUID } from '../../utils';
 import {
   chat,
   document,
@@ -37,17 +37,9 @@ import {
   type Suggestion,
   type User,
   type PasskeyAuthenticator,
-} from './schema';
-import { generateHashedPassword } from './utils';
-
-const client = postgres(
-  isTestEnvironment
-    ? // biome-ignore lint: Forbidden non-null assertion.
-      process.env.POSTGRES_URL_TEST!
-    : // biome-ignore lint: Forbidden non-null assertion.
-      process.env.POSTGRES_URL!,
-);
-const db = drizzle(client);
+} from '../schema';
+import { generateHashedPassword } from '../utils';
+import { db } from './client';
 
 export async function getUser(email: string): Promise<Array<User>> {
   try {
@@ -81,7 +73,9 @@ export async function createUser(email: string, password: string) {
   const hashedPassword = generateHashedPassword(password);
 
   try {
-    return await db.insert(user).values({ email, password: hashedPassword });
+    return await db.insert(user).values({ email, password: hashedPassword }).returning({
+      id: user.id
+    });
   } catch (error) {
     throw new ChatSDKError('bad_request:database', 'Failed to create user');
   }
@@ -109,23 +103,6 @@ export async function createUserWithoutPassword(email: string) {
     throw new ChatSDKError(
       'bad_request:database',
       'Failed to create user without password',
-    );
-  }
-}
-
-export async function createGuestUser() {
-  const email = `guest-${Date.now()}`;
-  const password = generateHashedPassword(generateUUID());
-
-  try {
-    return await db.insert(user).values({ email, password }).returning({
-      id: user.id,
-      email: user.email,
-    });
-  } catch (error) {
-    throw new ChatSDKError(
-      'bad_request:database',
-      'Failed to create guest user',
     );
   }
 }

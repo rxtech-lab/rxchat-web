@@ -21,7 +21,7 @@ import {
   getUserPromptByUserId,
   saveChat,
   saveMessages,
-} from '@/lib/db/queries';
+} from '@/lib/db/queries/queries';
 import type { Chat } from '@/lib/db/schema';
 import { ChatSDKError } from '@/lib/errors';
 import { generateUUID, getTrailingMessageId } from '@/lib/utils';

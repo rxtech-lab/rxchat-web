@@ -16,7 +16,7 @@ import {
   getPasskeyAuthenticatorsByEmail,
   getPasskeyAuthenticatorsByUserId,
   updatePasskeyAuthenticatorCounter,
-} from '@/lib/db/queries';
+} from '@/lib/db/queries/queries';
 import {
   createChallenge,
   deleteChallenge,
