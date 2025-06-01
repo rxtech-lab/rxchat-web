@@ -16,6 +16,8 @@ export const DUMMY_PASSWORD = generateDummyPassword();
 
 export const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB
 
+export const DOCUMENTS_REFRESH_INTERVAL = 10_000;
+
 export const ALLOWED_FILE_TYPES = [
   // Images
   'image/jpeg',
