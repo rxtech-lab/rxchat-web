@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { $createParagraphNode, $getRoot, } from 'lexical';
 import { $convertFromMarkdownString, $convertToMarkdownString, TRANSFORMERS } from '@lexical/markdown';
 import { LexicalComposer } from '@lexical/react/LexicalComposer';
@@ -83,28 +83,91 @@ const theme = {
 // Plugin to set initial content from markdown
 function InitialContentPlugin({ 
   initialValue, 
-  isReadonly 
+  isReadonly,
+  onInitialized
 }: { 
   initialValue: string;
   isReadonly: boolean;
+  onInitialized?: () => void;
 }) {
   const [editor] = useLexicalComposerContext();
+  const [isInitialized, setIsInitialized] = useState(false);
 
   useEffect(() => {
-    editor.update(() => {
-      if (initialValue) {
-        $convertFromMarkdownString(initialValue, TRANSFORMERS);
-      } else {
-        const root = $getRoot();
-        const paragraph = $createParagraphNode();
-        root.append(paragraph);
-      }
-    });
-  }, [editor, initialValue]);
+    if (!isInitialized) {
+      editor.update(() => {
+        if (initialValue) {
+          $convertFromMarkdownString(initialValue, TRANSFORMERS);
+        } else {
+          const root = $getRoot();
+          const paragraph = $createParagraphNode();
+          root.append(paragraph);
+        }
+      });
+      setIsInitialized(true);
+      onInitialized?.();
+    }
+  }, [editor, initialValue, isInitialized, onInitialized]);
 
   useEffect(() => {
     editor.setEditable(!isReadonly);
   }, [editor, isReadonly]);
+
+  return null;
+}
+
+// Plugin to handle auto-resizing based on content
+function AutoResizePlugin({ 
+  contentEditableRef,
+  maxHeight,
+  minHeight = 24 
+}: { 
+  contentEditableRef: React.RefObject<HTMLDivElement>;
+  maxHeight?: string;
+  minHeight?: number;
+}) {
+  const [editor] = useLexicalComposerContext();
+
+  const adjustHeight = useCallback(() => {
+    if (contentEditableRef.current) {
+      const element = contentEditableRef.current;
+      
+      // Reset height to auto to get the natural height
+      element.style.height = 'auto';
+      
+      // Get the scroll height and add small padding
+      const scrollHeight = element.scrollHeight;
+      const newHeight = Math.max(scrollHeight + 2, minHeight);
+      
+      // Apply the new height, respecting max height if provided
+      if (maxHeight) {
+        element.style.height = `min(${newHeight}px, ${maxHeight})`;
+        element.style.maxHeight = maxHeight;
+      } else {
+        element.style.height = `${newHeight}px`;
+      }
+      
+      // Ensure overflow is handled properly
+      element.style.overflowY = scrollHeight > newHeight ? 'auto' : 'hidden';
+    }
+  }, [contentEditableRef, maxHeight, minHeight]);
+
+  useEffect(() => {
+    // Adjust height on editor state changes
+    const unregister = editor.registerUpdateListener(() => {
+      // Use requestAnimationFrame to ensure DOM is updated
+      requestAnimationFrame(adjustHeight);
+    });
+
+    return unregister;
+  }, [editor, adjustHeight]);
+
+  // Also adjust height when the editor is first rendered
+  useEffect(() => {
+    // Small delay to ensure the editor is fully initialized
+    const timer = setTimeout(adjustHeight, 10);
+    return () => clearTimeout(timer);
+  }, [adjustHeight]);
 
   return null;
 }
@@ -144,12 +207,16 @@ interface MarkdownViewProps {
   'data-testid'?: string;
   /** Key down handler for editable mode */
   onKeyDown?: (event: KeyboardEvent) => void;
+  /** Maximum height for auto-resize (e.g., "calc(75dvh)") */
+  maxHeight?: string;
+  /** Minimum height in pixels for auto-resize */
+  minHeight?: number;
 }
 
 /**
  * MarkdownView component that can render markdown content in read-only mode
  * or provide an editable interface using Lexical editor.
- * Supports switching between read-only and editable modes.
+ * Supports switching between read-only and editable modes with auto-resize functionality.
  */
 export function MarkdownView({
   value = '',
@@ -159,8 +226,30 @@ export function MarkdownView({
   className,
   'data-testid': testId,
   onKeyDown,
+  maxHeight,
+  minHeight = 24,
 }: MarkdownViewProps) {
   const contentEditableRef = useRef<HTMLDivElement>(null);
+  const [isInitialized, setIsInitialized] = useState(false);
+
+/**
+ * MarkdownView component that can render markdown content in read-only mode
+ * or provide an editable interface using Lexical editor.
+ * Supports switching between read-only and editable modes with auto-resize functionality.
+ */
+export function MarkdownView({
+  value = '',
+  readOnly = false,
+  onChange,
+  placeholder = 'Enter text...',
+  className,
+  'data-testid': testId,
+  onKeyDown,
+  maxHeight,
+  minHeight = 24,
+}: MarkdownViewProps) {
+  const contentEditableRef = useRef<HTMLDivElement>(null);
+  const [isInitialized, setIsInitialized] = useState(false);
 
   const initialConfig = {
     namespace: 'MarkdownView',
@@ -203,6 +292,8 @@ export function MarkdownView({
         className={cn(
           'relative w-full',
           readOnly ? 'cursor-default' : 'cursor-text',
+          // Add stable height during initialization to prevent jumping
+          !isInitialized && !readOnly && 'min-h-[24px]',
           className
         )}
         data-testid={testId}
@@ -216,8 +307,16 @@ export function MarkdownView({
                 'outline-none',
                 readOnly 
                   ? 'cursor-default' 
-                  : 'min-h-[24px] cursor-text focus:outline-none'
+                  : 'cursor-text focus:outline-none',
+                // Ensure stable initial height for editable mode
+                !readOnly && `min-h-[${minHeight}px]`,
+                // Handle overflow properly
+                !readOnly && 'overflow-hidden'
               )}
+              style={{
+                // Set initial height to prevent jumping
+                height: !readOnly && !isInitialized ? `${minHeight}px` : undefined,
+              }}
             />
           }
           placeholder={
@@ -231,10 +330,21 @@ export function MarkdownView({
         />
         
         {/* Plugins */}
-        <InitialContentPlugin initialValue={value} isReadonly={readOnly} />
+        <InitialContentPlugin 
+          initialValue={value} 
+          isReadonly={readOnly} 
+          onInitialized={() => setIsInitialized(true)}
+        />
         {!readOnly && <HistoryPlugin />}
         {!readOnly && <OnChangePlugin onChange={handleEditorChange} />}
         {!readOnly && <KeyboardEventPlugin onKeyDown={onKeyDown} />}
+        {!readOnly && (
+          <AutoResizePlugin 
+            contentEditableRef={contentEditableRef}
+            maxHeight={maxHeight}
+            minHeight={minHeight}
+          />
+        )}
         <ListPlugin />
       </div>
     </LexicalComposer>

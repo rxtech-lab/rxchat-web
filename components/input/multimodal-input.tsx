@@ -435,9 +435,11 @@ function PureMultimodalInput({
           onChange={handleInputChange}
           placeholder="Send a message..."
           className={cx(
-            'min-h-[24px] max-h-[calc(75dvh)] overflow-hidden resize-none rounded-2xl !text-base bg-muted pb-10 dark:border-zinc-700 focus-visible:outline-none focus:outline-none focus-visible:ring-0 focus:ring-0 focus-visible:ring-offset-0 focus:ring-offset-0 border-l border-r border-b border-zinc-200',
+            'resize-none rounded-2xl !text-base bg-muted pb-10 dark:border-zinc-700 focus-visible:outline-none focus:outline-none focus-visible:ring-0 focus:ring-0 focus-visible:ring-offset-0 focus:ring-offset-0 border-l border-r border-b border-zinc-200',
             className,
           )}
+          minHeight={24}
+          maxHeight="calc(75dvh)"
           onKeyDown={(event) => {
             if (
               event.key === 'Enter' &&

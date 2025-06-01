@@ -45,7 +45,8 @@ export function MessageEditor({
         readOnly={false}
         onChange={handleContentChange}
         placeholder="Edit your message..."
-        className="bg-transparent outline-none overflow-hidden resize-none !text-base rounded-xl w-full min-h-[80px] border border-input px-3 py-2"
+        className="bg-transparent outline-none resize-none !text-base rounded-xl w-full border border-input px-3 py-2"
+        minHeight={80}
       />
 
       <div className="flex flex-row gap-2 justify-end">
