@@ -11,7 +11,7 @@ interface SearchDocumentsProps {
 export const searchDocumentsTool = ({ session }: SearchDocumentsProps) =>
   tool({
     description:
-      'Search for documents using vector similarity search based on query text',
+      'Search for documents using vector similarity search based on query text. Returns document metadata and content for AI to analyze.',
     parameters: z.object({
       query: z
         .string()
@@ -46,6 +46,7 @@ export const searchDocumentsTool = ({ session }: SearchDocumentsProps) =>
             mimeType: doc.mimeType,
             size: doc.size,
             createdAt: doc.createdAt,
+            content: doc.content,
           })),
         };
       } catch (error) {
