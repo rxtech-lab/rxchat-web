@@ -28,7 +28,7 @@ import useSWR from 'swr';
 import { PreviewAttachment } from '../preview-attachment';
 import { SuggestedActions } from '../suggested-actions';
 import { Button } from '../ui/button';
-import { Textarea } from '../ui/textarea';
+import { MarkdownView } from '../markdown-view';
 import type { VisibilityType } from '../visibility-selector';
 import { AttachmentsButton } from './attachment-button';
 import { MCPButton } from './mcp-button';
@@ -74,7 +74,6 @@ function PureMultimodalInput({
   selectedVisibilityType: VisibilityType;
   selectedPrompt: Prompt | null;
 }) {
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { width } = useWindowSize();
 
   // Add state for uploaded documents
@@ -82,25 +81,9 @@ function PureMultimodalInput({
     Array<UploadedDocument>
   >([]);
 
-  useEffect(() => {
-    if (textareaRef.current) {
-      adjustHeight();
-    }
-  }, []);
-
-  const adjustHeight = () => {
-    if (textareaRef.current) {
-      textareaRef.current.style.height = 'auto';
-      textareaRef.current.style.height = `${textareaRef.current.scrollHeight + 2}px`;
-    }
-  };
-
-  const resetHeight = () => {
-    if (textareaRef.current) {
-      textareaRef.current.style.height = 'auto';
-      textareaRef.current.style.height = '98px';
-    }
-  };
+  const handleInputChange = useCallback((content: string) => {
+    setInput(content);
+  }, [setInput]);
 
   const [localStorageInput, setLocalStorageInput] = useLocalStorage(
     'input',
@@ -108,13 +91,9 @@ function PureMultimodalInput({
   );
 
   useEffect(() => {
-    if (textareaRef.current) {
-      const domValue = textareaRef.current.value;
-      // Prefer DOM value over localStorage to handle hydration
-      const finalValue = domValue || localStorageInput || '';
-      setInput(finalValue);
-      adjustHeight();
-    }
+    // Prefer input value over localStorage to handle hydration
+    const finalValue = input || localStorageInput || '';
+    setInput(finalValue);
     // Only run once after hydration
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -122,11 +101,6 @@ function PureMultimodalInput({
   useEffect(() => {
     setLocalStorageInput(input);
   }, [input, setLocalStorageInput]);
-
-  const handleInput = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setInput(event.target.value);
-    adjustHeight();
-  };
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadQueue, setUploadQueue] = useState<Array<string>>([]);
@@ -141,10 +115,9 @@ function PureMultimodalInput({
     setAttachments([]);
     setUploadedDocuments([]); // Clear uploaded documents on submit
     setLocalStorageInput('');
-    resetHeight();
 
     if (width && width > 768) {
-      textareaRef.current?.focus();
+      // Focus will be handled by MarkdownView component
     }
   }, [
     attachments,
@@ -455,23 +428,21 @@ function PureMultimodalInput({
           </div>
         )}
 
-        <Textarea
+        <MarkdownView
           data-testid="multimodal-input"
-          ref={textareaRef}
-          placeholder="Send a message..."
           value={input}
-          onChange={handleInput}
+          readOnly={false}
+          onChange={handleInputChange}
+          placeholder="Send a message..."
           className={cx(
             'min-h-[24px] max-h-[calc(75dvh)] overflow-hidden resize-none rounded-2xl !text-base bg-muted pb-10 dark:border-zinc-700 focus-visible:outline-none focus:outline-none focus-visible:ring-0 focus:ring-0 focus-visible:ring-offset-0 focus:ring-offset-0 border-l border-r border-b border-zinc-200',
             className,
           )}
-          rows={2}
-          autoFocus
           onKeyDown={(event) => {
             if (
               event.key === 'Enter' &&
               !event.shiftKey &&
-              !event.nativeEvent.isComposing
+              !event.nativeEvent?.isComposing
             ) {
               event.preventDefault();
 
@@ -511,7 +482,7 @@ function PureMultimodalInput({
     uploadedDocuments,
     uploadQueue,
     input,
-    handleInput,
+    handleInputChange,
     className,
     status,
     mcpTools,

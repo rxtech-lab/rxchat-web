@@ -12,6 +12,15 @@ jest.mock('@/app/(chat)/actions', () => ({
   deleteTrailingMessages: jest.fn(() => Promise.resolve()),
 }));
 
+// Mock MarkdownView component
+jest.mock('./markdown-view', () => ({
+  MarkdownView: ({ value, 'data-testid': testId, ...props }: any) => (
+    <div data-testid={testId} data-value={value} {...props}>
+      {value}
+    </div>
+  ),
+}));
+
 describe('MessageEditor', () => {
   it('should render message with content', async () => {
     const message: UIMessage = {
@@ -29,10 +38,10 @@ describe('MessageEditor', () => {
       />,
     );
 
-    // get message editor textarea
-    const textarea = screen.getByTestId('message-editor');
-    expect(textarea).toBeInTheDocument();
-    expect(textarea).toHaveValue('Hello, world!');
+    // get message editor element
+    const editor = screen.getByTestId('message-editor');
+    expect(editor).toBeInTheDocument();
+    expect(editor).toHaveAttribute('data-value', 'Hello, world!');
   });
 
   it('should render message with content from parts array', async () => {
@@ -51,9 +60,9 @@ describe('MessageEditor', () => {
       />,
     );
 
-    // get message editor textarea
-    const textarea = screen.getByTestId('message-editor');
-    expect(textarea).toBeInTheDocument();
-    expect(textarea).toHaveValue('Hello, world!');
+    // get message editor element
+    const editor = screen.getByTestId('message-editor');
+    expect(editor).toBeInTheDocument();
+    expect(editor).toHaveAttribute('data-value', 'Hello, world!');
   });
 });

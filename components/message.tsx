@@ -14,7 +14,7 @@ import { DocumentToolCall, DocumentToolResult } from './document';
 import { DocumentPreview } from './document-preview';
 import { DocumentSearchResult } from './document-search-result';
 import { PencilEditIcon, SparklesIcon } from './icons';
-import { Markdown } from './markdown';
+import { MarkdownView } from './markdown-view';
 import { MessageActions } from './message-actions';
 import { MessageEditor } from './message-editor';
 import { MessageReasoning } from './message-reasoning';
@@ -157,7 +157,11 @@ const PurePreviewMessage = ({
                             message.role === 'user',
                         })}
                       >
-                        <Markdown>{sanitizeText(part.text)}</Markdown>
+                        {/* Replace Markdown with MarkdownView in read-only mode */}
+                        <MarkdownView 
+                          value={sanitizeText(part.text)}
+                          readOnly={true}
+                        />
                       </div>
                     </div>
                   );

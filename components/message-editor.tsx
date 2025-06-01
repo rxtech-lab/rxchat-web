@@ -5,11 +5,9 @@ import { Button } from './ui/button';
 import {
   type Dispatch,
   type SetStateAction,
-  useEffect,
-  useRef,
   useState,
 } from 'react';
-import { Textarea } from './ui/textarea';
+import { MarkdownView } from './markdown-view';
 import { deleteTrailingMessages } from '@/app/(chat)/actions';
 import type { UseChatHelpers } from '@ai-sdk/react';
 
@@ -33,34 +31,21 @@ export function MessageEditor({
     message.content ||
     '';
   const [draftContent, setDraftContent] = useState<string>(initialContent);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  useEffect(() => {
-    if (textareaRef.current) {
-      adjustHeight();
-    }
-  }, []);
-
-  const adjustHeight = () => {
-    if (textareaRef.current) {
-      textareaRef.current.style.height = 'auto';
-      textareaRef.current.style.height = `${textareaRef.current.scrollHeight + 2}px`;
-    }
-  };
-
-  const handleInput = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setDraftContent(event.target.value);
-    adjustHeight();
+  const handleContentChange = (content: string) => {
+    setDraftContent(content);
   };
 
   return (
     <div className="flex flex-col gap-2 w-full">
-      <Textarea
+      {/* Replace Textarea with MarkdownView in editable mode */}
+      <MarkdownView
         data-testid="message-editor"
-        ref={textareaRef}
-        className="bg-transparent outline-none overflow-hidden resize-none !text-base rounded-xl w-full"
         value={draftContent}
-        onChange={handleInput}
+        readOnly={false}
+        onChange={handleContentChange}
+        placeholder="Edit your message..."
+        className="bg-transparent outline-none overflow-hidden resize-none !text-base rounded-xl w-full min-h-[80px] border border-input px-3 py-2"
       />
 
       <div className="flex flex-row gap-2 justify-end">
