@@ -120,7 +120,7 @@ export async function createDocuments(
     // If callback is provided, call it when this specific file completes
     if (options.onFileUploadCallback) {
       uploadPromise.then(result => {
-        options.onFileUploadCallback!(result);
+        options.onFileUploadCallback?.(result);
       }).catch(() => {
         // Handle case where uploadSingleFile rejects (shouldn't happen normally)
         // The callback will be called with the error result in the settled results processing

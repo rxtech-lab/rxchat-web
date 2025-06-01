@@ -209,39 +209,13 @@ export function SidebarDocuments({
         // Callback to handle individual file completion for immediate UI updates
         const onFileUploadCallback = (fileResult: FileUploadResult) => {
           if (fileResult.success && fileResult.documentId) {
-            // Optimistically add the new document to the cache immediately
-            mutate((pages) => {
-              if (!pages || pages.length === 0) return pages;
-              
-              // Create a new document object based on the successful upload
-              const newDocument = {
-                id: fileResult.documentId,
-                name: fileResult.fileName,
-                createdAt: new Date().toISOString(),
-                // Add other required fields with sensible defaults
-                updatedAt: new Date().toISOString(),
-                userId: user.id,
-                vectorStoreId: fileResult.documentId,
-              };
-              
-              // Add to the first page (most recent documents)
-              const updatedPages = [...pages];
-              if (updatedPages[0]) {
-                updatedPages[0] = {
-                  ...updatedPages[0],
-                  documents: [newDocument, ...updatedPages[0].documents],
-                };
-              }
-              
-              return updatedPages;
-            }, false); // Don't revalidate immediately to avoid flicker
-            
-            // Also notify other parts of the app
+            // Fetch documents from server instead of creating document objects directly
+            mutate();
             globalMutate(
               (key) =>
                 typeof key === 'string' && key.startsWith('/api/documents'),
               undefined,
-              { revalidate: false }, // Don't revalidate to avoid overwriting our optimistic update
+              { revalidate: true },
             );
           }
         };
@@ -310,7 +284,7 @@ export function SidebarDocuments({
         },
       );
     },
-    [mutate, user.id],
+    [mutate],
   );
 
   /**
