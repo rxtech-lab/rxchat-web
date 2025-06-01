@@ -75,6 +75,7 @@ describe('searchDocumentsTool', () => {
           mimeType: 'application/pdf',
           size: 1024,
           createdAt: mockDocuments[0].createdAt,
+          content: 'This is a test document content',
         },
       ],
     });
