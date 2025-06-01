@@ -38,11 +38,16 @@ export class UpstashVectorStore implements VectorStore {
       documentId: document.id,
     } as unknown as Record<string, unknown>;
 
-    await this.index.upsert({
-      id: vectorStoreId,
-      data: document.content, // Upstash will create embeddings from the text data
-      metadata,
-    });
+    await this.index.upsert(
+      {
+        id: vectorStoreId,
+        data: document.content, // Upstash will create embeddings from the text data
+        metadata,
+      },
+      {
+        namespace: 'document',
+      },
+    );
   }
 
   /**
@@ -90,8 +95,13 @@ export class UpstashVectorStore implements VectorStore {
    */
   async deleteDocument(id: string): Promise<void> {
     // Use filter to delete by documentId metadata instead of vector store ID
-    await this.index.delete({
-      filter: `documentId = "${id}"`,
-    });
+    await this.index.delete(
+      {
+        filter: `documentId = "${id}"`,
+      },
+      {
+        namespace: 'document',
+      },
+    );
   }
 }

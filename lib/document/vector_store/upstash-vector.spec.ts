@@ -40,20 +40,25 @@ describe('UpstashVectorStore', () => {
       await vectorStore.addDocument(document);
 
       expect(mockIndex.upsert).toHaveBeenCalledTimes(1);
-      const upsertCall = mockIndex.upsert.mock.calls[0][0];
+      const upsertCall = mockIndex.upsert.mock.calls[0];
 
       // Verify that a unique ID was generated (not the same as document.id)
-      expect(upsertCall.id).toBeDefined();
-      expect(upsertCall.id).not.toBe(document.id);
-      expect(typeof upsertCall.id).toBe('string');
+      expect(upsertCall[0].id).toBeDefined();
+      expect(upsertCall[0].id).not.toBe(document.id);
+      expect(typeof upsertCall[0].id).toBe('string');
 
       // Verify content is preserved
-      expect(upsertCall.data).toBe(document.content);
+      expect(upsertCall[0].data).toBe(document.content);
 
       // Verify metadata includes original document ID
-      expect(upsertCall.metadata).toEqual({
+      expect(upsertCall[0].metadata).toEqual({
         ...document.metadata,
         documentId: document.id,
+      });
+
+      // Verify namespace is used
+      expect(upsertCall[1]).toEqual({
+        namespace: 'document',
       });
     });
   });
@@ -67,13 +72,18 @@ describe('UpstashVectorStore', () => {
       await vectorStore.deleteDocument(documentId);
 
       expect(mockIndex.delete).toHaveBeenCalledTimes(1);
-      expect(mockIndex.delete).toHaveBeenCalledWith({
-        filter: `documentId = "${documentId}"`,
-      });
+      expect(mockIndex.delete).toHaveBeenCalledWith(
+        {
+          filter: `documentId = "${documentId}"`,
+        },
+        {
+          namespace: 'document',
+        },
+      );
     });
   });
 
-  describe('search', () => {
+  describe('searchDocument', () => {
     test('should return documents with original document IDs from metadata', async () => {
       const query = 'test query';
       const mockResults = [
@@ -103,15 +113,20 @@ describe('UpstashVectorStore', () => {
 
       mockIndex.query.mockResolvedValue(mockResults);
 
-      const results = await vectorStore.search(query, { limit: 10 });
+      const results = await vectorStore.searchDocument(query, { limit: 10 });
 
       expect(mockIndex.query).toHaveBeenCalledTimes(1);
-      expect(mockIndex.query).toHaveBeenCalledWith({
-        data: query,
-        topK: 10,
-        includeMetadata: true,
-        includeData: true,
-      });
+      expect(mockIndex.query).toHaveBeenCalledWith(
+        {
+          data: query,
+          topK: 10,
+          includeMetadata: true,
+          includeData: true,
+        },
+        {
+          namespace: 'document',
+        },
+      );
 
       // Verify results contain original document IDs from metadata
       expect(results).toHaveLength(2);
@@ -127,15 +142,20 @@ describe('UpstashVectorStore', () => {
 
       mockIndex.query.mockResolvedValue([]);
 
-      await vectorStore.search(query, { limit: 5, userId });
+      await vectorStore.searchDocument(query, { limit: 5, userId });
 
-      expect(mockIndex.query).toHaveBeenCalledWith({
-        data: query,
-        topK: 5,
-        includeMetadata: true,
-        includeData: true,
-        filter: `userId = "${userId}"`,
-      });
+      expect(mockIndex.query).toHaveBeenCalledWith(
+        {
+          data: query,
+          topK: 5,
+          includeMetadata: true,
+          includeData: true,
+          filter: `userId = "${userId}"`,
+        },
+        {
+          namespace: 'document',
+        },
+      );
     });
   });
 });
