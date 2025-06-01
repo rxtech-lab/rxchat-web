@@ -195,7 +195,7 @@ export function SidebarDocuments({
   );
 
   /**
-   * Handles file upload with progress indication
+   * Handles file upload with progress indication and detailed error handling
    */
   const handleFileUpload = useCallback(
     async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -203,29 +203,64 @@ export function SidebarDocuments({
       if (!files || files.length === 0) return;
 
       setIsUploading(true);
+      
+      // Create an upload promise that handles both success and partial failure scenarios
+      const uploadPromise = async () => {
+        // Allow partial failures to get detailed results
+        const result = await createDocuments(event.target.files, { throwOnAnyFailure: false });
+        
+        // Revalidate the documents list if any files were successfully uploaded
+        if (result.successCount > 0) {
+          await mutate();
+          globalMutate(
+            (key) =>
+              typeof key === 'string' && key.startsWith('/api/documents'),
+            undefined,
+            { revalidate: true },
+          );
+        }
+        
+        // Show additional warning toast for partial failures
+        if (result.failureCount > 0 && result.successCount > 0) {
+          const failedFiles = result.results.filter(r => !r.success);
+          const failedFileNames = failedFiles.slice(0, 3).map(f => f.fileName).join(', ');
+          const moreCount = failedFiles.length > 3 ? ` and ${failedFiles.length - 3} more` : '';
+          
+          toast.error(`Failed to upload: ${failedFileNames}${moreCount}`, {
+            description: failedFiles[0].error,
+          });
+        }
+        
+        return result;
+      };
+
       toast.promise(
-        () =>
-          createDocuments(event.target.files)
-            .then(async () => {
-              // Revalidate the documents list
-              await mutate();
-              globalMutate(
-                (key) =>
-                  typeof key === 'string' && key.startsWith('/api/documents'),
-                undefined,
-                { revalidate: true },
-              );
-            })
-            .finally(() => {
-              setIsUploading(false);
-              if (fileInputRef.current) {
-                fileInputRef.current.value = '';
-              }
-            }),
+        uploadPromise().finally(() => {
+          setIsUploading(false);
+          if (fileInputRef.current) {
+            fileInputRef.current.value = '';
+          }
+        }),
         {
           loading: 'Uploading documents...',
-          success: `${files.length} documents uploaded successfully`,
-          error: 'Failed to upload documents',
+          success: (result) => {
+            if (result.allSucceeded) {
+              return `${result.successCount} documents uploaded successfully`;
+            } else if (result.successCount > 0) {
+              return `${result.successCount} of ${files.length} documents uploaded successfully`;
+            } else {
+              // This case should be handled by error, but just in case
+              return 'Upload completed';
+            }
+          },
+          error: (error) => {
+            // Handle the case where all files failed (this will be thrown as an error)
+            if (error.uploadResults) {
+              const { failureCount } = error.uploadResults;
+              return `Failed to upload all ${failureCount} documents`;
+            }
+            return 'Failed to upload documents';
+          },
         },
       );
     },
