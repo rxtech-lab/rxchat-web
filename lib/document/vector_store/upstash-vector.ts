@@ -1,4 +1,5 @@
 import { Index } from '@upstash/vector';
+import { generateUUID } from '@/lib/utils';
 import type {
   VectorStore,
   VectorStoreDocument,
@@ -28,11 +29,20 @@ export class UpstashVectorStore implements VectorStore {
    * @param document - The document to add
    */
   async addDocument(document: VectorStoreDocument): Promise<void> {
+    // Generate unique vector store ID instead of using document ID
+    const vectorStoreId = generateUUID();
+
+    // Include original document ID in metadata
+    const metadata = {
+      ...document.metadata,
+      documentId: document.id,
+    } as unknown as Record<string, unknown>;
+
     await this.index.upsert(
       {
-        id: document.id,
+        id: vectorStoreId,
         data: document.content, // Upstash will create embeddings from the text data
-        metadata: document.metadata as unknown as Record<string, unknown>,
+        metadata,
       },
       {
         namespace: 'document',
@@ -68,20 +78,30 @@ export class UpstashVectorStore implements VectorStore {
       namespace: 'document',
     });
 
-    return results.map((result) => ({
-      id: result.id as string,
-      content: result.data as string,
-      metadata: result.metadata as unknown as VectorStoreMetadata,
-    }));
+    return results.map((result) => {
+      const metadata = result.metadata as unknown as VectorStoreMetadata;
+      return {
+        // Use documentId from metadata if available, otherwise fall back to vector store ID for backward compatibility
+        id: metadata.documentId || (result.id as string),
+        content: result.data as string,
+        metadata,
+      };
+    });
   }
 
   /**
    * Deletes a document from the vector store
-   * @param id - The id of the document to delete
+   * @param id - The original document id from database to delete
    */
   async deleteDocument(id: string): Promise<void> {
-    await this.index.delete(id, {
-      namespace: 'document',
-    });
+    // Use filter to delete by documentId metadata instead of vector store ID
+    await this.index.delete(
+      {
+        filter: `documentId = "${id}"`,
+      },
+      {
+        namespace: 'document',
+      },
+    );
   }
 }

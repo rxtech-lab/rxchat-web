@@ -18,8 +18,12 @@ jest.mock('@/lib/ai/providers', () => ({
 import { generateText } from 'ai';
 import { getModelProvider } from '@/lib/ai/providers';
 
-const mockGenerateText = generateText as jest.MockedFunction<typeof generateText>;
-const mockGetModelProvider = getModelProvider as jest.MockedFunction<typeof getModelProvider>;
+const mockGenerateText = generateText as jest.MockedFunction<
+  typeof generateText
+>;
+const mockGetModelProvider = getModelProvider as jest.MockedFunction<
+  typeof getModelProvider
+>;
 
 // Import the function directly for testing
 // Since we can't import the actual function due to module issues,
@@ -28,7 +32,7 @@ const mockGetModelProvider = getModelProvider as jest.MockedFunction<typeof getM
 describe('Document Summary Generation Logic', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    
+
     // Setup default mocks
     const mockLanguageModel = {};
     const mockProvider = {
@@ -38,9 +42,10 @@ describe('Document Summary Generation Logic', () => {
   });
 
   it('should generate AI summary successfully', async () => {
-    const testContent = 'This is a test document about artificial intelligence and machine learning technologies.';
+    const testContent =
+      'This is a test document about artificial intelligence and machine learning technologies.';
     const expectedSummary = 'Document about AI and ML technologies';
-    
+
     mockGenerateText.mockResolvedValue({ text: expectedSummary });
 
     // Test the AI generation call pattern
@@ -55,7 +60,7 @@ describe('Document Summary Generation Logic', () => {
 
   it('should handle AI generation failure gracefully', async () => {
     const testContent = 'This is a test document.';
-    
+
     mockGenerateText.mockRejectedValue(new Error('AI service unavailable'));
 
     try {
@@ -74,14 +79,14 @@ describe('Document Summary Generation Logic', () => {
   it('should handle empty content appropriately', () => {
     const emptyContent = '';
     const fallback = emptyContent.slice(0, 200);
-    
+
     expect(fallback).toBe('');
   });
 
   it('should truncate long content as fallback', () => {
     const longContent = 'A'.repeat(300);
     const fallback = longContent.slice(0, 200);
-    
+
     expect(fallback).toHaveLength(200);
     expect(fallback).toBe('A'.repeat(200));
   });

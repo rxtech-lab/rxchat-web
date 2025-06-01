@@ -16,6 +16,11 @@ export interface VectorStoreMetadata {
    * The mime type of the document
    */
   mimeType: string;
+
+  /**
+   * The original document ID from the database (added automatically by vector store)
+   */
+  documentId?: string;
 }
 
 /**

@@ -1,6 +1,9 @@
 'use server';
 
 import { auth } from '@/app/(auth)/auth';
+import { DEFAULT_CHAT_MODEL } from '@/lib/ai/models';
+import { getModelProvider } from '@/lib/ai/providers';
+import { CHUNK_SIZE } from '@/lib/constants';
 import { db } from '@/lib/db/queries/client';
 import {
   createVectorStoreDocument,
@@ -16,12 +19,10 @@ import { createVectorStoreClient } from '@/lib/document/vector_store';
 import { ChatSDKError } from '@/lib/errors';
 import { createS3Client } from '@/lib/s3/index';
 import { S3Client } from '@/lib/s3/s3';
-import path from 'node:path';
-import { z } from 'zod';
 import { RecursiveCharacterTextSplitter } from '@langchain/textsplitters';
 import { generateText } from 'ai';
-import { DEFAULT_CHAT_MODEL } from '@/lib/ai/models';
-import { getModelProvider } from '@/lib/ai/providers';
+import path from 'node:path';
+import { z } from 'zod';
 
 // Types
 export interface DocumentHistory {
@@ -186,7 +187,8 @@ export async function searchDocuments({
     });
 
     let documents = await getDocumentsByIds({
-      ids: searchResults.map((doc) => doc.id),
+      // biome-ignore lint/style/noNonNullAssertion: <explanation>
+      ids: searchResults.map((doc) => doc.metadata.documentId!),
       dbConnection: db,
       status: 'completed',
     });
@@ -306,7 +308,7 @@ export async function completeDocumentUpload({
         { ttl: 3600 }, // 1 hour TTL for download URL
       );
       const content = await markitdownClient.convertToMarkdown(downloadUrl);
-      const chunks = await chunkContent(content, 1000);
+      const chunks = await chunkContent(content, CHUNK_SIZE);
 
       // Generate AI summary of the first chunk for storage
       const contentSummary =
@@ -327,13 +329,14 @@ export async function completeDocumentUpload({
       const vectorStore = createVectorStoreClient();
       const vectorStorePromises = chunks.map(async (chunk) => {
         await vectorStore.addDocument({
-          id: parsed.data.documentId,
+          id: crypto.randomUUID(),
           content: chunk,
           metadata: {
             userId: session.user.id,
             key: document.key || '',
             uploadTimestamp: new Date().toISOString(),
             mimeType: document.mimeType,
+            documentId: document.id,
           },
         });
       });

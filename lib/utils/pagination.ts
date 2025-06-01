@@ -1,3 +1,5 @@
+import { MAX_K } from '../constants';
+
 // Document pagination utility functions
 export interface DocumentHistory {
   documents: Array<{
@@ -15,8 +17,6 @@ export interface DocumentHistory {
   hasMore: boolean;
 }
 
-const PAGE_SIZE = 20;
-
 export function getDocumentsPaginationKey(
   pageIndex: number,
   previousPageData: DocumentHistory,
@@ -29,7 +29,7 @@ export function getDocumentsPaginationKey(
   const baseUrl = '/api/documents';
   const params = new URLSearchParams();
 
-  params.set('limit', PAGE_SIZE.toString());
+  params.set('limit', MAX_K.toString());
 
   if (searchQuery) {
     params.set('query', searchQuery);
