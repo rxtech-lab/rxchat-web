@@ -19,6 +19,9 @@ import { S3Client } from '@/lib/s3/s3';
 import path from 'node:path';
 import { z } from 'zod';
 import { RecursiveCharacterTextSplitter } from '@langchain/textsplitters';
+import { generateText } from 'ai';
+import { DEFAULT_CHAT_MODEL } from '@/lib/ai/models';
+import { getModelProvider } from '@/lib/ai/providers';
 
 // Types
 export interface DocumentHistory {
@@ -207,6 +210,32 @@ async function chunkContent(content: string, chunkSize: number) {
 }
 
 /**
+ * Generate an AI summary from the first chunk of document content
+ */
+async function generateDocumentSummary(firstChunk: string): Promise<string> {
+  try {
+    // Use openRouter as default provider since it's commonly available
+    const provider = getModelProvider(DEFAULT_CHAT_MODEL, 'openRouter');
+
+    const { text: summary } = await generateText({
+      model: provider.languageModel('title-model'),
+      system: `
+    - you will generate a concise summary of the provided document content
+    - the summary should capture the main points and topics of the document
+    - focus on the key information and purpose of the document
+    - do not use quotes or colons.`,
+      prompt: firstChunk,
+    });
+
+    return summary;
+  } catch (error) {
+    console.error('Failed to generate document summary:', error);
+    // Fallback to truncated content if AI generation fails
+    return firstChunk.slice(0, 200);
+  }
+}
+
+/**
  * Server action to complete document upload - Step 2 of two-step upload
  * Updates document with content and adds to vector store
  */
@@ -268,17 +297,23 @@ export async function completeDocumentUpload({
       );
       const content = await markitdownClient.convertToMarkdown(downloadUrl);
       const chunks = await chunkContent(content, 1000);
+
+      // Generate AI summary of the first chunk for storage
+      const contentSummary =
+        chunks.length > 0
+          ? await generateDocumentSummary(chunks[0])
+          : content.slice(0, 200);
+
       const updatedDoc = await updateVectorStoreDocument({
         id: parsed.data.documentId,
         updates: {
-          content: content.slice(0, 200),
+          content: contentSummary,
           status: 'completed',
         },
         dbConnection: tx,
       });
 
       // Step 3: Add to vector store for search
-      // only keep first 200 characters
       const vectorStore = createVectorStoreClient();
       const vectorStorePromises = chunks.map(async (chunk) => {
         await vectorStore.addDocument({
