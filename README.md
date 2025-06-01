@@ -1,7 +1,4 @@
-<a href="https://github.com/rxtech-lab/rxchat-web">
-  <img alt="Next.js 15 and MCP router-enabled AI chatbot." src="app/(chat)/opengraph-image.png">
-  <h1 align="center">RxChat</h1>
-</a>
+<h1 align="center">RxChat</h1>
 
 <p align="center">
     RxChat is a next-generation AI chatbot built with Next.js 15, featuring MCP (Model Context Protocol) router integration, advanced code execution, and artifact generation capabilities.
