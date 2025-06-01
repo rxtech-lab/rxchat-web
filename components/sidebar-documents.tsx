@@ -16,7 +16,7 @@ import {
 } from '@/components/ui/context-menu';
 import { DEBOUNCE_TIME } from '@/lib/constants';
 import type { VectorStoreDocument } from '@/lib/db/schema';
-import { createDocuments } from '@/lib/document/actions/action_client';
+import { createDocuments, type FileUploadResult } from '@/lib/document/actions/action_client';
 import { fetcher } from '@/lib/utils';
 import {
   getDocumentsPaginationKey,
@@ -195,7 +195,7 @@ export function SidebarDocuments({
   );
 
   /**
-   * Handles file upload with progress indication
+   * Handles file upload with progress indication and detailed error handling
    */
   const handleFileUpload = useCallback(
     async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -203,29 +203,84 @@ export function SidebarDocuments({
       if (!files || files.length === 0) return;
 
       setIsUploading(true);
+      
+      // Create an upload promise that handles both success and partial failure scenarios
+      const uploadPromise = async () => {
+        // Callback to handle individual file completion for immediate UI updates
+        const onFileUploadCallback = (fileResult: FileUploadResult) => {
+          if (fileResult.success && fileResult.documentId) {
+            // Fetch documents from server instead of creating document objects directly
+            mutate();
+            globalMutate(
+              (key) =>
+                typeof key === 'string' && key.startsWith('/api/documents'),
+              undefined,
+              { revalidate: true },
+            );
+          }
+        };
+        
+        // Allow partial failures to get detailed results and use callback for real-time updates
+        const result = await createDocuments(event.target.files, { 
+          throwOnAnyFailure: false,
+          onFileUploadCallback 
+        });
+        
+        // Final revalidation after all uploads complete to ensure data consistency
+        if (result.successCount > 0) {
+          // Small delay to let the optimistic updates settle
+          setTimeout(async () => {
+            await mutate();
+            globalMutate(
+              (key) =>
+                typeof key === 'string' && key.startsWith('/api/documents'),
+              undefined,
+              { revalidate: true },
+            );
+          }, 100);
+        }
+        
+        // Show additional warning toast for partial failures
+        if (result.failureCount > 0 && result.successCount > 0) {
+          const failedFiles = result.results.filter(r => !r.success);
+          const failedFileNames = failedFiles.slice(0, 3).map(f => f.fileName).join(', ');
+          const moreCount = failedFiles.length > 3 ? ` and ${failedFiles.length - 3} more` : '';
+          
+          toast.error(`Failed to upload: ${failedFileNames}${moreCount}`, {
+            description: failedFiles[0].error,
+          });
+        }
+        
+        return result;
+      };
+
       toast.promise(
-        () =>
-          createDocuments(event.target.files)
-            .then(async () => {
-              // Revalidate the documents list
-              await mutate();
-              globalMutate(
-                (key) =>
-                  typeof key === 'string' && key.startsWith('/api/documents'),
-                undefined,
-                { revalidate: true },
-              );
-            })
-            .finally(() => {
-              setIsUploading(false);
-              if (fileInputRef.current) {
-                fileInputRef.current.value = '';
-              }
-            }),
+        uploadPromise().finally(() => {
+          setIsUploading(false);
+          if (fileInputRef.current) {
+            fileInputRef.current.value = '';
+          }
+        }),
         {
           loading: 'Uploading documents...',
-          success: `${files.length} documents uploaded successfully`,
-          error: 'Failed to upload documents',
+          success: (result) => {
+            if (result.allSucceeded) {
+              return `${result.successCount} documents uploaded successfully`;
+            } else if (result.successCount > 0) {
+              return `${result.successCount} of ${files.length} documents uploaded successfully`;
+            } else {
+              // This case should be handled by error, but just in case
+              return 'Upload completed';
+            }
+          },
+          error: (error) => {
+            // Handle the case where all files failed (this will be thrown as an error)
+            if (error.uploadResults) {
+              const { failureCount } = error.uploadResults;
+              return `Failed to upload all ${failureCount} documents`;
+            }
+            return 'Failed to upload documents';
+          },
         },
       );
     },
