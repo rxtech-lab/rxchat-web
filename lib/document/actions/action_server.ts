@@ -216,15 +216,14 @@ async function generateDocumentSummary(firstChunk: string): Promise<string> {
   try {
     // Use openRouter as default provider since it's commonly available
     const provider = getModelProvider(DEFAULT_CHAT_MODEL, 'openRouter');
-    
+
     const { text: summary } = await generateText({
       model: provider.languageModel('title-model'),
       system: `
     - you will generate a concise summary of the provided document content
-    - ensure it is not more than 200 characters long
     - the summary should capture the main points and topics of the document
     - focus on the key information and purpose of the document
-    - do not use quotes or colons`,
+    - do not use quotes or colons.`,
       prompt: firstChunk,
     });
 
@@ -298,12 +297,13 @@ export async function completeDocumentUpload({
       );
       const content = await markitdownClient.convertToMarkdown(downloadUrl);
       const chunks = await chunkContent(content, 1000);
-      
+
       // Generate AI summary of the first chunk for storage
-      const contentSummary = chunks.length > 0 
-        ? await generateDocumentSummary(chunks[0])
-        : content.slice(0, 200);
-      
+      const contentSummary =
+        chunks.length > 0
+          ? await generateDocumentSummary(chunks[0])
+          : content.slice(0, 200);
+
       const updatedDoc = await updateVectorStoreDocument({
         id: parsed.data.documentId,
         updates: {
