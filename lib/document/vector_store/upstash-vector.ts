@@ -28,11 +28,16 @@ export class UpstashVectorStore implements VectorStore {
    * @param document - The document to add
    */
   async addDocument(document: VectorStoreDocument): Promise<void> {
-    await this.index.upsert({
-      id: document.id,
-      data: document.content, // Upstash will create embeddings from the text data
-      metadata: document.metadata as unknown as Record<string, unknown>,
-    });
+    await this.index.upsert(
+      {
+        id: document.id,
+        data: document.content, // Upstash will create embeddings from the text data
+        metadata: document.metadata as unknown as Record<string, unknown>,
+      },
+      {
+        namespace: 'document',
+      },
+    );
   }
 
   /**
@@ -41,7 +46,7 @@ export class UpstashVectorStore implements VectorStore {
    * @param options - Search options including limit and userId filter
    * @returns Array of matching documents
    */
-  async search(
+  async searchDocument(
     query: string,
     options?: SearchOptions,
   ): Promise<VectorStoreDocument[]> {
@@ -59,7 +64,9 @@ export class UpstashVectorStore implements VectorStore {
       queryParams.filter = `userId = "${options.userId}"`;
     }
 
-    const results = await this.index.query(queryParams);
+    const results = await this.index.query(queryParams, {
+      namespace: 'document',
+    });
 
     return results.map((result) => ({
       id: result.id as string,
@@ -73,6 +80,8 @@ export class UpstashVectorStore implements VectorStore {
    * @param id - The id of the document to delete
    */
   async deleteDocument(id: string): Promise<void> {
-    await this.index.delete(id);
+    await this.index.delete(id, {
+      namespace: 'document',
+    });
   }
 }

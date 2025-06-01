@@ -43,7 +43,7 @@ export interface SearchOptions {
 
 export interface VectorStore {
   addDocument(document: VectorStoreDocument): Promise<void>;
-  search(
+  searchDocument(
     query: string,
     options?: SearchOptions,
   ): Promise<VectorStoreDocument[]>;

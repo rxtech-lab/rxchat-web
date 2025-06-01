@@ -180,16 +180,26 @@ export async function searchDocuments({
 
   try {
     const vectorStore = createVectorStoreClient();
-    const searchResults = await vectorStore.search(parsed.data.query, {
+    const searchResults = await vectorStore.searchDocument(parsed.data.query, {
       userId: session.user.id,
       limit: parsed.data.limit,
     });
 
-    const documents = await getDocumentsByIds({
+    let documents = await getDocumentsByIds({
       ids: searchResults.map((doc) => doc.id),
       dbConnection: db,
       status: 'completed',
     });
+
+    // join searchresults content by id and attach to the document
+    // replace the document's content with the joined content
+    documents = documents.map((doc) => ({
+      ...doc,
+      content: searchResults
+        .filter((result) => result.id === doc.id)
+        .map((result) => result.content)
+        .join('\n\n'),
+    }));
 
     return documents;
   } catch (error) {

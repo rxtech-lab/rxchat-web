@@ -32,8 +32,12 @@ This is a guide for using artifacts tools: \`createDocument\` and \`updateDocume
 Do not update document right after creating it. Wait for user feedback or request to update it.
 `;
 
-export const regularPrompt =
-  "You are a friendly assistant! Keep your responses concise and helpful. When user asking something that you don't know, use query tool to find the appropriate tools to use.";
+export const regularPrompt = `
+  You are a friendly assistant! Keep your responses concise and helpful. 
+  When user asking something that you don't know, 
+  If you think it is related to knowledge base, use searchDocuments tool to find the relevant documents.
+  Otherwise, use query tool to find the appropriate tools to use or you think the document is not relevant to the user's request.
+  `;
 
 export interface RequestHints {
   latitude: Geo['latitude'];
