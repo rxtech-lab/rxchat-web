@@ -16,7 +16,10 @@ import {
 } from '@/components/ui/context-menu';
 import { DEBOUNCE_TIME } from '@/lib/constants';
 import type { VectorStoreDocument } from '@/lib/db/schema';
-import { createDocuments, type FileUploadResult } from '@/lib/document/actions/action_client';
+import {
+  createDocuments,
+  type FileUploadResult,
+} from '@/lib/document/actions/action_client';
 import { fetcher } from '@/lib/utils';
 import {
   getDocumentsPaginationKey,
@@ -203,7 +206,7 @@ export function SidebarDocuments({
       if (!files || files.length === 0) return;
 
       setIsUploading(true);
-      
+
       // Create an upload promise that handles both success and partial failure scenarios
       const uploadPromise = async () => {
         // Callback to handle individual file completion for immediate UI updates
@@ -219,13 +222,13 @@ export function SidebarDocuments({
             );
           }
         };
-        
+
         // Allow partial failures to get detailed results and use callback for real-time updates
-        const result = await createDocuments(event.target.files, { 
+        const result = await createDocuments(event.target.files, {
           throwOnAnyFailure: false,
-          onFileUploadCallback 
+          onFileUploadCallback,
         });
-        
+
         // Final revalidation after all uploads complete to ensure data consistency
         if (result.successCount > 0) {
           // Small delay to let the optimistic updates settle
@@ -239,18 +242,22 @@ export function SidebarDocuments({
             );
           }, 100);
         }
-        
+
         // Show additional warning toast for partial failures
         if (result.failureCount > 0 && result.successCount > 0) {
-          const failedFiles = result.results.filter(r => !r.success);
-          const failedFileNames = failedFiles.slice(0, 3).map(f => f.fileName).join(', ');
-          const moreCount = failedFiles.length > 3 ? ` and ${failedFiles.length - 3} more` : '';
-          
+          const failedFiles = result.results.filter((r) => !r.success);
+          const failedFileNames = failedFiles
+            .slice(0, 3)
+            .map((f) => f.fileName)
+            .join(', ');
+          const moreCount =
+            failedFiles.length > 3 ? ` and ${failedFiles.length - 3} more` : '';
+
           toast.error(`Failed to upload: ${failedFileNames}${moreCount}`, {
             description: failedFiles[0].error,
           });
         }
-        
+
         return result;
       };
 

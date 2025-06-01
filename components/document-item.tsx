@@ -282,9 +282,9 @@ const PureDocumentItem = ({
                       <div className="text-sm font-medium truncate leading-tight">
                         {vectorDocument.originalFileName}
                       </div>
-                      <div className="text-xs text-muted-foreground flex items-center gap-2">
+                      <div className="text-xs text-muted-foreground flex flex-wrap items-center gap-x-2 gap-y-1">
                         <span>{formatFileSize(vectorDocument.size)}</span>
-                        <span>•</span>
+                        <span className="hidden sm:inline">•</span>
                         <span>
                           {formatDistanceToNow(
                             new Date(vectorDocument.createdAt),
