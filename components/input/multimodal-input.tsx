@@ -1,7 +1,7 @@
 'use client';
 
-import type { Attachment, UIMessage } from 'ai';
 import type { Prompt } from '@/lib/db/schema';
+import type { Attachment, UIMessage } from 'ai';
 import cx from 'classnames';
 import type React from 'react';
 import {
@@ -24,16 +24,17 @@ import type { UseChatHelpers } from '@ai-sdk/react';
 import equal from 'fast-deep-equal';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ArrowDown } from 'lucide-react';
-import useSWR from 'swr';
+import useSWR, { useSWRConfig } from 'swr';
 import { PreviewAttachment } from '../preview-attachment';
 import { SuggestedActions } from '../suggested-actions';
 import { Button } from '../ui/button';
 import { Textarea } from '../ui/textarea';
-import type { VisibilityType } from '../visibility-selector';
+
 import { AttachmentsButton } from './attachment-button';
 import { MCPButton } from './mcp-button';
 import { PromptDialog } from './prompt-dialog';
 import { SendButton, StopButton } from './send-button';
+import type { VisibilityType } from '../visibility-selector';
 
 // Add document interface
 interface UploadedDocument {
@@ -81,6 +82,8 @@ function PureMultimodalInput({
   const [uploadedDocuments, setUploadedDocuments] = useState<
     Array<UploadedDocument>
   >([]);
+
+  const { mutate: globalMutate } = useSWRConfig();
 
   useEffect(() => {
     if (textareaRef.current) {
@@ -234,6 +237,13 @@ function PureMultimodalInput({
         loading: `Uploading ${file.name}...`,
         success: (data) => {
           if (data.type === 'document') {
+            // Revalidate sidebar documents infinite query and all document-related queries
+            globalMutate(
+              (key) =>
+                typeof key === 'string' && key.startsWith('/api/documents'),
+              true,
+              { revalidate: true },
+            );
             return `Document "${data.filename}" uploaded successfully`;
           }
           return `${file.name} uploaded successfully`;
@@ -300,6 +310,21 @@ function PureMultimodalInput({
               size: doc.size,
             })),
           ]);
+
+          // Ensure documents sidebar is updated after batch upload
+          globalMutate(
+            (key) => {
+              console.log(
+                key,
+                typeof key === 'string' && key.startsWith('/api/documents'),
+              );
+              return (
+                typeof key === 'string' && key.startsWith('/api/documents')
+              );
+            },
+            true,
+            { revalidate: true },
+          );
         }
       } catch (error) {
         console.error('Error uploading files!', error);
@@ -348,6 +373,13 @@ function PureMultimodalInput({
 
         setUploadedDocuments((currentDocuments) =>
           currentDocuments.filter((doc) => doc.id !== documentId),
+        );
+
+        // Revalidate sidebar documents infinite query and all document-related queries
+        globalMutate(
+          (key) => typeof key === 'string' && key.startsWith('/api/documents'),
+          true,
+          { revalidate: true },
         );
       };
 

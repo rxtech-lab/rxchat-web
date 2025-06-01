@@ -18,6 +18,7 @@ This is a NextJS 15 app uses TypeScript, Tailwind CSS, SWR, Drizzle ORM, and Pos
 - Always write unit tests for new components and features.
 - Run `pnpm lint` to check for linting errors and `pnpm format` to format the code before committing.
 - Each file should limit its size within 600 lines of code. If exceed, split into multiple files and grouped using folder
+- Run `pnpm build` to check build error.
 
 # Repository Structure
 
