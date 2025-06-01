@@ -91,12 +91,15 @@ async function uploadSingleFile(file: File): Promise<FileUploadResult> {
  * for better performance compared to sequential uploads
  * 
  * @param fileList - The files to upload
- * @param options - Upload options
+ * @param options - Upload options including optional callback for individual file completion
  * @returns Upload results with detailed information about successes and failures
  */
 export async function createDocuments(
   fileList: FileList | null, 
-  options: { throwOnAnyFailure?: boolean } = { throwOnAnyFailure: true }
+  options: { 
+    throwOnAnyFailure?: boolean;
+    onFileUploadCallback?: (result: FileUploadResult) => void;
+  } = { throwOnAnyFailure: true }
 ): Promise<DocumentUploadResults> {
   const files = fileList ? Array.from(fileList) : null;
   if (!files || files.length === 0) {
@@ -110,23 +113,48 @@ export async function createDocuments(
   }
 
   // Use Promise.allSettled to upload all files in parallel
-  const uploadPromises = files.map(file => uploadSingleFile(file));
+  // Wrap each upload with callback if provided
+  const uploadPromises = files.map(file => {
+    const uploadPromise = uploadSingleFile(file);
+    
+    // If callback is provided, call it when this specific file completes
+    if (options.onFileUploadCallback) {
+      uploadPromise.then(result => {
+        options.onFileUploadCallback!(result);
+      }).catch(() => {
+        // Handle case where uploadSingleFile rejects (shouldn't happen normally)
+        // The callback will be called with the error result in the settled results processing
+      });
+    }
+    
+    return uploadPromise;
+  });
+  
   const settledResults = await Promise.allSettled(uploadPromises);
   
   // Process the results
   const results: FileUploadResult[] = settledResults.map((settledResult, index) => {
+    let result: FileUploadResult;
+    
     if (settledResult.status === 'fulfilled') {
-      return settledResult.value;
+      result = settledResult.value;
     } else {
       // This should rarely happen since uploadSingleFile handles its own errors
-      return {
+      result = {
         fileName: files[index].name,
         success: false,
         error: settledResult.reason instanceof Error 
           ? settledResult.reason.message 
           : 'Unexpected error during upload',
       };
+      
+      // Call callback for rejected promises if callback is provided
+      if (options.onFileUploadCallback) {
+        options.onFileUploadCallback(result);
+      }
     }
+    
+    return result;
   });
 
   const successCount = results.filter(r => r.success).length;

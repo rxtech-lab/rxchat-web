@@ -332,4 +332,96 @@ describe('createDocuments', () => {
       expect(error.uploadResults.failureCount).toBe(1);
     }
   });
+
+  it('should call onFileUploadCallback for each completed file', async () => {
+    const file1 = createMockFile('test1.pdf', 'application/pdf', 1024);
+    const file2 = createMockFile('test2.txt', 'text/plain', 512);
+    const fileList = createMockFileList([file1, file2]);
+    
+    // Setup mocks for successful uploads
+    mockGetPresignedUploadUrl
+      .mockResolvedValueOnce({
+        url: 'https://test-bucket.s3.amazonaws.com/test-upload-url-1',
+        id: 'test-document-id-1',
+      })
+      .mockResolvedValueOnce({
+        url: 'https://test-bucket.s3.amazonaws.com/test-upload-url-2',
+        id: 'test-document-id-2',
+      });
+    
+    mockFetch
+      .mockResolvedValueOnce(new Response('', { status: 200 }))
+      .mockResolvedValueOnce(new Response('', { status: 200 }));
+    
+    mockCompleteDocumentUpload
+      .mockResolvedValueOnce({ success: true })
+      .mockResolvedValueOnce({ success: true });
+    
+    // Track callback calls
+    const callbackResults: any[] = [];
+    const callback = jest.fn((result: any) => {
+      callbackResults.push(result);
+    });
+    
+    const results = await createDocuments(fileList, { 
+      throwOnAnyFailure: false,
+      onFileUploadCallback: callback 
+    });
+    
+    // Verify callback was called for each file
+    expect(callback).toHaveBeenCalledTimes(2);
+    expect(callbackResults).toHaveLength(2);
+    
+    // Verify callback results match the final results
+    expect(callbackResults.every(r => r.success)).toBe(true);
+    expect(callbackResults.map(r => r.fileName)).toEqual(['test1.pdf', 'test2.txt']);
+    
+    // Verify final results are still correct
+    expect(results.successCount).toBe(2);
+    expect(results.failureCount).toBe(0);
+  });
+
+  it('should call onFileUploadCallback for failed files too', async () => {
+    const file1 = createMockFile('test1.pdf', 'application/pdf', 1024);
+    const file2 = createMockFile('test2.txt', 'text/plain', 512);
+    const fileList = createMockFileList([file1, file2]);
+    
+    // First file succeeds, second fails
+    mockGetPresignedUploadUrl
+      .mockResolvedValueOnce({
+        url: 'https://test-bucket.s3.amazonaws.com/test-upload-url-1',
+        id: 'test-document-id-1',
+      })
+      .mockResolvedValueOnce({
+        error: 'Presigned URL failed',
+      });
+    
+    mockFetch.mockResolvedValueOnce(new Response('', { status: 200 }));
+    mockCompleteDocumentUpload.mockResolvedValueOnce({ success: true });
+    
+    // Track callback calls
+    const callbackResults: any[] = [];
+    const callback = jest.fn((result: any) => {
+      callbackResults.push(result);
+    });
+    
+    const results = await createDocuments(fileList, { 
+      throwOnAnyFailure: false,
+      onFileUploadCallback: callback 
+    });
+    
+    // Verify callback was called for each file
+    expect(callback).toHaveBeenCalledTimes(2);
+    expect(callbackResults).toHaveLength(2);
+    
+    // Verify one success and one failure
+    const successResults = callbackResults.filter(r => r.success);
+    const failureResults = callbackResults.filter(r => !r.success);
+    expect(successResults).toHaveLength(1);
+    expect(failureResults).toHaveLength(1);
+    
+    // Verify final results match
+    expect(results.successCount).toBe(1);
+    expect(results.failureCount).toBe(1);
+  });
 });

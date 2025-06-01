@@ -16,7 +16,7 @@ import {
 } from '@/components/ui/context-menu';
 import { DEBOUNCE_TIME } from '@/lib/constants';
 import type { VectorStoreDocument } from '@/lib/db/schema';
-import { createDocuments } from '@/lib/document/actions/action_client';
+import { createDocuments, type FileUploadResult } from '@/lib/document/actions/action_client';
 import { fetcher } from '@/lib/utils';
 import {
   getDocumentsPaginationKey,
@@ -206,18 +206,64 @@ export function SidebarDocuments({
       
       // Create an upload promise that handles both success and partial failure scenarios
       const uploadPromise = async () => {
-        // Allow partial failures to get detailed results
-        const result = await createDocuments(event.target.files, { throwOnAnyFailure: false });
+        // Callback to handle individual file completion for immediate UI updates
+        const onFileUploadCallback = (fileResult: FileUploadResult) => {
+          if (fileResult.success && fileResult.documentId) {
+            // Optimistically add the new document to the cache immediately
+            mutate((pages) => {
+              if (!pages || pages.length === 0) return pages;
+              
+              // Create a new document object based on the successful upload
+              const newDocument = {
+                id: fileResult.documentId,
+                name: fileResult.fileName,
+                createdAt: new Date().toISOString(),
+                // Add other required fields with sensible defaults
+                updatedAt: new Date().toISOString(),
+                userId: user.id,
+                vectorStoreId: fileResult.documentId,
+              };
+              
+              // Add to the first page (most recent documents)
+              const updatedPages = [...pages];
+              if (updatedPages[0]) {
+                updatedPages[0] = {
+                  ...updatedPages[0],
+                  documents: [newDocument, ...updatedPages[0].documents],
+                };
+              }
+              
+              return updatedPages;
+            }, false); // Don't revalidate immediately to avoid flicker
+            
+            // Also notify other parts of the app
+            globalMutate(
+              (key) =>
+                typeof key === 'string' && key.startsWith('/api/documents'),
+              undefined,
+              { revalidate: false }, // Don't revalidate to avoid overwriting our optimistic update
+            );
+          }
+        };
         
-        // Revalidate the documents list if any files were successfully uploaded
+        // Allow partial failures to get detailed results and use callback for real-time updates
+        const result = await createDocuments(event.target.files, { 
+          throwOnAnyFailure: false,
+          onFileUploadCallback 
+        });
+        
+        // Final revalidation after all uploads complete to ensure data consistency
         if (result.successCount > 0) {
-          await mutate();
-          globalMutate(
-            (key) =>
-              typeof key === 'string' && key.startsWith('/api/documents'),
-            undefined,
-            { revalidate: true },
-          );
+          // Small delay to let the optimistic updates settle
+          setTimeout(async () => {
+            await mutate();
+            globalMutate(
+              (key) =>
+                typeof key === 'string' && key.startsWith('/api/documents'),
+              undefined,
+              { revalidate: true },
+            );
+          }, 100);
         }
         
         // Show additional warning toast for partial failures
@@ -264,7 +310,7 @@ export function SidebarDocuments({
         },
       );
     },
-    [mutate],
+    [mutate, user.id],
   );
 
   /**
