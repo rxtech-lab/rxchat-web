@@ -18,6 +18,7 @@ import { createS3Client } from '@/lib/s3/index';
 import { S3Client } from '@/lib/s3/s3';
 import path from 'node:path';
 import { z } from 'zod';
+import { RecursiveCharacterTextSplitter } from '@langchain/textsplitters';
 
 // Types
 export interface DocumentHistory {
@@ -191,6 +192,15 @@ export async function searchDocuments({
   }
 }
 
+async function chunkContent(content: string, chunkSize: number) {
+  const splitter = new RecursiveCharacterTextSplitter({
+    chunkSize,
+    chunkOverlap: 0,
+  });
+  const chunks = await splitter.splitText(content);
+  return chunks;
+}
+
 /**
  * Server action to complete document upload - Step 2 of two-step upload
  * Updates document with content and adds to vector store
@@ -252,28 +262,32 @@ export async function completeDocumentUpload({
         { ttl: 3600 }, // 1 hour TTL for download URL
       );
       const content = await markitdownClient.convertToMarkdown(downloadUrl);
+      const chunks = await chunkContent(content, 1000);
       const updatedDoc = await updateVectorStoreDocument({
         id: parsed.data.documentId,
         updates: {
-          content: content,
+          content: content.slice(0, 200),
           status: 'completed',
         },
         dbConnection: tx,
       });
 
       // Step 3: Add to vector store for search
+      // only keep first 200 characters
       const vectorStore = createVectorStoreClient();
-      await vectorStore.addDocument({
-        id: parsed.data.documentId,
-        content: content,
-        metadata: {
-          userId: session.user.id,
-          key: document.key || '',
-          uploadTimestamp: new Date().toISOString(),
-          mimeType: document.mimeType,
-        },
+      const vectorStorePromises = chunks.map(async (chunk) => {
+        await vectorStore.addDocument({
+          id: parsed.data.documentId,
+          content: chunk,
+          metadata: {
+            userId: session.user.id,
+            key: document.key || '',
+            uploadTimestamp: new Date().toISOString(),
+            mimeType: document.mimeType,
+          },
+        });
       });
-
+      await Promise.all(vectorStorePromises);
       return updatedDoc;
     });
     return {};

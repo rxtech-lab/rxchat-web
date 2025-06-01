@@ -97,7 +97,7 @@ describe('searchDocumentsTool', () => {
     });
   });
 
-  it('should truncate long content', async () => {
+  it('should return full content', async () => {
     const longContent = 'a'.repeat(600);
     const mockDocuments = [
       {
@@ -118,8 +118,8 @@ describe('searchDocumentsTool', () => {
     const tool = searchDocumentsTool({ session: mockSession });
     const result = await tool.execute({ query: 'long content query' });
 
-    expect(result.results[0].content).toHaveLength(503); // 500 + '...'
-    expect(result.results[0].content).toMatch(/\.\.\.$/);  // ends with '...'
+    expect(result.results[0].content).toHaveLength(600); // Full content length
+    expect(result.results[0].content).toBe(longContent);  // Full content returned
   });
 
   it('should use custom limit when provided', async () => {

@@ -10,7 +10,8 @@ interface SearchDocumentsProps {
 
 export const searchDocumentsTool = ({ session }: SearchDocumentsProps) =>
   tool({
-    description: 'Search for documents using vector similarity search based on query text',
+    description:
+      'Search for documents using vector similarity search based on query text',
     parameters: z.object({
       query: z
         .string()
@@ -45,7 +46,6 @@ export const searchDocumentsTool = ({ session }: SearchDocumentsProps) =>
             mimeType: doc.mimeType,
             size: doc.size,
             createdAt: doc.createdAt,
-            content: doc.content ? doc.content.substring(0, 500) + (doc.content.length > 500 ? '...' : '') : null,
           })),
         };
       } catch (error) {

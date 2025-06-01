@@ -14,6 +14,12 @@ import {
   DropdownMenuTrigger,
 } from './ui/dropdown-menu';
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from './ui/tooltip';
+import {
   FileIcon,
   MoreHorizontalIcon,
   TrashIcon,
@@ -34,6 +40,12 @@ const PureDocumentItem = ({
 
   const handleDelete = async () => {
     try {
+      const confirm = window.confirm(
+        'Are you sure you want to delete this document?',
+      );
+      if (!confirm) {
+        return;
+      }
       const promise = async () => {
         setIsDeleting(true);
         const response = await fetch(`/api/documents/${vectorDocument.id}`, {
@@ -99,41 +111,64 @@ const PureDocumentItem = ({
 
   return (
     <SidebarMenuItem>
-      <SidebarMenuButton
-        asChild
-        className={`h-auto p-3 ${isDeleting ? 'opacity-50 pointer-events-none' : ''}`}
-      >
-        <div className="flex items-start gap-3 w-full">
-          {isDeleting ? (
-            <Loader2Icon
-              size={20}
-              className="mt-0.5 shrink-0 text-muted-foreground animate-spin"
-            />
-          ) : (
-            <FileIcon
-              size={20}
-              className="mt-0.5 shrink-0 text-muted-foreground"
-            />
-          )}
-          <div className="flex-1 min-w-0 space-y-1">
-            <div
-              className="text-sm font-medium truncate leading-tight"
-              title={vectorDocument.key || 'Untitled Document'}
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <SidebarMenuButton
+              asChild
+              className={`h-auto p-3 ${isDeleting ? 'opacity-50 pointer-events-none' : ''}`}
             >
-              {vectorDocument.originalFileName}
+              <div className="flex items-start gap-3 w-full cursor-pointer">
+                {isDeleting ? (
+                  <Loader2Icon
+                    size={20}
+                    className="mt-0.5 shrink-0 text-muted-foreground animate-spin"
+                  />
+                ) : (
+                  <FileIcon
+                    size={20}
+                    className="mt-0.5 shrink-0 text-muted-foreground"
+                  />
+                )}
+                <div className="flex-1 min-w-0 space-y-1">
+                  <div className="text-sm font-medium truncate leading-tight">
+                    {vectorDocument.originalFileName}
+                  </div>
+                  <div className="text-xs text-muted-foreground flex items-center gap-2">
+                    <span>{formatFileSize(vectorDocument.size)}</span>
+                    <span>•</span>
+                    <span>
+                      {formatDistanceToNow(new Date(vectorDocument.createdAt), {
+                        addSuffix: true,
+                      })}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </SidebarMenuButton>
+          </TooltipTrigger>
+          <TooltipContent side="right" className="max-w-sm">
+            <div className="space-y-2">
+              <div className="font-medium text-sm">
+                {vectorDocument.originalFileName}
+              </div>
+              <div className="text-xs text-muted-foreground space-y-1">
+                <div>
+                  <span className="font-medium">Size:</span>{' '}
+                  {formatFileSize(vectorDocument.size)}
+                </div>
+                <div>
+                  <span className="font-medium">Created:</span>{' '}
+                  {formatDistanceToNow(new Date(vectorDocument.createdAt), {
+                    addSuffix: true,
+                  })}
+                </div>
+                <div>{vectorDocument.content}</div>
+              </div>
             </div>
-            <div className="text-xs text-muted-foreground flex items-center gap-2">
-              <span>{formatFileSize(vectorDocument.size)}</span>
-              <span>•</span>
-              <span>
-                {formatDistanceToNow(new Date(vectorDocument.createdAt), {
-                  addSuffix: true,
-                })}
-              </span>
-            </div>
-          </div>
-        </div>
-      </SidebarMenuButton>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
       <DropdownMenu>
         <DropdownMenuTrigger asChild disabled={isDeleting}>
           <SidebarMenuAction showOnHover>

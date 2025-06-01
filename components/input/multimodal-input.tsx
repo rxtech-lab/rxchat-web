@@ -327,6 +327,12 @@ function PureMultimodalInput({
 
   const deleteDocument = useCallback(async (documentId: string) => {
     try {
+      const confirm = window.confirm(
+        'Are you sure you want to delete this document?',
+      );
+      if (!confirm) {
+        return;
+      }
       const promise = async () => {
         const response = await fetch(`/api/documents/${documentId}`, {
           method: 'DELETE',
