@@ -3,7 +3,7 @@
  */
 import { SidebarProvider } from '@/components/ui/sidebar';
 
-import { render, screen, } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { DocumentItem } from './document-item';
 import type { VectorStoreDocument } from '@/lib/db/schema';
