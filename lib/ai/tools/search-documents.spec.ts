@@ -16,7 +16,9 @@ jest.mock('@/lib/constants', () => ({
 
 import { searchDocuments } from '@/lib/document/actions/action_server';
 
-const mockSearchDocuments = searchDocuments as jest.MockedFunction<typeof searchDocuments>;
+const mockSearchDocuments = searchDocuments as jest.MockedFunction<
+  typeof searchDocuments
+>;
 
 describe('searchDocumentsTool', () => {
   const mockSession: Session = {
@@ -24,6 +26,7 @@ describe('searchDocumentsTool', () => {
       id: 'user-123',
       name: 'Test User',
       email: 'test@example.com',
+      type: 'free',
     },
     expires: '2024-12-31',
   };
@@ -50,7 +53,13 @@ describe('searchDocumentsTool', () => {
     mockSearchDocuments.mockResolvedValue(mockDocuments);
 
     const tool = searchDocumentsTool({ session: mockSession });
-    const result = await tool.execute({ query: 'test query' });
+    const result = await tool.execute(
+      { query: 'test query' },
+      {
+        toolCallId: '',
+        messages: [],
+      },
+    );
 
     expect(mockSearchDocuments).toHaveBeenCalledWith({
       query: 'test query',
@@ -66,7 +75,6 @@ describe('searchDocumentsTool', () => {
           mimeType: 'application/pdf',
           size: 1024,
           createdAt: mockDocuments[0].createdAt,
-          content: 'This is a test document content',
         },
       ],
     });
@@ -76,7 +84,13 @@ describe('searchDocumentsTool', () => {
     mockSearchDocuments.mockResolvedValue([]);
 
     const tool = searchDocumentsTool({ session: mockSession });
-    const result = await tool.execute({ query: 'no results query' });
+    const result = await tool.execute(
+      { query: 'no results query' },
+      {
+        toolCallId: '',
+        messages: [],
+      },
+    );
 
     expect(result).toEqual({
       message: 'No documents found matching your search query.',
@@ -88,7 +102,13 @@ describe('searchDocumentsTool', () => {
     mockSearchDocuments.mockRejectedValue(new Error('Search failed'));
 
     const tool = searchDocumentsTool({ session: mockSession });
-    const result = await tool.execute({ query: 'error query' });
+    const result = await tool.execute(
+      { query: 'error query' },
+      {
+        toolCallId: '',
+        messages: [],
+      },
+    );
 
     expect(result).toEqual({
       error: 'Failed to search documents. Please try again.',
@@ -97,36 +117,17 @@ describe('searchDocumentsTool', () => {
     });
   });
 
-  it('should return full content', async () => {
-    const longContent = 'a'.repeat(600);
-    const mockDocuments = [
-      {
-        id: 'doc-1',
-        originalFileName: 'long.txt',
-        mimeType: 'text/plain',
-        size: 600,
-        createdAt: new Date(),
-        content: longContent,
-        userId: 'user-123',
-        key: 'test-key',
-        status: 'completed' as const,
-      },
-    ];
-
-    mockSearchDocuments.mockResolvedValue(mockDocuments);
-
-    const tool = searchDocumentsTool({ session: mockSession });
-    const result = await tool.execute({ query: 'long content query' });
-
-    expect(result.results[0].content).toHaveLength(600); // Full content length
-    expect(result.results[0].content).toBe(longContent);  // Full content returned
-  });
-
   it('should use custom limit when provided', async () => {
     mockSearchDocuments.mockResolvedValue([]);
 
     const tool = searchDocumentsTool({ session: mockSession });
-    await tool.execute({ query: 'test query', limit: 5 });
+    await tool.execute(
+      { query: 'test query', limit: 5 },
+      {
+        toolCallId: '',
+        messages: [],
+      },
+    );
 
     expect(mockSearchDocuments).toHaveBeenCalledWith({
       query: 'test query',

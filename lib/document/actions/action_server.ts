@@ -58,6 +58,11 @@ const GetPresignedUploadUrlSchema = z.object({
   mimeType: z.string().min(1),
 });
 
+const RenameDocumentSchema = z.object({
+  id: z.string().uuid(),
+  newName: z.string().min(1).max(255),
+});
+
 export async function getPresignedUploadUrl(
   data: z.infer<typeof GetPresignedUploadUrlSchema>,
 ): Promise<{ url: string; id: string } | { error: string }> {
@@ -382,6 +387,75 @@ export async function deleteDocument({ id }: { id: string }) {
     }
     console.error('Document deletion error:', error);
     throw new ChatSDKError('bad_request:api', 'Failed to delete document');
+  }
+}
+
+/**
+ * Server action to rename a document
+ */
+export async function renameDocument({
+  id,
+  newName,
+}: {
+  id: string;
+  newName: string;
+}): Promise<{ success: boolean } | { error: string }> {
+  const session = await auth();
+
+  if (!session?.user) {
+    return {
+      error: 'Unauthorized: You must be logged in to rename documents.',
+    };
+  }
+
+  const parsed = RenameDocumentSchema.safeParse({ id, newName });
+
+  if (!parsed.success) {
+    return {
+      error: 'Bad Request: Invalid document ID or name.',
+    };
+  }
+
+  try {
+    await db.transaction(async (tx) => {
+      // First, get the document to check ownership
+      const documents = await getDocumentsByIds({
+        ids: [parsed.data.id],
+        dbConnection: tx,
+      });
+
+      if (documents.length === 0) {
+        return {
+          error: 'Not Found: Document not found.',
+        };
+      }
+
+      const document = documents[0];
+
+      if (document.userId !== session.user.id) {
+        return {
+          error:
+            'Forbidden: You do not have permission to rename this document.',
+        };
+      }
+
+      // Update document name in database only
+      await updateVectorStoreDocument({
+        id: parsed.data.id,
+        updates: {
+          originalFileName: parsed.data.newName.trim(),
+        },
+        dbConnection: tx,
+      });
+    });
+
+    return { success: true };
+  } catch (error) {
+    if (error instanceof ChatSDKError) {
+      throw error;
+    }
+    console.error('Document rename error:', error);
+    throw new ChatSDKError('bad_request:api', 'Failed to rename document');
   }
 }
 
