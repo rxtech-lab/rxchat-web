@@ -35,7 +35,6 @@ export class UpstashVectorStore implements VectorStore {
     // Include original document ID in metadata
     const metadata = {
       ...document.metadata,
-      documentId: document.id,
     } as unknown as Record<string, unknown>;
 
     await this.index.upsert(

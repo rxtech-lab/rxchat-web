@@ -106,6 +106,8 @@ export const DEBOUNCE_TIME = 1000;
 // Maximum number of documents to return in search results
 export const MAX_K = 10;
 
+export const CHUNK_SIZE = 1000;
+
 /**
  * Array of image MIME types for easy filtering
  */
