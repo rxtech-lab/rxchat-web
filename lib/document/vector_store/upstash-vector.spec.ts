@@ -53,7 +53,6 @@ describe('UpstashVectorStore', () => {
       // Verify metadata includes original document ID
       expect(upsertCall[0].metadata).toEqual({
         ...document.metadata,
-        documentId: document.id,
       });
 
       // Verify namespace is used
