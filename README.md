@@ -131,26 +131,28 @@ cp .env.example .env.local
 ```
 
 Required environment variables:
-```bash
-# Authentication
-AUTH_SECRET=your-auth-secret
+```env
+# Generate a random secret: https://generate-secret.vercel.app/32 or `openssl rand -base64 32`
+AUTH_SECRET=
 
-# AI Providers (configure at least one)
-XAI_API_KEY=your-xai-key
-OPENAI_API_KEY=your-openai-key
-ANTHROPIC_API_KEY=your-anthropic-key
-GOOGLE_GENERATIVE_AI_API_KEY=your-google-key
+# The following keys below are automatically created and
+# added to your environment when you deploy on vercel
 
-# Database
-POSTGRES_URL=postgresql://username:password@localhost:5432/rxchat
-
-# Optional: Storage and Caching
-BLOB_READ_WRITE_TOKEN=your-vercel-blob-token
-REDIS_URL=redis://localhost:6379
-
-# Optional: MCP Router
-MCP_ROUTER_SERVER_URL=your-mcp-server-url
-MCP_ROUTER_SERVER_API_KEY=your-mcp-api-key
+OPENROUTER_API_KEY=
+POSTGRES_URL=
+REDIS_URL=
+MCP_ROUTER_SERVER_URL=https://router.mcprouter.app/sse
+MCP_ROUTER_SERVER_API_KEY=
+AZURE_RESOURCE_NAME=
+AZURE_API_KEY=
+AWS_ACCESS_KEY_ID=
+AWS_SECRET_ACCESS_KEY=
+AWS_S3_BUCKET_NAME=rxchat
+AWS_S3_ENDPOINT=
+AWS_S3_CUSTOM_DOMAIN=
+MARKITDOWN_ADMIN_API_KEY=
+UPSTASH_VECTOR_REST_URL=
+UPSTASH_VECTOR_REST_TOKEN=
 ```
 
 ### Database Setup
@@ -247,18 +249,6 @@ The application uses Drizzle ORM with PostgreSQL. Key tables include:
    - Configure blob storage (Vercel Blob)
    - Set up Redis for caching (Upstash)
 
-### Docker Deployment
-
-1. **Build the Docker image:**
-```bash
-docker build -t rxchat .
-```
-
-2. **Run with Docker Compose:**
-```bash
-docker compose up -d
-```
-
 ### Manual Deployment
 
 1. **Build the application:**
@@ -278,6 +268,15 @@ pnpm start
 2. Start a new conversation
 3. Select your preferred AI model
 4. Type your message and press Enter
+
+### Authentication & User Roles
+Users have multiple roles and can have different permissions to different models and providers:
+- **Admin** - Full access to all models and system management
+- **Premium** - Access to premium models and advanced features
+- **Regular** - Standard model access with usage limits
+- **Free** - Basic model access with restricted usage
+
+We also support passkey login for secure, passwordless authentication that provides a modern and convenient login experience.
 
 ### Code Execution
 1. Ask the AI to write Python code
