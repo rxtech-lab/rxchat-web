@@ -18,6 +18,7 @@ import { createS3Client } from '@/lib/s3/index';
 import { S3Client } from '@/lib/s3/s3';
 import path from 'node:path';
 import { z } from 'zod';
+import { RecursiveCharacterTextSplitter } from '@langchain/textsplitters';
 
 // Types
 export interface DocumentHistory {
@@ -55,6 +56,11 @@ const GetPresignedUploadUrlSchema = z.object({
   fileName: z.string().min(1),
   fileSize: z.number().positive(),
   mimeType: z.string().min(1),
+});
+
+const RenameDocumentSchema = z.object({
+  id: z.string().uuid(),
+  newName: z.string().min(1).max(255),
 });
 
 export async function getPresignedUploadUrl(
@@ -191,6 +197,15 @@ export async function searchDocuments({
   }
 }
 
+async function chunkContent(content: string, chunkSize: number) {
+  const splitter = new RecursiveCharacterTextSplitter({
+    chunkSize,
+    chunkOverlap: 0,
+  });
+  const chunks = await splitter.splitText(content);
+  return chunks;
+}
+
 /**
  * Server action to complete document upload - Step 2 of two-step upload
  * Updates document with content and adds to vector store
@@ -252,28 +267,32 @@ export async function completeDocumentUpload({
         { ttl: 3600 }, // 1 hour TTL for download URL
       );
       const content = await markitdownClient.convertToMarkdown(downloadUrl);
+      const chunks = await chunkContent(content, 1000);
       const updatedDoc = await updateVectorStoreDocument({
         id: parsed.data.documentId,
         updates: {
-          content: content,
+          content: content.slice(0, 200),
           status: 'completed',
         },
         dbConnection: tx,
       });
 
       // Step 3: Add to vector store for search
+      // only keep first 200 characters
       const vectorStore = createVectorStoreClient();
-      await vectorStore.addDocument({
-        id: parsed.data.documentId,
-        content: content,
-        metadata: {
-          userId: session.user.id,
-          key: document.key || '',
-          uploadTimestamp: new Date().toISOString(),
-          mimeType: document.mimeType,
-        },
+      const vectorStorePromises = chunks.map(async (chunk) => {
+        await vectorStore.addDocument({
+          id: parsed.data.documentId,
+          content: chunk,
+          metadata: {
+            userId: session.user.id,
+            key: document.key || '',
+            uploadTimestamp: new Date().toISOString(),
+            mimeType: document.mimeType,
+          },
+        });
       });
-
+      await Promise.all(vectorStorePromises);
       return updatedDoc;
     });
     return {};
@@ -368,6 +387,75 @@ export async function deleteDocument({ id }: { id: string }) {
     }
     console.error('Document deletion error:', error);
     throw new ChatSDKError('bad_request:api', 'Failed to delete document');
+  }
+}
+
+/**
+ * Server action to rename a document
+ */
+export async function renameDocument({
+  id,
+  newName,
+}: {
+  id: string;
+  newName: string;
+}): Promise<{ success: boolean } | { error: string }> {
+  const session = await auth();
+
+  if (!session?.user) {
+    return {
+      error: 'Unauthorized: You must be logged in to rename documents.',
+    };
+  }
+
+  const parsed = RenameDocumentSchema.safeParse({ id, newName });
+
+  if (!parsed.success) {
+    return {
+      error: 'Bad Request: Invalid document ID or name.',
+    };
+  }
+
+  try {
+    await db.transaction(async (tx) => {
+      // First, get the document to check ownership
+      const documents = await getDocumentsByIds({
+        ids: [parsed.data.id],
+        dbConnection: tx,
+      });
+
+      if (documents.length === 0) {
+        return {
+          error: 'Not Found: Document not found.',
+        };
+      }
+
+      const document = documents[0];
+
+      if (document.userId !== session.user.id) {
+        return {
+          error:
+            'Forbidden: You do not have permission to rename this document.',
+        };
+      }
+
+      // Update document name in database only
+      await updateVectorStoreDocument({
+        id: parsed.data.id,
+        updates: {
+          originalFileName: parsed.data.newName.trim(),
+        },
+        dbConnection: tx,
+      });
+    });
+
+    return { success: true };
+  } catch (error) {
+    if (error instanceof ChatSDKError) {
+      throw error;
+    }
+    console.error('Document rename error:', error);
+    throw new ChatSDKError('bad_request:api', 'Failed to rename document');
   }
 }
 

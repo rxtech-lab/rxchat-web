@@ -1,7 +1,16 @@
 import { auth } from '@/app/(auth)/auth';
-import { deleteDocument } from '@/lib/document/actions/action_server';
+import {
+  deleteDocument,
+  renameDocument,
+} from '@/lib/document/actions/action_server';
 import { ChatSDKError } from '@/lib/errors';
 import type { NextRequest } from 'next/server';
+import { z } from 'zod';
+
+// Schema for rename request body
+const RenameDocumentSchema = z.object({
+  newName: z.string().min(1).max(255),
+});
 
 // DELETE - Delete a document
 export async function DELETE(
@@ -27,6 +36,52 @@ export async function DELETE(
     return new ChatSDKError(
       'bad_request:api',
       'Failed to delete document',
+    ).toResponse();
+  }
+}
+
+// PATCH - Rename a document
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const session = await auth();
+
+  if (!session?.user) {
+    return new ChatSDKError('unauthorized:document').toResponse();
+  }
+
+  try {
+    const { id } = await params;
+    const body = await request.json();
+
+    const parsed = RenameDocumentSchema.safeParse(body);
+
+    if (!parsed.success) {
+      return new ChatSDKError(
+        'bad_request:api',
+        'Invalid request body. newName is required and must be between 1-255 characters.',
+      ).toResponse();
+    }
+
+    const result = await renameDocument({
+      id,
+      newName: parsed.data.newName,
+    });
+
+    if ('error' in result) {
+      return new ChatSDKError('bad_request:api', result.error).toResponse();
+    }
+
+    return Response.json({ success: true }, { status: 200 });
+  } catch (error) {
+    if (error instanceof ChatSDKError) {
+      return error.toResponse();
+    }
+
+    return new ChatSDKError(
+      'bad_request:api',
+      'Failed to rename document',
     ).toResponse();
   }
 }

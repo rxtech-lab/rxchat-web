@@ -8,6 +8,7 @@ import { getModelProvider } from '@/lib/ai/providers';
 import { createDocument } from '@/lib/ai/tools/create-document';
 import { getWeather } from '@/lib/ai/tools/get-weather';
 import { requestSuggestions } from '@/lib/ai/tools/request-suggestions';
+import { searchDocumentsTool } from '@/lib/ai/tools/search-documents';
 import { updateDocument } from '@/lib/ai/tools/update-document';
 import { isProductionEnvironment, isTestEnvironment } from '@/lib/constants';
 import {
@@ -287,6 +288,9 @@ export async function POST(request: Request) {
               dataStream,
               selectedChatModelProvider,
               selectedChatModel,
+            }),
+            searchDocuments: searchDocumentsTool({
+              session,
             }),
             ...mcpTools,
           },

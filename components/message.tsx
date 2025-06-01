@@ -12,6 +12,7 @@ import { memo, useState } from 'react';
 import { CodeView } from './code-view';
 import { DocumentToolCall, DocumentToolResult } from './document';
 import { DocumentPreview } from './document-preview';
+import { DocumentSearchResult } from './document-search-result';
 import { PencilEditIcon, SparklesIcon } from './icons';
 import { Markdown } from './markdown';
 import { MessageActions } from './message-actions';
@@ -246,6 +247,13 @@ const PurePreviewMessage = ({
                     return (
                       <DocumentToolResult
                         type="request-suggestions"
+                        result={result}
+                        isReadonly={isReadonly}
+                      />
+                    );
+                  } else if (toolName === 'searchDocuments') {
+                    return (
+                      <DocumentSearchResult
                         result={result}
                         isReadonly={isReadonly}
                       />
