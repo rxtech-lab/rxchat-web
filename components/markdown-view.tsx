@@ -103,7 +103,7 @@ function InitialContentPlugin({
   }, [editor, initialValue]);
 
   useEffect(() => {
-    editor.setReadOnly(isReadonly);
+    editor.setEditable(!isReadonly);
   }, [editor, isReadonly]);
 
   return null;
@@ -218,7 +218,6 @@ export function MarkdownView({
                   ? 'cursor-default' 
                   : 'min-h-[24px] cursor-text focus:outline-none'
               )}
-              placeholder={readOnly ? undefined : placeholder}
             />
           }
           placeholder={

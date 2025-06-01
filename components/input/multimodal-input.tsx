@@ -442,7 +442,7 @@ function PureMultimodalInput({
             if (
               event.key === 'Enter' &&
               !event.shiftKey &&
-              !event.nativeEvent?.isComposing
+              !(event as any).isComposing
             ) {
               event.preventDefault();
 
