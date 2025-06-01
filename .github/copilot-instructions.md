@@ -17,6 +17,7 @@ This is a NextJS 15 app uses TypeScript, Tailwind CSS, SWR, Drizzle ORM, and Pos
 - For unit tests, write test aside the component in a separate file with the same name as the component but with `.spec.tsx` extension.
 - Always write unit tests for new components and features.
 - Run `pnpm lint` to check for linting errors and `pnpm format` to format the code before committing.
+- Each file should limit its size within 600 lines of code. If exceed, split into multiple files and grouped using folder
 
 # Repository Structure
 
@@ -24,3 +25,7 @@ This is a NextJS 15 app uses TypeScript, Tailwind CSS, SWR, Drizzle ORM, and Pos
 - `components/` - Contains reusable components.
 - `app/` - Contains the main application logic and pages.
 - `tests/` - Contains playwright tests (e2e tests).
+
+# Commit and PR instruction
+
+- Always use conventional commit for you commits and commit title like: feat:, fix:, docs and so on.
