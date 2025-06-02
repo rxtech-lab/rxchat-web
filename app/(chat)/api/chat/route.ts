@@ -10,6 +10,7 @@ import { getWeather } from '@/lib/ai/tools/get-weather';
 import { requestSuggestions } from '@/lib/ai/tools/request-suggestions';
 import { searchDocumentsTool } from '@/lib/ai/tools/search-documents';
 import { updateDocument } from '@/lib/ai/tools/update-document';
+import { filterDocumentAttachments, filterUIDocumentAttachments } from '@/lib/ai/utils';
 import { isProductionEnvironment, isTestEnvironment } from '@/lib/constants';
 import {
   createStreamId,
@@ -202,6 +203,12 @@ export async function POST(request: Request) {
     // Save user message immediately to ensure correct message ordering
     const currentTime = new Date();
     after(async () => {
+      // Filter attachments based on provider support before saving
+      const filteredAttachments = filterUIDocumentAttachments(
+        message.experimental_attachments ?? [],
+        selectedChatModelProvider,
+      );
+
       await saveMessages({
         messages: [
           {
@@ -209,7 +216,7 @@ export async function POST(request: Request) {
             id: message.id,
             role: 'user',
             parts: message.parts,
-            attachments: message.experimental_attachments ?? [],
+            attachments: filteredAttachments,
             createdAt: currentTime,
           },
         ],
@@ -218,11 +225,15 @@ export async function POST(request: Request) {
 
     const previousMessages = await getMessagesByChatId({ id });
 
-    const messages = appendClientMessage({
-      // @ts-expect-error: todo add type conversion from DBMessage[] to UIMessage[]
-      messages: previousMessages,
-      message,
-    });
+    // Filter document attachments from messages if provider doesn't support them
+    const messages = filterDocumentAttachments(
+      appendClientMessage({
+        // @ts-expect-error: todo add type conversion from DBMessage[] to UIMessage[]
+        messages: previousMessages,
+        message,
+      }),
+      selectedChatModelProvider,
+    );
 
     const { longitude, latitude, city, country } = geolocation(request);
 

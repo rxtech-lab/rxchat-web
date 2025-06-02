@@ -4,9 +4,10 @@
 import { searchDocumentsTool } from './search-documents';
 import type { Session } from 'next-auth';
 
-// Mock the searchDocuments function
+// Mock the searchDocuments and searchDocumentsById functions
 jest.mock('@/lib/document/actions/action_server', () => ({
   searchDocuments: jest.fn(),
+  searchDocumentsById: jest.fn(),
 }));
 
 // Mock constants
@@ -14,10 +15,13 @@ jest.mock('@/lib/constants', () => ({
   MAX_K: 10,
 }));
 
-import { searchDocuments } from '@/lib/document/actions/action_server';
+import { searchDocuments, searchDocumentsById } from '@/lib/document/actions/action_server';
 
 const mockSearchDocuments = searchDocuments as jest.MockedFunction<
   typeof searchDocuments
+>;
+const mockSearchDocumentsById = searchDocumentsById as jest.MockedFunction<
+  typeof searchDocumentsById
 >;
 
 describe('searchDocumentsTool', () => {
@@ -81,7 +85,54 @@ describe('searchDocumentsTool', () => {
     });
   });
 
-  it('should handle no results found', async () => {
+  it('should search documents by ID successfully', async () => {
+    const mockDocuments = [
+      {
+        id: 'doc-1',
+        originalFileName: 'test.pdf',
+        mimeType: 'application/pdf',
+        size: 1024,
+        createdAt: new Date(),
+        content: 'This is specific document content',
+        userId: 'user-123',
+        key: 'test-key',
+        status: 'completed' as const,
+      },
+    ];
+
+    mockSearchDocumentsById.mockResolvedValue(mockDocuments);
+
+    const tool = searchDocumentsTool({ session: mockSession });
+    const result = await tool.execute(
+      { query: 'test query', documentId: 'doc-1' },
+      {
+        toolCallId: '',
+        messages: [],
+      },
+    );
+
+    expect(mockSearchDocumentsById).toHaveBeenCalledWith({
+      documentId: 'doc-1',
+      query: 'test query',
+      limit: 10,
+    });
+
+    expect(result).toEqual({
+      message: 'Found 1 relevant section(s) in the document matching your search query.',
+      results: [
+        {
+          id: 'doc-1',
+          originalFileName: 'test.pdf',
+          mimeType: 'application/pdf',
+          size: 1024,
+          createdAt: mockDocuments[0].createdAt,
+          content: 'This is specific document content',
+        },
+      ],
+    });
+  });
+
+  it('should handle no results found for general search', async () => {
     mockSearchDocuments.mockResolvedValue([]);
 
     const tool = searchDocumentsTool({ session: mockSession });
@@ -95,6 +146,24 @@ describe('searchDocumentsTool', () => {
 
     expect(result).toEqual({
       message: 'No documents found matching your search query.',
+      results: [],
+    });
+  });
+
+  it('should handle no results found for document ID search', async () => {
+    mockSearchDocumentsById.mockResolvedValue([]);
+
+    const tool = searchDocumentsTool({ session: mockSession });
+    const result = await tool.execute(
+      { query: 'no results query', documentId: 'doc-1' },
+      {
+        toolCallId: '',
+        messages: [],
+      },
+    );
+
+    expect(result).toEqual({
+      message: 'No content found in the specified document matching your search query.',
       results: [],
     });
   });
@@ -133,6 +202,25 @@ describe('searchDocumentsTool', () => {
     expect(mockSearchDocuments).toHaveBeenCalledWith({
       query: 'test query',
       limit: 5,
+    });
+  });
+
+  it('should use custom limit for document ID search', async () => {
+    mockSearchDocumentsById.mockResolvedValue([]);
+
+    const tool = searchDocumentsTool({ session: mockSession });
+    await tool.execute(
+      { query: 'test query', documentId: 'doc-1', limit: 3 },
+      {
+        toolCallId: '',
+        messages: [],
+      },
+    );
+
+    expect(mockSearchDocumentsById).toHaveBeenCalledWith({
+      documentId: 'doc-1',
+      query: 'test query',
+      limit: 3,
     });
   });
 });

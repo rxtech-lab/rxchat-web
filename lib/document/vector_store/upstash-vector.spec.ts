@@ -134,22 +134,102 @@ describe('UpstashVectorStore', () => {
       expect(results[1].id).toBe('doc-456'); // Original document ID from metadata
       expect(results[1].content).toBe('Test content 2');
     });
+  });
 
-    test('should handle search with userId filter', async () => {
+  describe('searchDocumentById', () => {
+    test('should search for documents by document ID and query', async () => {
+      const documentId = 'doc-123';
       const query = 'test query';
-      const userId = 'user-456';
+      const mockResults = [
+        {
+          id: 'vector-id-1',
+          data: 'Test content 1',
+          metadata: {
+            userId: 'user-456',
+            key: 'test-key-1',
+            uploadTimestamp: '2023-01-01T00:00:00Z',
+            mimeType: 'text/plain',
+            documentId: 'doc-123',
+          },
+        },
+      ];
 
-      mockIndex.query.mockResolvedValue([]);
+      mockIndex.query.mockResolvedValue(mockResults);
 
-      await vectorStore.searchDocument(query, { limit: 5, userId });
+      const results = await vectorStore.searchDocumentById(documentId, query, { limit: 5 });
 
+      expect(mockIndex.query).toHaveBeenCalledTimes(1);
       expect(mockIndex.query).toHaveBeenCalledWith(
         {
           data: query,
           topK: 5,
           includeMetadata: true,
           includeData: true,
-          filter: `userId = "${userId}"`,
+          filter: 'documentId = "doc-123"',
+        },
+        {
+          namespace: 'document',
+        },
+      );
+
+      expect(results).toHaveLength(1);
+      expect(results[0].id).toBe('doc-123');
+      expect(results[0].content).toBe('Test content 1');
+    });
+
+    test('should filter by both documentId and userId when provided', async () => {
+      const documentId = 'doc-123';
+      const query = 'test query';
+      const userId = 'user-456';
+
+      mockIndex.query.mockResolvedValue([]);
+
+      await vectorStore.searchDocumentById(documentId, query, { userId, limit: 3 });
+
+      expect(mockIndex.query).toHaveBeenCalledTimes(1);
+      expect(mockIndex.query).toHaveBeenCalledWith(
+        {
+          data: query,
+          topK: 3,
+          includeMetadata: true,
+          includeData: true,
+          filter: 'documentId = "doc-123" AND userId = "user-456"',
+        },
+        {
+          namespace: 'document',
+        },
+      );
+    });
+
+    test('should use default limit when not specified', async () => {
+      const documentId = 'doc-123';
+      const query = 'test query';
+
+      mockIndex.query.mockResolvedValue([]);
+
+      await vectorStore.searchDocumentById(documentId, query);
+
+      expect(mockIndex.query).toHaveBeenCalledWith(
+        expect.objectContaining({
+          topK: 10,
+        }),
+        expect.any(Object),
+      );
+    });
+  });
+
+  describe('deleteDocument', () => {
+    test('should use filter to delete by documentId metadata instead of direct ID', async () => {
+      const documentId = 'doc-123';
+
+      mockIndex.delete.mockResolvedValue(undefined);
+
+      await vectorStore.deleteDocument(documentId);
+
+      expect(mockIndex.delete).toHaveBeenCalledTimes(1);
+      expect(mockIndex.delete).toHaveBeenCalledWith(
+        {
+          filter: `documentId = \"${documentId}\"`,
         },
         {
           namespace: 'document',

@@ -50,6 +50,12 @@ const SearchDocumentsSchema = z.object({
   limit: z.number().default(10),
 });
 
+const SearchDocumentsByIdSchema = z.object({
+  documentId: z.string().uuid(),
+  query: z.string().min(1),
+  limit: z.number().default(10),
+});
+
 const CompleteDocumentUploadSchema = z.object({
   documentId: z.string().uuid(),
 });
@@ -212,6 +218,66 @@ export async function searchDocuments({
       throw error;
     }
     throw new ChatSDKError('bad_request:api', 'Failed to search documents');
+  }
+}
+
+/**
+ * Server action to search documents by document ID and query using vector search
+ */
+export async function searchDocumentsById({
+  documentId,
+  query,
+  limit = 10,
+}: {
+  documentId: string;
+  query: string;
+  limit?: number;
+}): Promise<VectorStoreDocument[]> {
+  const session = await auth();
+
+  if (!session?.user) {
+    throw new ChatSDKError('unauthorized:document');
+  }
+
+  const parsed = SearchDocumentsByIdSchema.safeParse({ documentId, query, limit });
+
+  if (!parsed.success) {
+    throw new ChatSDKError('bad_request:api', 'Invalid search parameters');
+  }
+
+  try {
+    const vectorStore = createVectorStoreClient();
+    const searchResults = await vectorStore.searchDocumentById(
+      parsed.data.documentId,
+      parsed.data.query,
+      {
+        userId: session.user.id,
+        limit: parsed.data.limit,
+      }
+    );
+
+    let documents = await getDocumentsByIds({
+      ids: [parsed.data.documentId],
+      dbConnection: db,
+      status: 'completed',
+    });
+
+    // join searchresults content by id and attach to the document
+    // replace the document's content with the joined content
+    documents = documents.map((doc) => ({
+      ...doc,
+      content: searchResults
+        .filter((result) => result.id === doc.id)
+        .map((result) => result.content)
+        .join('\n\n'),
+    }));
+
+    return documents;
+  } catch (error) {
+    if (error instanceof ChatSDKError) {
+      throw error;
+    }
+    throw new ChatSDKError('bad_request:api', 'Failed to search documents by ID');
   }
 }
 
