@@ -1,0 +1,1 @@
+ALTER TABLE "VectorStoreDocument" DROP CONSTRAINT "VectorStoreDocument_sha256_unique";

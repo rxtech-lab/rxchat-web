@@ -262,8 +262,8 @@ export const vectorStoreDocument = pgTable('VectorStoreDocument', {
   })
     .notNull()
     .default('pending'),
-  // SHA256 hash of the file content for duplicate detection
-  sha256: text('sha256').unique(),
+  // SHA256 hash of the file content for duplicate detection (unique per user)
+  sha256: text('sha256'),
 });
 
 export type VectorStoreDocument = InferSelectModel<typeof vectorStoreDocument>;
