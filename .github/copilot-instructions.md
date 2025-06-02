@@ -30,3 +30,5 @@ This is a NextJS 15 app uses TypeScript, Tailwind CSS, SWR, Drizzle ORM, and Pos
 # Commit and PR instruction
 
 - Always use conventional commit for you commits and commit title like: feat:, fix:, docs and so on.
+- Always use lower case after fix, feat or docs
+- Always run `pnpm build`, `pnpm test:unit` and `pnpm test` before commit. Fix any issue if possible
