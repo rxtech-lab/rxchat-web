@@ -20,7 +20,7 @@ import { createVectorStoreClient } from '@/lib/document/vector_store';
 import { ChatSDKError } from '@/lib/errors';
 import { createS3Client } from '@/lib/s3/index';
 import { S3Client } from '@/lib/s3/s3';
-import { calculateSha256FromUrl } from '@/lib/utils';
+import { calculateSha256FromUrl } from '@/lib/utils.server';
 import { RecursiveCharacterTextSplitter } from '@langchain/textsplitters';
 import { generateText } from 'ai';
 import path from 'node:path';
@@ -101,6 +101,7 @@ export async function getPresignedUploadUrl(
     content: '', // or null if allowed
     key: fileKey,
     status: 'pending',
+    sha256: null,
   });
 
   const url = await s3Client.getPresignedUploadUrl(fileKey, mimeType);
@@ -309,22 +310,22 @@ export async function completeDocumentUpload({
         document.key!,
         { ttl: 3600 }, // 1 hour TTL for download URL
       );
-      
+
       // Calculate SHA256 hash for duplicate detection
       const sha256Hash = await calculateSha256FromUrl(downloadUrl);
-      
+
       // Check if document with same SHA256 already exists
       const existingDocument = await getDocumentBySha256({
         sha256: sha256Hash,
         dbConnection: tx,
       });
-      
+
       if (existingDocument) {
         return {
           error: 'File with same content exists',
         };
       }
-      
+
       // Step 3: Process document content
       const content = await markitdownClient.convertToMarkdown(downloadUrl);
       const chunks = await chunkContent(content, CHUNK_SIZE);
