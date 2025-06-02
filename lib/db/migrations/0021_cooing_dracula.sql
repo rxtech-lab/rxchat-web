@@ -1,0 +1,1 @@
+ALTER TABLE "VectorStoreDocument" ADD CONSTRAINT "VectorStoreDocument_sha256_unique" UNIQUE NULLS NOT DISTINCT("sha256");

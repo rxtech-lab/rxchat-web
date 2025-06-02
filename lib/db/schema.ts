@@ -9,6 +9,7 @@ import {
   primaryKey,
   text,
   timestamp,
+  unique,
   uuid,
   varchar,
   integer,
@@ -262,8 +263,13 @@ export const vectorStoreDocument = pgTable('VectorStoreDocument', {
   })
     .notNull()
     .default('pending'),
-  // SHA256 hash of the file content for duplicate detection (unique per user)
+  // SHA256 hash of the file content for duplicate detection (unique with NULLS NOT DISTINCT)
   sha256: text('sha256'),
+}, (table) => {
+  return {
+    // Unique constraint on sha256 with NULLS NOT DISTINCT - allows multiple NULL values but requires unique non-NULL values
+    sha256Unique: unique('VectorStoreDocument_sha256_unique').on(table.sha256).nullsNotDistinct(),
+  };
 });
 
 export type VectorStoreDocument = InferSelectModel<typeof vectorStoreDocument>;

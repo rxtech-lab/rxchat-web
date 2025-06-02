@@ -1,5 +1,4 @@
 import { completeDocumentUpload, getPresignedUploadUrl } from './action_server';
-import { calculateSHA256 } from '@/lib/utils';
 
 /**
  * Upload result for a single file
@@ -27,16 +26,11 @@ export interface DocumentUploadResults {
  */
 async function uploadSingleFile(file: File): Promise<FileUploadResult> {
   try {
-    // Calculate SHA256 hash of the file
-    const fileBuffer = await file.arrayBuffer();
-    const sha256Hash = await calculateSHA256(fileBuffer);
-
     // Step 1: Get the presigned URL from the API
     const presigned = await getPresignedUploadUrl({
       fileName: file.name,
       mimeType: file.type,
       fileSize: file.size,
-      sha256: sha256Hash,
     });
 
     if ('error' in presigned) {

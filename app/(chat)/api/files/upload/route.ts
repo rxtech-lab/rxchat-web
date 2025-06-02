@@ -15,7 +15,6 @@ const FileMetadataSchema = z.object({
   filename: z.string().min(1),
   size: z.number().positive(),
   mimeType: z.string().min(1),
-  sha256: z.string().min(1).optional(), // SHA256 is only required for documents
 });
 
 export async function POST(request: Request) {
@@ -38,7 +37,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: errorMessage }, { status: 400 });
     }
 
-    const { filename, size, mimeType, sha256 } = validatedData.data;
+    const { filename, size, mimeType } = validatedData.data;
 
     // Validate file size
     if (size > MAX_FILE_SIZE) {
@@ -85,18 +84,10 @@ export async function POST(request: Request) {
         });
       } else {
         // Handle document upload using existing document system
-        if (!sha256) {
-          return NextResponse.json(
-            { error: 'SHA256 hash is required for document uploads' },
-            { status: 400 },
-          );
-        }
-
         const result = await getPresignedUploadUrl({
           fileName: filename,
           fileSize: size,
           mimeType: mimeType,
-          sha256: sha256,
         });
 
         if ('error' in result) {

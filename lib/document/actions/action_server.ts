@@ -20,6 +20,7 @@ import { createVectorStoreClient } from '@/lib/document/vector_store';
 import { ChatSDKError } from '@/lib/errors';
 import { createS3Client } from '@/lib/s3/index';
 import { S3Client } from '@/lib/s3/s3';
+import { calculateSHA256 } from '@/lib/utils';
 import { RecursiveCharacterTextSplitter } from '@langchain/textsplitters';
 import { generateText } from 'ai';
 import path from 'node:path';
@@ -61,7 +62,6 @@ const GetPresignedUploadUrlSchema = z.object({
   fileName: z.string().min(1),
   fileSize: z.number().positive(),
   mimeType: z.string().min(1),
-  sha256: z.string().min(1),
 });
 
 const RenameDocumentSchema = z.object({
@@ -85,7 +85,7 @@ export async function getPresignedUploadUrl(
       error: 'Bad Request: Invalid file parameters.',
     };
   }
-  const { fileName, fileSize, mimeType, sha256 } = parsed.data;
+  const { fileName, fileSize, mimeType } = parsed.data;
 
   const s3Client = createS3Client();
   // Add missing properties: content, key, and status for document creation
@@ -102,7 +102,7 @@ export async function getPresignedUploadUrl(
     content: '', // or null if allowed
     key: fileKey,
     status: 'pending',
-    sha256,
+    sha256: null, // SHA256 will be calculated server-side during complete upload
   });
 
   const url = await s3Client.getPresignedUploadUrl(fileKey, mimeType);
@@ -253,7 +253,7 @@ async function generateDocumentSummary(firstChunk: string): Promise<string> {
 
 /**
  * Server action to complete document upload - Step 2 of two-step upload
- * Updates document with content and adds to vector store
+ * Downloads file, calculates SHA256, checks for duplicates, and adds to vector store
  */
 export async function completeDocumentUpload({
   documentId,
@@ -305,47 +305,56 @@ export async function completeDocumentUpload({
         };
       }
 
-      // Check if this is a duplicate (existing completed document with same SHA256)
-      if (document.sha256) {
-        const existingDocument = await getVectorStoreDocumentBySha256({
-          sha256: document.sha256,
-          userId: session.user.id,
-          dbConnection: tx,
-        });
-
-        if (existingDocument && existingDocument.id !== document.id) {
-          // Delete the pending document since we found a duplicate
-          await deleteDocumentById({
-            id: parsed.data.documentId,
-            dbConnection: tx,
-          });
-
-          // Delete the uploaded file from S3 since it's a duplicate
-          if (document.key) {
-            try {
-              await s3Client.deleteFile(document.key);
-            } catch (s3Error) {
-              console.error(
-                'Failed to delete duplicate file from S3:',
-                s3Error,
-              );
-              // Don't throw, just log the error
-            }
-          }
-
-          // Skip duplicate - don't return error, just complete successfully
-          return {};
-        }
-      }
-
-      // Step 2: Download file and process content
+      // Step 2: Download file and calculate SHA256 hash
       const downloadUrl = await s3Client.getFileUrl(
         // biome-ignore lint/style/noNonNullAssertion: <explanation>
         document.key!,
         { ttl: 3600 }, // 1 hour TTL for download URL
       );
 
-      // Step 3: Process document content
+      // Download the file to calculate SHA256
+      const fileResponse = await fetch(downloadUrl);
+      if (!fileResponse.ok) {
+        throw new Error(`Failed to download file: ${fileResponse.statusText}`);
+      }
+      
+      const fileBuffer = await fileResponse.arrayBuffer();
+      const calculatedSHA256 = await calculateSHA256(fileBuffer);
+
+      // Step 3: Check for existing documents with same SHA256 for this user
+      const existingDocument = await getVectorStoreDocumentBySha256({
+        sha256: calculatedSHA256,
+        userId: session.user.id,
+        dbConnection: tx,
+      });
+
+      if (existingDocument && existingDocument.id !== document.id) {
+        // Delete the pending document since we found a duplicate
+        await deleteDocumentById({
+          id: parsed.data.documentId,
+          dbConnection: tx,
+        });
+
+        // Delete the uploaded file from S3 since it's a duplicate
+        if (document.key) {
+          try {
+            await s3Client.deleteFile(document.key);
+          } catch (s3Error) {
+            console.error(
+              'Failed to delete duplicate file from S3:',
+              s3Error,
+            );
+            // Don't throw, just log the error
+          }
+        }
+
+        // Return error message with information about the existing file
+        return {
+          error: `Duplicate file detected. A document with the same content already exists: "${existingDocument.originalFileName}"`,
+        };
+      }
+
+      // Step 4: Process document content
       const content = await markitdownClient.convertToMarkdown(downloadUrl);
       const chunks = await chunkContent(content, CHUNK_SIZE);
 
@@ -355,16 +364,18 @@ export async function completeDocumentUpload({
           ? await generateDocumentSummary(chunks[0])
           : content.slice(0, 200);
 
+      // Step 5: Update document with content, status, and calculated SHA256
       const updatedDoc = await updateVectorStoreDocument({
         id: parsed.data.documentId,
         updates: {
           content: contentSummary,
           status: 'completed',
+          sha256: calculatedSHA256,
         },
         dbConnection: tx,
       });
 
-      // Step 4: Add to vector store for search
+      // Step 6: Add to vector store for search
       const vectorStore = createVectorStoreClient();
       const vectorStorePromises = chunks.map(async (chunk) => {
         await vectorStore.addDocument({

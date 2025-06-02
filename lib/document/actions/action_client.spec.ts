@@ -100,7 +100,6 @@ describe('createDocuments', () => {
       fileName: 'test.pdf',
       mimeType: 'application/pdf',
       fileSize: 1024,
-      sha256: expect.any(String), // SHA256 will be calculated from file content
     });
 
     expect(mockFetch).toHaveBeenCalledWith(

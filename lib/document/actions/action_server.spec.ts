@@ -82,7 +82,7 @@ describe('Document Upload - SHA256 Functionality', () => {
 
     test('should handle duplicate detection gracefully', async () => {
       // This test verifies the new duplicate handling logic
-      // In the new implementation, duplicates should be skipped without error
+      // In the new implementation, duplicates should return an error message
 
       const duplicateSHA256 =
         'b17ef6d19c7a5b1ee83b907c595526dcb1eb06db8227d650d5dda0a9f4ce8cd9';
@@ -93,6 +93,8 @@ describe('Document Upload - SHA256 Functionality', () => {
 
       // The actual duplicate detection is tested in the database layer tests
       // This test mainly ensures the SHA256 format is correct for duplicate scenarios
+      // The completeDocumentUpload function now downloads files and calculates SHA256 server-side
+      // When duplicates are found, it returns an error message with the existing document name
     });
   });
 });
