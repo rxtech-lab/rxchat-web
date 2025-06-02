@@ -12,6 +12,7 @@ import {
   getDocumentsByUserId,
   getVectorStoreDocumentById,
   updateVectorStoreDocument,
+  getDocumentBySha256,
 } from '@/lib/db/queries/vector-store';
 import type { VectorStoreDocument } from '@/lib/db/schema';
 import { createMarkitdownClient } from '@/lib/document/markitdown';
@@ -19,6 +20,7 @@ import { createVectorStoreClient } from '@/lib/document/vector_store';
 import { ChatSDKError } from '@/lib/errors';
 import { createS3Client } from '@/lib/s3/index';
 import { S3Client } from '@/lib/s3/s3';
+import { calculateSha256FromUrl } from '@/lib/utils';
 import { RecursiveCharacterTextSplitter } from '@langchain/textsplitters';
 import { generateText } from 'ai';
 import path from 'node:path';
@@ -301,12 +303,29 @@ export async function completeDocumentUpload({
         };
       }
 
-      // Step 2: Update document with content
+      // Step 2: Download file and calculate SHA256 hash
       const downloadUrl = await s3Client.getFileUrl(
         // biome-ignore lint/style/noNonNullAssertion: <explanation>
         document.key!,
         { ttl: 3600 }, // 1 hour TTL for download URL
       );
+      
+      // Calculate SHA256 hash for duplicate detection
+      const sha256Hash = await calculateSha256FromUrl(downloadUrl);
+      
+      // Check if document with same SHA256 already exists
+      const existingDocument = await getDocumentBySha256({
+        sha256: sha256Hash,
+        dbConnection: tx,
+      });
+      
+      if (existingDocument) {
+        return {
+          error: 'File with same content exists',
+        };
+      }
+      
+      // Step 3: Process document content
       const content = await markitdownClient.convertToMarkdown(downloadUrl);
       const chunks = await chunkContent(content, CHUNK_SIZE);
 
@@ -321,11 +340,12 @@ export async function completeDocumentUpload({
         updates: {
           content: contentSummary,
           status: 'completed',
+          sha256: sha256Hash, // Store the SHA256 hash
         },
         dbConnection: tx,
       });
 
-      // Step 3: Add to vector store for search
+      // Step 4: Add to vector store for search
       const vectorStore = createVectorStoreClient();
       const vectorStorePromises = chunks.map(async (chunk) => {
         await vectorStore.addDocument({
