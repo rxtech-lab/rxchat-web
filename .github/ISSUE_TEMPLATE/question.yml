@@ -1,0 +1,88 @@
+name: Question
+description: Ask a question about the project
+title: "[Question]: "
+labels: ["question"]
+assignees:
+  - rxtech-lab
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Have a question? We're happy to help! Please check existing issues and discussions first.
+
+  - type: input
+    id: title
+    attributes:
+      label: Question Title
+      description: A clear and concise title for your question
+      placeholder: e.g., What's the difference between chat models and reasoning models?
+    validations:
+      required: true
+
+  - type: textarea
+    id: question
+    attributes:
+      label: Your Question
+      description: Ask your question in detail
+      placeholder: |
+        Please provide:
+        - Your specific question
+        - Any context that might be relevant
+        - What you're hoping to understand or achieve
+    validations:
+      required: true
+
+  - type: dropdown
+    id: question_category
+    attributes:
+      label: Question Category
+      description: What area is your question about?
+      options:
+        - General Usage
+        - Features and Functionality
+        - Technical Implementation
+        - Best Practices
+        - Troubleshooting
+        - Integration
+        - Performance
+        - Security
+        - Contributing
+        - Other
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: checked_resources
+    attributes:
+      label: Have you checked these resources?
+      description: Please confirm you've looked at these before asking
+      options:
+        - label: I have read the README.md
+        - label: I have searched existing issues
+        - label: I have checked the documentation
+        - label: I have looked at GitHub Discussions
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional Context
+      description: Any additional context, code snippets, or information that might help us answer your question
+      placeholder: |
+        - What you're trying to build or achieve
+        - Relevant code snippets
+        - Links to related resources
+    validations:
+      required: false
+
+  - type: textarea
+    id: research
+    attributes:
+      label: What research have you done?
+      description: What have you already tried to find the answer?
+      placeholder: |
+        - Documentation sections you've read
+        - Similar issues or discussions you've found
+        - External resources you've consulted
+    validations:
+      required: false
