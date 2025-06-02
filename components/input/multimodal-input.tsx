@@ -158,6 +158,21 @@ function PureMultimodalInput({
     chatId,
   ]);
 
+  // Function to get download URL for a document
+  const getDocumentDownloadUrl = useCallback(async (documentId: string) => {
+    try {
+      const response = await fetch(`/api/documents/${documentId}/download`);
+      if (!response.ok) {
+        throw new Error('Failed to get download URL');
+      }
+      const data = await response.json();
+      return data.url;
+    } catch (error) {
+      console.error('Error getting document download URL:', error);
+      return null;
+    }
+  }, []);
+
   const uploadFile = async (file: File) => {
     const uploadPromise = async () => {
       // Step 1: Get presigned URL from our API
@@ -299,7 +314,7 @@ function PureMultimodalInput({
           ]);
         }
 
-        // Add documents to uploadedDocuments
+        // Add documents to uploadedDocuments and also as attachments
         if (documents.length > 0) {
           setUploadedDocuments((currentDocuments) => [
             ...currentDocuments,
@@ -310,6 +325,33 @@ function PureMultimodalInput({
               size: doc.size,
             })),
           ]);
+
+          // Get download URLs and add documents as attachments for AI to access
+          const documentAttachments = await Promise.all(
+            documents.map(async (doc) => {
+              const downloadUrl = await getDocumentDownloadUrl(doc.id);
+              if (downloadUrl) {
+                return {
+                  url: downloadUrl,
+                  name: doc.originalFileName,
+                  contentType: 'application/pdf', // Default to PDF, could be enhanced to detect actual MIME type
+                };
+              }
+              return null;
+            })
+          );
+
+          // Filter out any failed download URL requests and add to attachments
+          const validDocumentAttachments = documentAttachments.filter(
+            (attachment): attachment is { url: string; name: string; contentType: string } => 
+              attachment !== null
+          );
+          if (validDocumentAttachments.length > 0) {
+            setAttachments((currentAttachments) => [
+              ...currentAttachments,
+              ...validDocumentAttachments,
+            ]);
+          }
 
           // Ensure documents sidebar is updated after batch upload
           globalMutate(
@@ -335,7 +377,7 @@ function PureMultimodalInput({
         setUploadQueue([]);
       }
     },
-    [setAttachments],
+    [setAttachments, getDocumentDownloadUrl],
   );
 
   // Add delete functions
