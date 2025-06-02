@@ -7,8 +7,6 @@ import useSWR, { useSWRConfig } from 'swr';
 import { ChatHeader } from '@/components/chat-header';
 import type { Prompt, Vote } from '@/lib/db/schema';
 import { fetcher, fetchWithErrorHandlers, generateUUID } from '@/lib/utils';
-import { Artifact } from './artifact';
-import { MultimodalInput } from './input/multimodal-input';
 import { Messages } from './messages';
 import type { VisibilityType } from './visibility-selector';
 import { useArtifactSelector } from '@/hooks/use-artifact';
@@ -21,6 +19,31 @@ import { useChatVisibility } from '@/hooks/use-chat-visibility';
 import { useAutoResume } from '@/hooks/use-auto-resume';
 import { ChatSDKError } from '@/lib/errors';
 import type { Providers, ProviderType } from '@/lib/ai/models';
+import dynamic from 'next/dynamic';
+
+// Dynamic imports for performance optimization
+const Artifact = dynamic(
+  () => import('./artifact').then((mod) => ({ default: mod.Artifact })),
+  {
+    ssr: true,
+    loading: () => (
+      <div className="animate-pulse bg-muted h-8 w-full rounded" />
+    ),
+  },
+);
+
+const MultimodalInput = dynamic(
+  () =>
+    import('./input/multimodal-input').then((mod) => ({
+      default: mod.MultimodalInput,
+    })),
+  {
+    ssr: true,
+    loading: () => (
+      <div className="animate-pulse bg-muted h-12 w-full rounded-lg" />
+    ),
+  },
+);
 
 export function Chat({
   id,
