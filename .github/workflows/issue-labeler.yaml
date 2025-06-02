@@ -1,0 +1,38 @@
+name: Auto-label Issues
+
+on:
+  issues:
+    types: [opened, edited]
+
+jobs:
+  label-issue:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Label Issue with LLM
+        uses: rxtech-lab/llm-labeler@main
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          openai-api-key: ${{ secrets.LABELER_AI_API_KEY }}
+          openai-endpoint: https://openrouter.ai/api/v1
+          openai-model: google/gemini-2.5-flash-preview-05-20
+          custom-labels: |
+            [
+              {
+                "label": "security",
+                "description": "Security-related issues or vulnerabilities"
+              },
+              {
+                "label": "performance",
+                "description": "Performance optimization or issues"
+              },
+              {
+                "label": "ui/ux",
+                "description": "User interface or user experience related"
+              }
+            ]
