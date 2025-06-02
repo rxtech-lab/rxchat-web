@@ -359,7 +359,15 @@ Test files are located in:
 
 ## License
 
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+This project is licensed under the RxChat Non-Commercial License. See the [LICENSE](LICENSE) file for details.
+
+**Key License Terms:**
+- ✅ Free for personal and educational use
+- ✅ Modification and redistribution allowed with attribution
+- ❌ Commercial use prohibited
+- 📝 Original source must be credited
+
+For commercial licensing inquiries, please contact us through GitHub Issues.
 
 ## Support
 
