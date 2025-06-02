@@ -11,15 +11,6 @@ body:
       value: |
         Thanks for helping us improve our documentation!
 
-  - type: input
-    id: title
-    attributes:
-      label: Documentation Issue Title
-      description: A clear and concise title describing the documentation issue
-      placeholder: e.g., Missing installation instructions for Windows
-    validations:
-      required: true
-
   - type: textarea
     id: description
     attributes:

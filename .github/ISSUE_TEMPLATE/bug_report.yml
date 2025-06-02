@@ -1,6 +1,6 @@
 name: Bug Report
 description: File a bug report to help us improve
-title: "[Bug]: "
+title: "[Bug]:"
 labels: ["bug"]
 assignees:
   - rxtech-lab
@@ -10,16 +10,6 @@ body:
     attributes:
       value: |
         Thanks for taking the time to fill out this bug report!
-
-  - type: input
-    id: title
-    attributes:
-      label: Bug Title
-      description: A clear and concise title describing the bug
-      placeholder: e.g., Chat messages are not displaying correctly
-    validations:
-      required: true
-
   - type: textarea
     id: description
     attributes:
@@ -59,7 +49,7 @@ body:
       placeholder: |
         <!-- Upload your video and link it here -->
         ![Bug demonstration video](video-url-here)
-        
+
         Or provide a link:
         [Video link](https://example.com/video)
     validations:

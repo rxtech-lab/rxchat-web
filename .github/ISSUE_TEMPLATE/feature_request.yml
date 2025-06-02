@@ -10,16 +10,6 @@ body:
     attributes:
       value: |
         Thanks for taking the time to suggest a new feature!
-
-  - type: input
-    id: title
-    attributes:
-      label: Feature Title
-      description: A clear and concise title describing the feature
-      placeholder: e.g., Add dark mode support for the chat interface
-    validations:
-      required: true
-
   - type: textarea
     id: description
     attributes:
