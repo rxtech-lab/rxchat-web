@@ -10,16 +10,6 @@ body:
     attributes:
       value: |
         We're here to help! Please provide as much detail as possible so we can assist you effectively.
-
-  - type: input
-    id: title
-    attributes:
-      label: Help Request Title
-      description: A clear and concise title describing what you need help with
-      placeholder: e.g., How to configure authentication with custom provider
-    validations:
-      required: true
-
   - type: textarea
     id: description
     attributes:

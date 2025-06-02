@@ -11,15 +11,6 @@ body:
       value: |
         Have a question? We're happy to help! Please check existing issues and discussions first.
 
-  - type: input
-    id: title
-    attributes:
-      label: Question Title
-      description: A clear and concise title for your question
-      placeholder: e.g., What's the difference between chat models and reasoning models?
-    validations:
-      required: true
-
   - type: textarea
     id: question
     attributes:
