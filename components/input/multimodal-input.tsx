@@ -94,7 +94,14 @@ function PureMultimodalInput({
   const adjustHeight = () => {
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
-      textareaRef.current.style.height = `${textareaRef.current.scrollHeight + 2}px`;
+      
+      // Calculate the max-height constraint (75% of viewport height)
+      const maxHeight = Math.floor(window.innerHeight * 0.75);
+      const scrollHeight = textareaRef.current.scrollHeight + 2;
+      
+      // Use the smaller of scrollHeight and maxHeight to respect CSS constraint
+      const targetHeight = Math.min(scrollHeight, maxHeight);
+      textareaRef.current.style.height = `${targetHeight}px`;
     }
   };
 
