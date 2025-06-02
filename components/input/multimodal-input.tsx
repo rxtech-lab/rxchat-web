@@ -47,7 +47,7 @@ interface UploadedDocument {
 // Extract MIME type detection logic to a separate function
 function getContentTypeFromFileName(fileName: string): string {
   const fileExtension = fileName.toLowerCase().split('.').pop();
-  
+
   switch (fileExtension) {
     case 'pdf':
       return 'application/pdf';
@@ -367,7 +367,9 @@ function PureMultimodalInput({
               const downloadUrl = await getDocumentDownloadUrl(doc.id);
               if (downloadUrl) {
                 // Use extracted function to detect MIME type based on file extension
-                const contentType = getContentTypeFromFileName(doc.originalFileName);
+                const contentType = getContentTypeFromFileName(
+                  doc.originalFileName,
+                );
 
                 return {
                   url: downloadUrl,
@@ -376,13 +378,18 @@ function PureMultimodalInput({
                 };
               }
               return null;
-            })
+            }),
           );
 
           // Filter out any failed download URL requests and add to attachments
           const validDocumentAttachments = documentAttachments.filter(
-            (attachment): attachment is { url: string; name: string; contentType: string } => 
-              attachment !== null
+            (
+              attachment,
+            ): attachment is {
+              url: string;
+              name: string;
+              contentType: string;
+            } => attachment !== null,
           );
           if (validDocumentAttachments.length > 0) {
             setAttachments((currentAttachments) => [
@@ -531,10 +538,10 @@ function PureMultimodalInput({
             className="flex flex-row gap-2 overflow-x-scroll items-end py-2"
           >
             {attachments
-              .filter((attachment) => 
+              .filter((attachment) =>
                 // Filter out document attachments to prevent duplicates
                 // Only show image attachments here since documents are rendered separately below
-                attachment.contentType?.startsWith('image/')
+                attachment.contentType?.startsWith('image/'),
               )
               .map((attachment) => (
                 <PreviewAttachment
