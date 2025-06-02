@@ -1,0 +1,92 @@
+name: Help Wanted
+description: Request help with using or understanding the project
+title: "[Help]: "
+labels: ["help wanted", "question"]
+assignees:
+  - rxtech-lab
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        We're here to help! Please provide as much detail as possible so we can assist you effectively.
+
+  - type: input
+    id: title
+    attributes:
+      label: Help Request Title
+      description: A clear and concise title describing what you need help with
+      placeholder: e.g., How to configure authentication with custom provider
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: What do you need help with?
+      description: A clear and detailed description of what you're trying to accomplish or understand
+      placeholder: |
+        - What are you trying to do?
+        - What specific part are you struggling with?
+        - What have you tried so far?
+    validations:
+      required: true
+
+  - type: dropdown
+    id: help_category
+    attributes:
+      label: Help Category
+      description: What area do you need help with?
+      options:
+        - Installation and Setup
+        - Configuration
+        - Usage and Features
+        - Troubleshooting
+        - Development and Contributing
+        - Deployment
+        - API Usage
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: what_tried
+    attributes:
+      label: What have you tried?
+      description: Tell us what you've already attempted
+      placeholder: |
+        - Steps you've taken
+        - Documentation you've read
+        - Solutions you've tried
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment Details
+      description: Please provide information about your environment
+      placeholder: |
+        - OS: [e.g. macOS, Windows, Linux]
+        - Node.js version: [e.g. 18.x]
+        - Package manager: [e.g. npm, yarn, pnpm]
+        - Browser (if applicable): [e.g. Chrome, Firefox]
+    validations:
+      required: false
+
+  - type: textarea
+    id: error_logs
+    attributes:
+      label: Error Messages or Logs
+      description: If you're encountering errors, please share them here
+      placeholder: Paste any error messages or relevant logs
+    validations:
+      required: false
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional Context
+      description: Add any other context that might be helpful
+    validations:
+      required: false

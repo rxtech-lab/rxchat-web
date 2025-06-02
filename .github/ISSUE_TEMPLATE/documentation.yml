@@ -1,0 +1,82 @@
+name: Documentation Issue
+description: Report an issue or suggest improvements to documentation
+title: "[Docs]: "
+labels: ["documentation"]
+assignees:
+  - rxtech-lab
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping us improve our documentation!
+
+  - type: input
+    id: title
+    attributes:
+      label: Documentation Issue Title
+      description: A clear and concise title describing the documentation issue
+      placeholder: e.g., Missing installation instructions for Windows
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Issue Description
+      description: A clear and concise description of the documentation issue
+      placeholder: Describe what's wrong, missing, or could be improved in the documentation
+    validations:
+      required: true
+
+  - type: dropdown
+    id: doc_type
+    attributes:
+      label: Type of Documentation Issue
+      description: What type of documentation issue is this?
+      options:
+        - Missing information
+        - Incorrect information
+        - Unclear instructions
+        - Broken links
+        - Outdated content
+        - Grammar/spelling errors
+        - Code examples not working
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: location
+    attributes:
+      label: Documentation Location
+      description: Where is this documentation located? (URL, file path, or section name)
+      placeholder: e.g., README.md, docs/installation.md, or https://github.com/...
+    validations:
+      required: true
+
+  - type: textarea
+    id: current_content
+    attributes:
+      label: Current Content (if applicable)
+      description: Copy and paste the current documentation content that needs to be changed
+      placeholder: Paste the current text here
+    validations:
+      required: false
+
+  - type: textarea
+    id: suggested_content
+    attributes:
+      label: Suggested Improvement
+      description: What would you like to see instead? Provide your suggested changes
+      placeholder: Provide your suggested text or describe the improvements needed
+    validations:
+      required: false
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional Context
+      description: Add any other context, screenshots, or examples that would help
+    validations:
+      required: false

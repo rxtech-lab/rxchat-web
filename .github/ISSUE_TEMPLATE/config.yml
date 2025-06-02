@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: GitHub Discussions
+    url: https://github.com/rxtech-lab/rxchat-web/discussions
+    about: For general questions and community discussions
+  - name: Documentation
+    url: https://github.com/rxtech-lab/rxchat-web#readme
+    about: Check the README for setup and usage instructions
