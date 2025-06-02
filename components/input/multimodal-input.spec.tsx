@@ -37,8 +37,9 @@ describe('Textarea Height Adjustment Fix', () => {
       if (textareaRef.current) {
         textareaRef.current.style.height = 'auto';
         
-        // Calculate the max-height constraint (75% of viewport height)
-        const maxHeight = Math.floor(window.innerHeight * 0.75);
+        // Calculate the max-height constraint (75% of viewport height minus toolbar space)
+        // Subtract 48px for bottom toolbar height (approximately 3rem including padding)
+        const maxHeight = Math.floor(window.innerHeight * 0.75) - 48;
         const scrollHeight = textareaRef.current.scrollHeight + 2;
         
         // Use the smaller of scrollHeight and maxHeight to respect CSS constraint
@@ -50,8 +51,8 @@ describe('Textarea Height Adjustment Fix', () => {
     // Test the function
     adjustHeight();
 
-    // Verify that height is capped at max-height (75% of 800px = 600px)
-    expect(mockTextarea.style.height).toBe('600px');
+    // Verify that height is capped at max-height (75% of 800px - 48px = 552px)
+    expect(mockTextarea.style.height).toBe('552px');
   });
 
   test('adjustHeight should use natural height for normal content', () => {
@@ -71,8 +72,9 @@ describe('Textarea Height Adjustment Fix', () => {
       if (textareaRef.current) {
         textareaRef.current.style.height = 'auto';
         
-        // Calculate the max-height constraint (75% of viewport height)
-        const maxHeight = Math.floor(window.innerHeight * 0.75);
+        // Calculate the max-height constraint (75% of viewport height minus toolbar space)
+        // Subtract 48px for bottom toolbar height (approximately 3rem including padding)
+        const maxHeight = Math.floor(window.innerHeight * 0.75) - 48;
         const scrollHeight = textareaRef.current.scrollHeight + 2;
         
         // Use the smaller of scrollHeight and maxHeight to respect CSS constraint
@@ -112,8 +114,8 @@ describe('Textarea Height Adjustment Fix', () => {
     // This would cause overflow by setting height to 1002px
     expect(mockTextarea.style.height).toBe('1002px');
     
-    // Compare with max allowed height (600px)
-    const maxAllowedHeight = Math.floor(window.innerHeight * 0.75);
-    expect(parseInt(mockTextarea.style.height)).toBeGreaterThan(maxAllowedHeight);
+    // Compare with max allowed height (552px)
+    const maxAllowedHeight = Math.floor(window.innerHeight * 0.75) - 48;
+    expect(Number.parseInt(mockTextarea.style.height)).toBeGreaterThan(maxAllowedHeight);
   });
 });

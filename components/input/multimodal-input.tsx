@@ -95,8 +95,9 @@ function PureMultimodalInput({
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
       
-      // Calculate the max-height constraint (75% of viewport height)
-      const maxHeight = Math.floor(window.innerHeight * 0.75);
+      // Calculate the max-height constraint (75% of viewport height minus toolbar space)
+      // Subtract 48px for bottom toolbar height (approximately 3rem including padding)
+      const maxHeight = Math.floor(window.innerHeight * 0.75) - 48;
       const scrollHeight = textareaRef.current.scrollHeight + 2;
       
       // Use the smaller of scrollHeight and maxHeight to respect CSS constraint
@@ -501,7 +502,7 @@ function PureMultimodalInput({
           value={input}
           onChange={handleInput}
           className={cx(
-            'min-h-[24px] max-h-[calc(75dvh)] overflow-hidden resize-none rounded-2xl !text-base bg-muted pb-10 dark:border-zinc-700 focus-visible:outline-none focus:outline-none focus-visible:ring-0 focus:ring-0 focus-visible:ring-offset-0 focus:ring-offset-0 border-l border-r border-b border-zinc-200',
+            'min-h-[24px] max-h-[calc(75dvh-3rem)] overflow-hidden resize-none rounded-2xl !text-base bg-muted pb-10 dark:border-zinc-700 focus-visible:outline-none focus:outline-none focus-visible:ring-0 focus:ring-0 focus-visible:ring-offset-0 focus:ring-offset-0 border-l border-r border-b border-zinc-200',
             className,
           )}
           rows={2}
