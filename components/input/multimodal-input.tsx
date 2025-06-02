@@ -314,7 +314,7 @@ function PureMultimodalInput({
           ]);
         }
 
-        // Add documents to uploadedDocuments and also as attachments
+        // Add documents to uploadedDocuments and also as attachments for AI access
         if (documents.length > 0) {
           setUploadedDocuments((currentDocuments) => [
             ...currentDocuments,
@@ -327,14 +327,58 @@ function PureMultimodalInput({
           ]);
 
           // Get download URLs and add documents as attachments for AI to access
+          // This allows the AI to directly read the document content during the conversation
           const documentAttachments = await Promise.all(
             documents.map(async (doc) => {
               const downloadUrl = await getDocumentDownloadUrl(doc.id);
               if (downloadUrl) {
+                // Detect MIME type based on file extension
+                const fileExtension = doc.originalFileName.toLowerCase().split('.').pop();
+                let contentType = 'application/octet-stream'; // Default fallback
+                
+                switch (fileExtension) {
+                  case 'pdf':
+                    contentType = 'application/pdf';
+                    break;
+                  case 'txt':
+                  case 'md':
+                    contentType = 'text/plain';
+                    break;
+                  case 'html':
+                    contentType = 'text/html';
+                    break;
+                  case 'css':
+                    contentType = 'text/css';
+                    break;
+                  case 'js':
+                  case 'jsx':
+                    contentType = 'application/javascript';
+                    break;
+                  case 'ts':
+                  case 'tsx':
+                    contentType = 'application/typescript';
+                    break;
+                  case 'json':
+                    contentType = 'application/json';
+                    break;
+                  case 'xml':
+                    contentType = 'application/xml';
+                    break;
+                  case 'csv':
+                    contentType = 'text/csv';
+                    break;
+                  case 'yml':
+                  case 'yaml':
+                    contentType = 'application/yaml';
+                    break;
+                  default:
+                    contentType = 'text/plain'; // Assume text for unknown file types
+                }
+
                 return {
                   url: downloadUrl,
                   name: doc.originalFileName,
-                  contentType: 'application/pdf', // Default to PDF, could be enhanced to detect actual MIME type
+                  contentType,
                 };
               }
               return null;
