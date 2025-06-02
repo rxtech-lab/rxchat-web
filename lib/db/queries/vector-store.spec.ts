@@ -15,6 +15,7 @@ import {
   getDocumentsByIds,
   deleteDocumentsByIds,
   deleteDocumentById,
+  getVectorStoreDocumentBySha256,
 } from './vector-store';
 import { createUser, deleteUserAccount } from './queries';
 import { ChatSDKError } from '@/lib/errors';
@@ -37,6 +38,7 @@ const createMockVectorStoreDocument = (
   id: crypto.randomUUID(),
   createdAt: new Date(),
   status: 'completed',
+  sha256: null,
   ...overrides,
 });
 
@@ -537,6 +539,119 @@ describe('Vector Store Queries', () => {
         endingBefore: null,
       });
       expect(remainingDocs.docs).toHaveLength(2);
+    });
+  });
+
+  describe('SHA256 Duplicate Detection', () => {
+    test('should find existing document by SHA256 hash', async () => {
+      const sha256Hash = 'a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3';
+      
+      // Create a document with a specific SHA256
+      const mockDoc = createMockVectorStoreDocument(testUserId, {
+        content: 'Document with specific SHA256',
+        sha256: sha256Hash,
+        status: 'completed',
+      });
+
+      const createdDoc = await createVectorStoreDocument(mockDoc);
+      expect(createdDoc.sha256).toBe(sha256Hash);
+
+      // Try to find the document by SHA256
+      const foundDoc = await getVectorStoreDocumentBySha256({
+        sha256: sha256Hash,
+        userId: testUserId,
+      });
+
+      expect(foundDoc).toBeDefined();
+      expect(foundDoc?.id).toBe(createdDoc.id);
+      expect(foundDoc?.sha256).toBe(sha256Hash);
+
+      // Clean up
+      await deleteDocumentById({ id: createdDoc.id });
+    });
+
+    test('should return undefined for non-existent SHA256', async () => {
+      const nonExistentSha256 = 'nonexistent-sha256-hash';
+
+      const foundDoc = await getVectorStoreDocumentBySha256({
+        sha256: nonExistentSha256,
+        userId: testUserId,
+      });
+
+      expect(foundDoc).toBeUndefined();
+    });
+
+    test('should only find documents for the correct user', async () => {
+      // Create another test user
+      const anotherUser = generateRandomTestUser();
+      const [anotherUserRecord] = await createUser(anotherUser.email, anotherUser.password);
+      const anotherUserId = anotherUserRecord.id;
+      
+      const sha256Hash = 'b17ef6d19c7a5b1ee83b907c595526dcb1eb06db8227d650d5dda0a9f4ce8cd9';
+
+      try {
+        // Create documents with same SHA256 for different users
+        const doc1 = createMockVectorStoreDocument(testUserId, {
+          content: 'Document for user 1',
+          sha256: sha256Hash,
+          status: 'completed',
+        });
+
+        const doc2 = createMockVectorStoreDocument(anotherUserId, {
+          content: 'Document for user 2',
+          sha256: sha256Hash,
+          status: 'completed',
+        });
+
+        const createdDoc1 = await createVectorStoreDocument(doc1);
+        const createdDoc2 = await createVectorStoreDocument(doc2);
+
+        // Find document for first user
+        const foundForUser1 = await getVectorStoreDocumentBySha256({
+          sha256: sha256Hash,
+          userId: testUserId,
+        });
+        expect(foundForUser1?.id).toBe(createdDoc1.id);
+
+        // Find document for second user
+        const foundForUser2 = await getVectorStoreDocumentBySha256({
+          sha256: sha256Hash,
+          userId: anotherUserId,
+        });
+        expect(foundForUser2?.id).toBe(createdDoc2.id);
+
+        // Clean up
+        await deleteDocumentById({ id: createdDoc1.id });
+        await deleteDocumentById({ id: createdDoc2.id });
+      } finally {
+        // Clean up the additional user
+        await deleteUserAccount({ id: anotherUserId });
+      }
+    });
+
+    test('should only find completed documents', async () => {
+      const sha256Hash = 'c785e29b8e4d93d36b7bb5a0e25c8a95f6b7e7b8e9d9b7f8a6e7b8d9e0f1a2b3';
+
+      // Create a pending document with SHA256
+      const pendingDoc = createMockVectorStoreDocument(testUserId, {
+        content: 'Pending document',
+        sha256: sha256Hash,
+        status: 'pending',
+      });
+
+      const createdPendingDoc = await createVectorStoreDocument(pendingDoc);
+
+      // Try to find the pending document by SHA256
+      const foundDoc = await getVectorStoreDocumentBySha256({
+        sha256: sha256Hash,
+        userId: testUserId,
+      });
+
+      // Should not find pending documents
+      expect(foundDoc).toBeUndefined();
+
+      // Clean up
+      await deleteDocumentById({ id: createdPendingDoc.id });
     });
   });
 });

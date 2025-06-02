@@ -101,6 +101,7 @@ export async function getPresignedUploadUrl(
     content: '', // or null if allowed
     key: fileKey,
     status: 'pending',
+    sha256: null,
   });
 
   const url = await s3Client.getPresignedUploadUrl(fileKey, mimeType);

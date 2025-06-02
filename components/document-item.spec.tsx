@@ -19,6 +19,7 @@ describe('DocumentItem', () => {
     key: 'documents/test-document.pdf',
     createdAt: new Date('2024-01-15T10:00:00Z'),
     status: 'completed',
+    sha256: null,
   };
 
   const mockProps = {
