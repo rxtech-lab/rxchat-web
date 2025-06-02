@@ -244,3 +244,32 @@ export async function getVectorStoreDocumentById({ id }: { id: string }) {
     );
   }
 }
+
+/**
+ * Check if a document with the given SHA256 hash already exists
+ * @param sha256 - SHA256 hash to check for
+ * @param dbConnection - Database connection to use
+ * @returns Promise<VectorStoreDocument | null> - Existing document or null if not found
+ */
+export async function getDocumentBySha256({
+  sha256,
+  dbConnection = db,
+}: {
+  sha256: string;
+  dbConnection?: DatabaseConnection;
+}): Promise<VectorStoreDocument | null> {
+  try {
+    const [existingDocument] = await dbConnection
+      .select()
+      .from(vectorStoreDocument)
+      .where(eq(vectorStoreDocument.sha256, sha256))
+      .limit(1);
+
+    return existingDocument || null;
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to check for duplicate document',
+    );
+  }
+}

@@ -37,6 +37,7 @@ const createMockVectorStoreDocument = (
   id: crypto.randomUUID(),
   createdAt: new Date(),
   status: 'completed',
+  sha256: null, // Add the new SHA256 field as nullable
   ...overrides,
 });
 
