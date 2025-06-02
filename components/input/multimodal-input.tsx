@@ -534,7 +534,7 @@ function PureMultimodalInput({
               .filter((attachment) => 
                 // Filter out document attachments to prevent duplicates
                 // Only show image attachments here since documents are rendered separately below
-                attachment.contentType.startsWith('image/')
+                attachment.contentType?.startsWith('image/')
               )
               .map((attachment) => (
                 <PreviewAttachment
