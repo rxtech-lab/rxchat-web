@@ -44,6 +44,40 @@ interface UploadedDocument {
   size: number;
 }
 
+// Extract MIME type detection logic to a separate function
+function getContentTypeFromFileName(fileName: string): string {
+  const fileExtension = fileName.toLowerCase().split('.').pop();
+
+  switch (fileExtension) {
+    case 'pdf':
+      return 'application/pdf';
+    case 'txt':
+    case 'md':
+      return 'text/plain';
+    case 'html':
+      return 'text/html';
+    case 'css':
+      return 'text/css';
+    case 'js':
+    case 'jsx':
+      return 'application/javascript';
+    case 'ts':
+    case 'tsx':
+      return 'application/typescript';
+    case 'json':
+      return 'application/json';
+    case 'xml':
+      return 'application/xml';
+    case 'csv':
+      return 'text/csv';
+    case 'yml':
+    case 'yaml':
+      return 'application/yaml';
+    default:
+      return 'text/plain'; // Assume text for unknown file types
+  }
+}
+
 function PureMultimodalInput({
   chatId,
   input,
@@ -157,6 +191,21 @@ function PureMultimodalInput({
     width,
     chatId,
   ]);
+
+  // Function to get download URL for a document
+  const getDocumentDownloadUrl = useCallback(async (documentId: string) => {
+    try {
+      const response = await fetch(`/api/documents/${documentId}/download`);
+      if (!response.ok) {
+        throw new Error('Failed to get download URL');
+      }
+      const data = await response.json();
+      return data.url;
+    } catch (error) {
+      console.error('Error getting document download URL:', error);
+      return null;
+    }
+  }, []);
 
   const uploadFile = async (file: File) => {
     const uploadPromise = async () => {
@@ -299,7 +348,7 @@ function PureMultimodalInput({
           ]);
         }
 
-        // Add documents to uploadedDocuments
+        // Add documents to uploadedDocuments and also as attachments for AI access
         if (documents.length > 0) {
           setUploadedDocuments((currentDocuments) => [
             ...currentDocuments,
@@ -310,6 +359,44 @@ function PureMultimodalInput({
               size: doc.size,
             })),
           ]);
+
+          // Get download URLs and add documents as attachments for AI to access
+          // This allows the AI to directly read the document content during the conversation
+          const documentAttachments = await Promise.all(
+            documents.map(async (doc) => {
+              const downloadUrl = await getDocumentDownloadUrl(doc.id);
+              if (downloadUrl) {
+                // Use extracted function to detect MIME type based on file extension
+                const contentType = getContentTypeFromFileName(
+                  doc.originalFileName,
+                );
+
+                return {
+                  url: downloadUrl,
+                  name: doc.originalFileName,
+                  contentType,
+                };
+              }
+              return null;
+            }),
+          );
+
+          // Filter out any failed download URL requests and add to attachments
+          const validDocumentAttachments = documentAttachments.filter(
+            (
+              attachment,
+            ): attachment is {
+              url: string;
+              name: string;
+              contentType: string;
+            } => attachment !== null,
+          );
+          if (validDocumentAttachments.length > 0) {
+            setAttachments((currentAttachments) => [
+              ...currentAttachments,
+              ...validDocumentAttachments,
+            ]);
+          }
 
           // Ensure documents sidebar is updated after batch upload
           globalMutate(
@@ -335,7 +422,7 @@ function PureMultimodalInput({
         setUploadQueue([]);
       }
     },
-    [setAttachments],
+    [setAttachments, getDocumentDownloadUrl],
   );
 
   // Add delete functions
@@ -450,14 +537,20 @@ function PureMultimodalInput({
             data-testid="attachments-preview"
             className="flex flex-row gap-2 overflow-x-scroll items-end py-2"
           >
-            {attachments.map((attachment) => (
-              <PreviewAttachment
-                key={attachment.url}
-                attachment={attachment}
-                onDelete={() => deleteAttachment(attachment.url)}
-                type="attachment"
-              />
-            ))}
+            {attachments
+              .filter((attachment) =>
+                // Filter out document attachments to prevent duplicates
+                // Only show image attachments here since documents are rendered separately below
+                attachment.contentType?.startsWith('image/'),
+              )
+              .map((attachment) => (
+                <PreviewAttachment
+                  key={attachment.url}
+                  attachment={attachment}
+                  onDelete={() => deleteAttachment(attachment.url)}
+                  type="attachment"
+                />
+              ))}
 
             {uploadedDocuments.map((document) => (
               <PreviewAttachment
