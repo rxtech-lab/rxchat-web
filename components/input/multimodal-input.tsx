@@ -44,6 +44,40 @@ interface UploadedDocument {
   size: number;
 }
 
+// Extract MIME type detection logic to a separate function
+function getContentTypeFromFileName(fileName: string): string {
+  const fileExtension = fileName.toLowerCase().split('.').pop();
+  
+  switch (fileExtension) {
+    case 'pdf':
+      return 'application/pdf';
+    case 'txt':
+    case 'md':
+      return 'text/plain';
+    case 'html':
+      return 'text/html';
+    case 'css':
+      return 'text/css';
+    case 'js':
+    case 'jsx':
+      return 'application/javascript';
+    case 'ts':
+    case 'tsx':
+      return 'application/typescript';
+    case 'json':
+      return 'application/json';
+    case 'xml':
+      return 'application/xml';
+    case 'csv':
+      return 'text/csv';
+    case 'yml':
+    case 'yaml':
+      return 'application/yaml';
+    default:
+      return 'text/plain'; // Assume text for unknown file types
+  }
+}
+
 function PureMultimodalInput({
   chatId,
   input,
@@ -332,48 +366,8 @@ function PureMultimodalInput({
             documents.map(async (doc) => {
               const downloadUrl = await getDocumentDownloadUrl(doc.id);
               if (downloadUrl) {
-                // Detect MIME type based on file extension
-                const fileExtension = doc.originalFileName.toLowerCase().split('.').pop();
-                let contentType = 'application/octet-stream'; // Default fallback
-                
-                switch (fileExtension) {
-                  case 'pdf':
-                    contentType = 'application/pdf';
-                    break;
-                  case 'txt':
-                  case 'md':
-                    contentType = 'text/plain';
-                    break;
-                  case 'html':
-                    contentType = 'text/html';
-                    break;
-                  case 'css':
-                    contentType = 'text/css';
-                    break;
-                  case 'js':
-                  case 'jsx':
-                    contentType = 'application/javascript';
-                    break;
-                  case 'ts':
-                  case 'tsx':
-                    contentType = 'application/typescript';
-                    break;
-                  case 'json':
-                    contentType = 'application/json';
-                    break;
-                  case 'xml':
-                    contentType = 'application/xml';
-                    break;
-                  case 'csv':
-                    contentType = 'text/csv';
-                    break;
-                  case 'yml':
-                  case 'yaml':
-                    contentType = 'application/yaml';
-                    break;
-                  default:
-                    contentType = 'text/plain'; // Assume text for unknown file types
-                }
+                // Use extracted function to detect MIME type based on file extension
+                const contentType = getContentTypeFromFileName(doc.originalFileName);
 
                 return {
                   url: downloadUrl,
@@ -536,14 +530,20 @@ function PureMultimodalInput({
             data-testid="attachments-preview"
             className="flex flex-row gap-2 overflow-x-scroll items-end py-2"
           >
-            {attachments.map((attachment) => (
-              <PreviewAttachment
-                key={attachment.url}
-                attachment={attachment}
-                onDelete={() => deleteAttachment(attachment.url)}
-                type="attachment"
-              />
-            ))}
+            {attachments
+              .filter((attachment) => 
+                // Filter out document attachments to prevent duplicates
+                // Only show image attachments here since documents are rendered separately below
+                attachment.contentType.startsWith('image/')
+              )
+              .map((attachment) => (
+                <PreviewAttachment
+                  key={attachment.url}
+                  attachment={attachment}
+                  onDelete={() => deleteAttachment(attachment.url)}
+                  type="attachment"
+                />
+              ))}
 
             {uploadedDocuments.map((document) => (
               <PreviewAttachment
