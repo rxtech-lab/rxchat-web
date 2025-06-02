@@ -134,6 +134,13 @@
       "when": 1748687938234,
       "tag": "0018_normal_legion",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1748852408646,
+      "tag": "0019_flat_hellcat",
+      "breakpoints": true
     }
   ]
 }

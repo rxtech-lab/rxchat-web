@@ -244,3 +244,35 @@ export async function getVectorStoreDocumentById({ id }: { id: string }) {
     );
   }
 }
+
+// Find existing document by SHA256 hash for duplicate detection
+export async function getVectorStoreDocumentBySha256({
+  sha256,
+  userId,
+  dbConnection = db,
+}: {
+  sha256: string;
+  userId: string;
+  dbConnection?: DatabaseConnection;
+}) {
+  try {
+    const [existingDocument] = await dbConnection
+      .select()
+      .from(vectorStoreDocument)
+      .where(
+        and(
+          eq(vectorStoreDocument.sha256, sha256),
+          eq(vectorStoreDocument.userId, userId),
+          eq(vectorStoreDocument.status, 'completed'),
+        ),
+      )
+      .limit(1);
+
+    return existingDocument;
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to check for existing document by SHA256',
+    );
+  }
+}

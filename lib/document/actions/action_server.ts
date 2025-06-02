@@ -11,6 +11,7 @@ import {
   getDocumentsByIds,
   getDocumentsByUserId,
   getVectorStoreDocumentById,
+  getVectorStoreDocumentBySha256,
   updateVectorStoreDocument,
 } from '@/lib/db/queries/vector-store';
 import type { VectorStoreDocument } from '@/lib/db/schema';
@@ -19,6 +20,7 @@ import { createVectorStoreClient } from '@/lib/document/vector_store';
 import { ChatSDKError } from '@/lib/errors';
 import { createS3Client } from '@/lib/s3/index';
 import { S3Client } from '@/lib/s3/s3';
+import { calculateSHA256 } from '@/lib/utils';
 import { RecursiveCharacterTextSplitter } from '@langchain/textsplitters';
 import { generateText } from 'ai';
 import path from 'node:path';
@@ -301,12 +303,54 @@ export async function completeDocumentUpload({
         };
       }
 
-      // Step 2: Update document with content
+      // Step 2: Download file and calculate SHA256 hash
       const downloadUrl = await s3Client.getFileUrl(
         // biome-ignore lint/style/noNonNullAssertion: <explanation>
         document.key!,
         { ttl: 3600 }, // 1 hour TTL for download URL
       );
+
+      // Download file content to calculate SHA256
+      const fileResponse = await fetch(downloadUrl);
+      if (!fileResponse.ok) {
+        return {
+          error: 'Failed to download file from storage.',
+        };
+      }
+
+      const fileBuffer = await fileResponse.arrayBuffer();
+      const sha256Hash = await calculateSHA256(fileBuffer);
+
+      // Check if a document with this SHA256 already exists for this user
+      const existingDocument = await getVectorStoreDocumentBySha256({
+        sha256: sha256Hash,
+        userId: session.user.id,
+        dbConnection: tx,
+      });
+
+      if (existingDocument) {
+        // Delete the pending document since we found a duplicate
+        await deleteDocumentById({
+          id: parsed.data.documentId,
+          dbConnection: tx,
+        });
+
+        // Delete the uploaded file from S3 since it's a duplicate
+        if (document.key) {
+          try {
+            await s3Client.deleteFile(document.key);
+          } catch (s3Error) {
+            console.error('Failed to delete duplicate file from S3:', s3Error);
+            // Don't throw, just log the error
+          }
+        }
+
+        return {
+          error: `Duplicate file detected. A document with the same content already exists: "${existingDocument.originalFileName}"`,
+        };
+      }
+
+      // Step 3: Process document content
       const content = await markitdownClient.convertToMarkdown(downloadUrl);
       const chunks = await chunkContent(content, CHUNK_SIZE);
 
@@ -321,6 +365,7 @@ export async function completeDocumentUpload({
         updates: {
           content: contentSummary,
           status: 'completed',
+          sha256: sha256Hash,
         },
         dbConnection: tx,
       });
