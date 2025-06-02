@@ -325,7 +325,10 @@ export async function completeDocumentUpload({
             try {
               await s3Client.deleteFile(document.key);
             } catch (s3Error) {
-              console.error('Failed to delete duplicate file from S3:', s3Error);
+              console.error(
+                'Failed to delete duplicate file from S3:',
+                s3Error,
+              );
               // Don't throw, just log the error
             }
           }

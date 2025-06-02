@@ -544,8 +544,9 @@ describe('Vector Store Queries', () => {
 
   describe('SHA256 Duplicate Detection', () => {
     test('should find existing document by SHA256 hash', async () => {
-      const sha256Hash = 'a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3';
-      
+      const sha256Hash =
+        'a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3';
+
       // Create a document with a specific SHA256
       const mockDoc = createMockVectorStoreDocument(testUserId, {
         content: 'Document with specific SHA256',
@@ -584,10 +585,14 @@ describe('Vector Store Queries', () => {
     test('should only find documents for the correct user', async () => {
       // Create another test user
       const anotherUser = generateRandomTestUser();
-      const [anotherUserRecord] = await createUser(anotherUser.email, anotherUser.password);
+      const [anotherUserRecord] = await createUser(
+        anotherUser.email,
+        anotherUser.password,
+      );
       const anotherUserId = anotherUserRecord.id;
-      
-      const sha256Hash = 'b17ef6d19c7a5b1ee83b907c595526dcb1eb06db8227d650d5dda0a9f4ce8cd9';
+
+      const sha256Hash =
+        'b17ef6d19c7a5b1ee83b907c595526dcb1eb06db8227d650d5dda0a9f4ce8cd9';
 
       try {
         // Create documents with same SHA256 for different users
@@ -630,7 +635,8 @@ describe('Vector Store Queries', () => {
     });
 
     test('should only find completed documents', async () => {
-      const sha256Hash = 'c785e29b8e4d93d36b7bb5a0e25c8a95f6b7e7b8e9d9b7f8a6e7b8d9e0f1a2b3';
+      const sha256Hash =
+        'c785e29b8e4d93d36b7bb5a0e25c8a95f6b7e7b8e9d9b7f8a6e7b8d9e0f1a2b3';
 
       // Create a pending document with SHA256
       const pendingDoc = createMockVectorStoreDocument(testUserId, {
