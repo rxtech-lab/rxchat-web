@@ -1,20 +1,21 @@
 'use client';
 
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from '@/components/ui/sheet';
 import {
   ContextMenu,
   ContextMenuContent,
   ContextMenuItem,
   ContextMenuTrigger,
 } from '@/components/ui/context-menu';
-import { DEBOUNCE_TIME } from '@/lib/constants';
+import { Input } from '@/components/ui/input';
+import { RightSidebar } from '@/components/ui/right-sidebar';
+import {
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarHeader,
+  SidebarMenu,
+} from '@/components/ui/sidebar';
+import { DEBOUNCE_TIME, DOCUMENTS_REFRESH_INTERVAL } from '@/lib/constants';
 import type { VectorStoreDocument } from '@/lib/db/schema';
 import {
   createDocuments,
@@ -92,14 +93,10 @@ const groupDocumentsByDate = (
   );
 };
 
-export function SidebarDocuments({
+export function AppDocumentsSidebar({
   user,
-  isOpen,
-  onOpenChange,
 }: {
   user: User | undefined;
-  isOpen: boolean;
-  onOpenChange: (open: boolean) => void;
 }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [isUploading, setIsUploading] = useState(false);
@@ -124,11 +121,11 @@ export function SidebarDocuments({
     fetcher,
     {
       fallbackData: [],
-      refreshInterval: 0, // Don't auto-refresh for documents
-      revalidateOnFocus: false,
+      refreshInterval: DOCUMENTS_REFRESH_INTERVAL,
+      revalidateOnFocus: true,
       revalidateOnReconnect: true,
-      refreshWhenHidden: false,
-      refreshWhenOffline: false,
+      refreshWhenHidden: true,
+      refreshWhenOffline: true,
     },
   );
 
@@ -349,10 +346,9 @@ export function SidebarDocuments({
 
     return (
       <div key={title} className="space-y-2">
-        <h3 className="text-sm font-medium text-muted-foreground px-2">
+        <div className="px-2 py-1 text-xs text-sidebar-foreground/50">
           {title}
-        </h3>
-        {/* Remove bullet points from document list */}
+        </div>
         <div className="space-y-1 list-none">
           {documents.map((document) => (
             <DocumentItem
@@ -367,93 +363,91 @@ export function SidebarDocuments({
     );
   };
 
+  if (!user) {
+    return (
+      <RightSidebar className="group-data-[side=right]:border-l-0">
+        <SidebarHeader>
+          <SidebarMenu>
+            <div className="flex items-center gap-2 text-lg font-semibold px-2">
+              <FileIcon size={20} />
+              Documents
+            </div>
+          </SidebarMenu>
+        </SidebarHeader>
+        <SidebarGroup>
+          <SidebarGroupContent>
+            <div className="px-2 text-sidebar-foreground/50 w-full flex flex-row justify-center items-center text-sm gap-2">
+              Login to access your documents!
+            </div>
+          </SidebarGroupContent>
+        </SidebarGroup>
+      </RightSidebar>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <RightSidebar className="group-data-[side=right]:border-l-0">
+        <SidebarHeader>
+          <SidebarMenu>
+            <div className="flex items-center gap-2 text-lg font-semibold px-2">
+              <FileIcon size={20} />
+              Documents
+            </div>
+          </SidebarMenu>
+        </SidebarHeader>
+        <SidebarGroup>
+          <SidebarGroupContent>
+            <div className="flex items-center justify-center py-8">
+              <LoaderIcon className="animate-spin" />
+            </div>
+          </SidebarGroupContent>
+        </SidebarGroup>
+      </RightSidebar>
+    );
+  }
+
   return (
-    <Sheet open={isOpen} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-[400px] sm:w-[540px]">
-        <SheetHeader className="pb-4">
-          <SheetTitle className="flex items-center gap-2 text-lg font-semibold">
+    <RightSidebar className="group-data-[side=right]:border-l-0 bg-background">
+      <SidebarHeader>
+        <SidebarMenu>
+          <div className="flex items-center gap-2 text-lg font-semibold px-2">
             <FileIcon size={20} />
             Documents
-          </SheetTitle>
-        </SheetHeader>
+          </div>
+        </SidebarMenu>
+      </SidebarHeader>
 
-        <ContextMenu>
-          <ContextMenuTrigger className="flex flex-col h-full overflow-hidden">
-            {/* Search and Upload Section */}
-            <div className="space-y-3 mb-6">
-              {/* Search Bar */}
-              <div className="relative">
-                <SearchIcon
-                  size={16}
-                  className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
-                />
-                <Input
-                  placeholder="Search documents..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10"
-                  disabled={isUploading}
-                />
-              </div>
-
-              {/* Upload Button - only show if there are documents */}
-              {!hasEmptyDocumentHistory && (
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="flex-1"
+      <ContextMenu>
+        <ContextMenuTrigger className="flex flex-col h-full overflow-hidden">
+          {/* Search and Upload Section */}
+          <SidebarGroup>
+            <SidebarGroupContent>
+              <div className="space-y-3">
+                {/* Search Bar */}
+                <div className="relative">
+                  <SearchIcon
+                    size={16}
+                    className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                  />
+                  <Input
+                    placeholder="Search documents..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-10"
                     disabled={isUploading}
-                    onClick={triggerFileUpload}
-                  >
-                    {isUploading ? (
-                      <>
-                        <LoaderIcon className="animate-spin" />
-                        Uploading...
-                      </>
-                    ) : (
-                      <>
-                        <PlusIcon />
-                        Upload Documents
-                      </>
-                    )}
-                  </Button>
+                  />
                 </div>
-              )}
-              {/* Hidden file input - always present for upload functionality */}
-              <input
-                ref={fileInputRef}
-                type="file"
-                multiple
-                className="hidden"
-                onChange={handleFileUpload}
-                accept=".pdf,.doc,.docx,.txt,.md,.csv,.xlsx,.xls,.ppt,.pptx,.png,.jpg,.jpeg,.gif,.bmp,.svg,.webp,.mp3,.mp4,.avi,.mov,.wmv,.flv,.webm,.m4a,.wav,.ogg"
-              />
-            </div>
 
-            {/* Documents List */}
-            <div className="flex-1 overflow-y-auto space-y-4">
-              {isLoading && allDocuments.length === 0 ? (
-                <div className="flex items-center justify-center py-8">
-                  <LoaderIcon className="animate-spin" />
-                </div>
-              ) : hasEmptyDocumentHistory ? (
-                <div className="flex flex-col items-center justify-center py-8 text-center">
-                  <FileIcon size={48} className="text-muted-foreground mb-4" />
-                  <h3 className="text-lg font-medium mb-2">
-                    No documents found
-                  </h3>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    {debouncedSearchQuery
-                      ? 'No documents match your search query.'
-                      : 'Upload your first document to get started.'}
-                  </p>
-                  {!debouncedSearchQuery && (
+                {/* Upload Button - only show if there are documents */}
+                {!hasEmptyDocumentHistory && (
+                  <div className="flex gap-2">
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={triggerFileUpload}
+                      className="flex-1"
                       disabled={isUploading}
+                      onClick={triggerFileUpload}
                     >
                       {isUploading ? (
                         <>
@@ -467,51 +461,121 @@ export function SidebarDocuments({
                         </>
                       )}
                     </Button>
-                  )}
-                </div>
-              ) : (
-                <>
-                  {renderDocumentGroup('Today', groupedDocuments.today)}
-                  {renderDocumentGroup('Yesterday', groupedDocuments.yesterday)}
-                  {renderDocumentGroup(
-                    'Last 7 days',
-                    groupedDocuments.lastWeek,
-                  )}
-                  {renderDocumentGroup(
-                    'Last 30 days',
-                    groupedDocuments.lastMonth,
-                  )}
-                  {renderDocumentGroup('Older', groupedDocuments.older)}
+                  </div>
+                )}
+                {/* Hidden file input - always present for upload functionality */}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  multiple
+                  className="hidden"
+                  onChange={handleFileUpload}
+                  accept=".pdf,.doc,.docx,.txt,.md,.csv,.xlsx,.xls,.ppt,.pptx,.png,.jpg,.jpeg,.gif,.bmp,.svg,.webp,.mp3,.mp4,.avi,.mov,.wmv,.flv,.webm,.m4a,.wav,.ogg"
+                />
+              </div>
+            </SidebarGroupContent>
+          </SidebarGroup>
 
-                  {/* Load More Button */}
-                  {!hasReachedEnd && allDocuments.length > 0 && (
-                    <div className="flex justify-center py-4">
+          {/* Documents List */}
+          <SidebarGroup>
+            <SidebarGroupContent>
+              <div className="flex-1 overflow-y-auto space-y-4">
+                {hasEmptyDocumentHistory ? (
+                  <div className="flex flex-col items-center justify-center py-8 text-center">
+                    <FileIcon
+                      size={48}
+                      className="text-muted-foreground mb-4"
+                    />
+                    <h3 className="text-lg font-medium mb-2">
+                      No documents found
+                    </h3>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      {debouncedSearchQuery
+                        ? 'No documents match your search query.'
+                        : 'Upload your first document to get started.'}
+                    </p>
+                    {!debouncedSearchQuery && (
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={loadMoreDocuments}
-                        disabled={isValidating}
+                        onClick={triggerFileUpload}
+                        disabled={isUploading}
                       >
-                        {isValidating ? (
+                        {isUploading ? (
                           <>
                             <LoaderIcon className="animate-spin" />
-                            Loading...
+                            Uploading...
                           </>
                         ) : (
-                          'Load More'
+                          <>
+                            <PlusIcon />
+                            Upload Documents
+                          </>
                         )}
                       </Button>
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
-          </ContextMenuTrigger>
-          <ContextMenuContent className="w-52">
-            {sidebarActions.map(renderContextMenuItem)}
-          </ContextMenuContent>
-        </ContextMenu>
-      </SheetContent>
-    </Sheet>
+                    )}
+                  </div>
+                ) : (
+                  <>
+                    {renderDocumentGroup('Today', groupedDocuments.today)}
+                    {renderDocumentGroup(
+                      'Yesterday',
+                      groupedDocuments.yesterday,
+                    )}
+                    {renderDocumentGroup(
+                      'Last 7 days',
+                      groupedDocuments.lastWeek,
+                    )}
+                    {renderDocumentGroup(
+                      'Last 30 days',
+                      groupedDocuments.lastMonth,
+                    )}
+                    {renderDocumentGroup('Older', groupedDocuments.older)}
+
+                    {/* Load More Button */}
+                    {!hasReachedEnd && allDocuments.length > 0 && (
+                      <div className="flex justify-center py-4">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={loadMoreDocuments}
+                          disabled={isValidating}
+                        >
+                          {isValidating ? (
+                            <>
+                              <LoaderIcon className="animate-spin" />
+                              Loading...
+                            </>
+                          ) : (
+                            'Load More'
+                          )}
+                        </Button>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        </ContextMenuTrigger>
+        <ContextMenuContent className="w-52">
+          {sidebarActions.map(renderContextMenuItem)}
+        </ContextMenuContent>
+      </ContextMenu>
+    </RightSidebar>
   );
+}
+
+// Keep the old component for backward compatibility if needed elsewhere
+export function SidebarDocuments({
+  user,
+  isOpen,
+  onOpenChange,
+}: {
+  user: User | undefined;
+  isOpen: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  // This is now just a wrapper that can be deprecated
+  return null;
 }
