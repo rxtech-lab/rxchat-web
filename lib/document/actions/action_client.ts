@@ -32,7 +32,7 @@ async function uploadSingleFile(file: File): Promise<FileUploadResult> {
       mimeType: file.type,
       fileSize: file.size,
     });
-    
+
     if ('error' in presigned) {
       return {
         fileName: file.name,
@@ -63,7 +63,7 @@ async function uploadSingleFile(file: File): Promise<FileUploadResult> {
     const completeResponse = await completeDocumentUpload({
       documentId: presigned.id,
     });
-    
+
     if ('error' in completeResponse) {
       return {
         fileName: file.name,
@@ -89,17 +89,17 @@ async function uploadSingleFile(file: File): Promise<FileUploadResult> {
 /**
  * Create documents from multiple files using parallel processing with Promise.allSettled
  * for better performance compared to sequential uploads
- * 
+ *
  * @param fileList - The files to upload
  * @param options - Upload options including optional callback for individual file completion
  * @returns Upload results with detailed information about successes and failures
  */
 export async function createDocuments(
-  fileList: FileList | null, 
-  options: { 
+  fileList: FileList | null,
+  options: {
     throwOnAnyFailure?: boolean;
     onFileUploadCallback?: (result: FileUploadResult) => void;
-  } = { throwOnAnyFailure: true }
+  } = { throwOnAnyFailure: true },
 ): Promise<DocumentUploadResults> {
   const files = fileList ? Array.from(fileList) : null;
   if (!files || files.length === 0) {
@@ -114,51 +114,56 @@ export async function createDocuments(
 
   // Use Promise.allSettled to upload all files in parallel
   // Wrap each upload with callback if provided
-  const uploadPromises = files.map(file => {
+  const uploadPromises = files.map((file) => {
     const uploadPromise = uploadSingleFile(file);
-    
+
     // If callback is provided, call it when this specific file completes
     if (options.onFileUploadCallback) {
-      uploadPromise.then(result => {
-        options.onFileUploadCallback?.(result);
-      }).catch(() => {
-        // Handle case where uploadSingleFile rejects (shouldn't happen normally)
-        // The callback will be called with the error result in the settled results processing
-      });
+      uploadPromise
+        .then((result) => {
+          options.onFileUploadCallback?.(result);
+        })
+        .catch(() => {
+          // Handle case where uploadSingleFile rejects (shouldn't happen normally)
+          // The callback will be called with the error result in the settled results processing
+        });
     }
-    
+
     return uploadPromise;
   });
-  
-  const settledResults = await Promise.allSettled(uploadPromises);
-  
-  // Process the results
-  const results: FileUploadResult[] = settledResults.map((settledResult, index) => {
-    let result: FileUploadResult;
-    
-    if (settledResult.status === 'fulfilled') {
-      result = settledResult.value;
-    } else {
-      // This should rarely happen since uploadSingleFile handles its own errors
-      result = {
-        fileName: files[index].name,
-        success: false,
-        error: settledResult.reason instanceof Error 
-          ? settledResult.reason.message 
-          : 'Unexpected error during upload',
-      };
-      
-      // Call callback for rejected promises if callback is provided
-      if (options.onFileUploadCallback) {
-        options.onFileUploadCallback(result);
-      }
-    }
-    
-    return result;
-  });
 
-  const successCount = results.filter(r => r.success).length;
-  const failureCount = results.filter(r => !r.success).length;
+  const settledResults = await Promise.allSettled(uploadPromises);
+
+  // Process the results
+  const results: FileUploadResult[] = settledResults.map(
+    (settledResult, index) => {
+      let result: FileUploadResult;
+
+      if (settledResult.status === 'fulfilled') {
+        result = settledResult.value;
+      } else {
+        // This should rarely happen since uploadSingleFile handles its own errors
+        result = {
+          fileName: files[index].name,
+          success: false,
+          error:
+            settledResult.reason instanceof Error
+              ? settledResult.reason.message
+              : 'Unexpected error during upload',
+        };
+
+        // Call callback for rejected promises if callback is provided
+        if (options.onFileUploadCallback) {
+          options.onFileUploadCallback(result);
+        }
+      }
+
+      return result;
+    },
+  );
+
+  const successCount = results.filter((r) => r.success).length;
+  const failureCount = results.filter((r) => !r.success).length;
 
   const uploadResults: DocumentUploadResults = {
     results,
@@ -170,23 +175,29 @@ export async function createDocuments(
 
   // Handle error throwing based on options and results
   if (options.throwOnAnyFailure && failureCount > 0) {
-    const failedFiles = results.filter(r => !r.success);
-    const errorMessage = failedFiles.length === 1 
-      ? `Failed to upload ${failedFiles[0].fileName}: ${failedFiles[0].error}`
-      : `Failed to upload ${failedFiles.length} files. First error: ${failedFiles[0].error}`;
-    
+    const failedFiles = results.filter((r) => !r.success);
+    const errorMessage =
+      failedFiles.length === 1
+        ? `Failed to upload ${failedFiles[0].fileName}: ${failedFiles[0].error}`
+        : `Failed to upload ${failedFiles.length} files. First error: ${failedFiles[0].error}`;
+
     // Attach the detailed results to the error for potential future use
-    const error = new Error(errorMessage) as Error & { uploadResults?: DocumentUploadResults };
+    const error = new Error(errorMessage) as Error & {
+      uploadResults?: DocumentUploadResults;
+    };
     error.uploadResults = uploadResults;
     throw error;
   } else if (uploadResults.allFailed) {
     // Always throw if all files failed, regardless of options
-    const failedFiles = results.filter(r => !r.success);
-    const errorMessage = failedFiles.length === 1 
-      ? `Failed to upload ${failedFiles[0].fileName}: ${failedFiles[0].error}`
-      : `Failed to upload all ${failedFiles.length} files. First error: ${failedFiles[0].error}`;
-    
-    const error = new Error(errorMessage) as Error & { uploadResults?: DocumentUploadResults };
+    const failedFiles = results.filter((r) => !r.success);
+    const errorMessage =
+      failedFiles.length === 1
+        ? `Failed to upload ${failedFiles[0].fileName}: ${failedFiles[0].error}`
+        : `Failed to upload all ${failedFiles.length} files. First error: ${failedFiles[0].error}`;
+
+    const error = new Error(errorMessage) as Error & {
+      uploadResults?: DocumentUploadResults;
+    };
     error.uploadResults = uploadResults;
     throw error;
   }

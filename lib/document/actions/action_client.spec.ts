@@ -17,9 +17,8 @@ import { getPresignedUploadUrl, completeDocumentUpload } from './action_server';
 const mockGetPresignedUploadUrl = getPresignedUploadUrl as jest.MockedFunction<
   typeof getPresignedUploadUrl
 >;
-const mockCompleteDocumentUpload = completeDocumentUpload as jest.MockedFunction<
-  typeof completeDocumentUpload
->;
+const mockCompleteDocumentUpload =
+  completeDocumentUpload as jest.MockedFunction<typeof completeDocumentUpload>;
 const mockFetch = fetch as jest.MockedFunction<typeof fetch>;
 
 // Helper function to create a mock file
@@ -40,27 +39,27 @@ function createMockFileList(files: File[]): FileList {
       }
     },
   };
-  
+
   // Add indexed properties
   files.forEach((file, index) => {
     (fileList as any)[index] = file;
   });
-  
+
   return fileList as FileList;
 }
 
 describe('createDocuments', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    
+
     // Setup default successful responses
     mockGetPresignedUploadUrl.mockResolvedValue({
       url: 'https://test-bucket.s3.amazonaws.com/test-upload-url',
       id: 'test-document-id',
     });
-    
+
     mockCompleteDocumentUpload.mockResolvedValue({});
-    
+
     mockFetch.mockResolvedValue({
       ok: true,
       status: 200,
@@ -88,21 +87,21 @@ describe('createDocuments', () => {
   it('should upload single file successfully', async () => {
     const file = createMockFile('test.pdf', 'application/pdf', 1024);
     const fileList = createMockFileList([file]);
-    
+
     const result = await createDocuments(fileList);
-    
+
     expect(result.successCount).toBe(1);
     expect(result.failureCount).toBe(0);
     expect(result.allSucceeded).toBe(true);
     expect(result.results[0].success).toBe(true);
     expect(result.results[0].fileName).toBe('test.pdf');
-    
+
     expect(mockGetPresignedUploadUrl).toHaveBeenCalledWith({
       fileName: 'test.pdf',
       mimeType: 'application/pdf',
       fileSize: 1024,
     });
-    
+
     expect(mockFetch).toHaveBeenCalledWith(
       'https://test-bucket.s3.amazonaws.com/test-upload-url',
       expect.objectContaining({
@@ -114,7 +113,7 @@ describe('createDocuments', () => {
         body: file,
       }),
     );
-    
+
     expect(mockCompleteDocumentUpload).toHaveBeenCalledWith({
       documentId: 'test-document-id',
     });
@@ -124,7 +123,7 @@ describe('createDocuments', () => {
     const file1 = createMockFile('test1.pdf', 'application/pdf', 1024);
     const file2 = createMockFile('test2.txt', 'text/plain', 512);
     const fileList = createMockFileList([file1, file2]);
-    
+
     mockGetPresignedUploadUrl
       .mockResolvedValueOnce({
         url: 'https://test-bucket.s3.amazonaws.com/test-upload-url-1',
@@ -134,14 +133,14 @@ describe('createDocuments', () => {
         url: 'https://test-bucket.s3.amazonaws.com/test-upload-url-2',
         id: 'test-document-id-2',
       });
-    
+
     const result = await createDocuments(fileList);
-    
+
     expect(result.successCount).toBe(2);
     expect(result.failureCount).toBe(0);
     expect(result.allSucceeded).toBe(true);
     expect(result.results).toHaveLength(2);
-    
+
     expect(mockGetPresignedUploadUrl).toHaveBeenCalledTimes(2);
     expect(mockFetch).toHaveBeenCalledTimes(2);
     expect(mockCompleteDocumentUpload).toHaveBeenCalledTimes(2);
@@ -151,7 +150,7 @@ describe('createDocuments', () => {
     const file1 = createMockFile('test1.pdf', 'application/pdf', 1024);
     const file2 = createMockFile('test2.txt', 'text/plain', 512);
     const fileList = createMockFileList([file1, file2]);
-    
+
     // First file succeeds, second file fails at presigned URL step
     mockGetPresignedUploadUrl
       .mockResolvedValueOnce({
@@ -161,14 +160,16 @@ describe('createDocuments', () => {
       .mockResolvedValueOnce({
         error: 'Presigned URL failed',
       });
-    
-    const result = await createDocuments(fileList, { throwOnAnyFailure: false });
-    
+
+    const result = await createDocuments(fileList, {
+      throwOnAnyFailure: false,
+    });
+
     expect(result.successCount).toBe(1);
     expect(result.failureCount).toBe(1);
     expect(result.allSucceeded).toBe(false);
     expect(result.allFailed).toBe(false);
-    
+
     const results = result.results;
     expect(results).toHaveLength(2);
     expect(results[0].success).toBe(true);
@@ -181,41 +182,41 @@ describe('createDocuments', () => {
   it('should handle presigned URL error', async () => {
     const file = createMockFile('test.pdf', 'application/pdf', 1024);
     const fileList = createMockFileList([file]);
-    
+
     mockGetPresignedUploadUrl.mockResolvedValue({
       error: 'Failed to get presigned URL',
     });
-    
+
     await expect(createDocuments(fileList)).rejects.toThrow(
-      'Failed to upload test.pdf: Failed to get presigned URL: Failed to get presigned URL'
+      'Failed to upload test.pdf: Failed to get presigned URL: Failed to get presigned URL',
     );
   });
 
   it('should handle S3 upload error', async () => {
     const file = createMockFile('test.pdf', 'application/pdf', 1024);
     const fileList = createMockFileList([file]);
-    
+
     mockFetch.mockResolvedValue({
       ok: false,
       status: 500,
       statusText: 'Internal Server Error',
     } as Response);
-    
+
     await expect(createDocuments(fileList)).rejects.toThrow(
-      'Failed to upload test.pdf: Failed to upload to S3: Internal Server Error'
+      'Failed to upload test.pdf: Failed to upload to S3: Internal Server Error',
     );
   });
 
   it('should handle complete upload error', async () => {
     const file = createMockFile('test.pdf', 'application/pdf', 1024);
     const fileList = createMockFileList([file]);
-    
+
     mockCompleteDocumentUpload.mockResolvedValue({
       error: 'Failed to complete upload',
     });
-    
+
     await expect(createDocuments(fileList)).rejects.toThrow(
-      'Failed to upload test.pdf: Failed to complete upload: Failed to complete upload'
+      'Failed to upload test.pdf: Failed to complete upload: Failed to complete upload',
     );
   });
 
@@ -223,7 +224,7 @@ describe('createDocuments', () => {
     const file1 = createMockFile('test1.pdf', 'application/pdf', 1024);
     const file2 = createMockFile('test2.txt', 'text/plain', 512);
     const fileList = createMockFileList([file1, file2]);
-    
+
     // First file succeeds, second file fails at presigned URL step
     mockGetPresignedUploadUrl
       .mockResolvedValueOnce({
@@ -233,7 +234,7 @@ describe('createDocuments', () => {
       .mockResolvedValueOnce({
         error: 'Presigned URL failed',
       });
-    
+
     try {
       await createDocuments(fileList);
       fail('Expected function to throw an error');
@@ -244,7 +245,7 @@ describe('createDocuments', () => {
       expect(error.uploadResults.failureCount).toBe(1);
       expect(error.uploadResults.allSucceeded).toBe(false);
       expect(error.uploadResults.allFailed).toBe(false);
-      
+
       const results = error.uploadResults.results;
       expect(results).toHaveLength(2);
       expect(results[0].success).toBe(true);
@@ -259,11 +260,11 @@ describe('createDocuments', () => {
     const file1 = createMockFile('test1.pdf', 'application/pdf', 1024);
     const file2 = createMockFile('test2.txt', 'text/plain', 512);
     const fileList = createMockFileList([file1, file2]);
-    
+
     mockGetPresignedUploadUrl.mockResolvedValue({
       error: 'Service unavailable',
     });
-    
+
     try {
       await createDocuments(fileList);
       fail('Expected function to throw an error');
@@ -278,29 +279,29 @@ describe('createDocuments', () => {
     const file1 = createMockFile('test1.pdf', 'application/pdf', 1024);
     const file2 = createMockFile('test2.txt', 'text/plain', 512);
     const fileList = createMockFileList([file1, file2]);
-    
+
     const startTimes: number[] = [];
-    
+
     // Mock a delay in presigned URL fetching to verify parallel execution
     mockGetPresignedUploadUrl.mockImplementation(async () => {
       startTimes.push(Date.now());
       // Small delay to simulate network call
-      await new Promise(resolve => setTimeout(resolve, 50));
+      await new Promise((resolve) => setTimeout(resolve, 50));
       return {
         url: 'https://test-bucket.s3.amazonaws.com/test-upload-url',
         id: 'test-document-id',
       };
     });
-    
+
     const start = Date.now();
     await createDocuments(fileList);
     const end = Date.now();
-    
+
     // If run in parallel, both calls should start around the same time
     // If run sequentially, there would be ~50ms difference
     const timeDifference = Math.abs(startTimes[1] - startTimes[0]);
     expect(timeDifference).toBeLessThan(20); // Allow some tolerance for test execution
-    
+
     // Total time should be closer to 50ms (parallel) than 100ms (sequential)
     const totalTime = end - start;
     expect(totalTime).toBeLessThan(80); // Parallel execution should be much faster
@@ -310,7 +311,7 @@ describe('createDocuments', () => {
     const file1 = createMockFile('test1.pdf', 'application/pdf', 1024);
     const file2 = createMockFile('test2.txt', 'text/plain', 512);
     const fileList = createMockFileList([file1, file2]);
-    
+
     // First file succeeds, second file fails at presigned URL step
     mockGetPresignedUploadUrl
       .mockResolvedValueOnce({
@@ -320,7 +321,7 @@ describe('createDocuments', () => {
       .mockResolvedValueOnce({
         error: 'Presigned URL failed',
       });
-    
+
     // Should throw with default behavior
     try {
       await createDocuments(fileList); // Default throwOnAnyFailure: true
@@ -337,7 +338,7 @@ describe('createDocuments', () => {
     const file1 = createMockFile('test1.pdf', 'application/pdf', 1024);
     const file2 = createMockFile('test2.txt', 'text/plain', 512);
     const fileList = createMockFileList([file1, file2]);
-    
+
     // Setup mocks for successful uploads
     mockGetPresignedUploadUrl
       .mockResolvedValueOnce({
@@ -348,34 +349,37 @@ describe('createDocuments', () => {
         url: 'https://test-bucket.s3.amazonaws.com/test-upload-url-2',
         id: 'test-document-id-2',
       });
-    
+
     mockFetch
       .mockResolvedValueOnce(new Response('', { status: 200 }))
       .mockResolvedValueOnce(new Response('', { status: 200 }));
-    
+
     mockCompleteDocumentUpload
       .mockResolvedValueOnce({ success: true })
       .mockResolvedValueOnce({ success: true });
-    
+
     // Track callback calls
     const callbackResults: any[] = [];
     const callback = jest.fn((result: any) => {
       callbackResults.push(result);
     });
-    
-    const results = await createDocuments(fileList, { 
+
+    const results = await createDocuments(fileList, {
       throwOnAnyFailure: false,
-      onFileUploadCallback: callback 
+      onFileUploadCallback: callback,
     });
-    
+
     // Verify callback was called for each file
     expect(callback).toHaveBeenCalledTimes(2);
     expect(callbackResults).toHaveLength(2);
-    
+
     // Verify callback results match the final results
-    expect(callbackResults.every(r => r.success)).toBe(true);
-    expect(callbackResults.map(r => r.fileName)).toEqual(['test1.pdf', 'test2.txt']);
-    
+    expect(callbackResults.every((r) => r.success)).toBe(true);
+    expect(callbackResults.map((r) => r.fileName)).toEqual([
+      'test1.pdf',
+      'test2.txt',
+    ]);
+
     // Verify final results are still correct
     expect(results.successCount).toBe(2);
     expect(results.failureCount).toBe(0);
@@ -385,7 +389,7 @@ describe('createDocuments', () => {
     const file1 = createMockFile('test1.pdf', 'application/pdf', 1024);
     const file2 = createMockFile('test2.txt', 'text/plain', 512);
     const fileList = createMockFileList([file1, file2]);
-    
+
     // First file succeeds, second fails
     mockGetPresignedUploadUrl
       .mockResolvedValueOnce({
@@ -395,31 +399,31 @@ describe('createDocuments', () => {
       .mockResolvedValueOnce({
         error: 'Presigned URL failed',
       });
-    
+
     mockFetch.mockResolvedValueOnce(new Response('', { status: 200 }));
     mockCompleteDocumentUpload.mockResolvedValueOnce({ success: true });
-    
+
     // Track callback calls
     const callbackResults: any[] = [];
     const callback = jest.fn((result: any) => {
       callbackResults.push(result);
     });
-    
-    const results = await createDocuments(fileList, { 
+
+    const results = await createDocuments(fileList, {
       throwOnAnyFailure: false,
-      onFileUploadCallback: callback 
+      onFileUploadCallback: callback,
     });
-    
+
     // Verify callback was called for each file
     expect(callback).toHaveBeenCalledTimes(2);
     expect(callbackResults).toHaveLength(2);
-    
+
     // Verify one success and one failure
-    const successResults = callbackResults.filter(r => r.success);
-    const failureResults = callbackResults.filter(r => !r.success);
+    const successResults = callbackResults.filter((r) => r.success);
+    const failureResults = callbackResults.filter((r) => !r.success);
     expect(successResults).toHaveLength(1);
     expect(failureResults).toHaveLength(1);
-    
+
     // Verify final results match
     expect(results.successCount).toBe(1);
     expect(results.failureCount).toBe(1);
