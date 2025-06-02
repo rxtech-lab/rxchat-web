@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX CONCURRENTLY IF NOT EXISTS "VectorStoreDocument_sha256_unique" ON "VectorStoreDocument" ("sha256") WHERE "sha256" IS NOT NULL;

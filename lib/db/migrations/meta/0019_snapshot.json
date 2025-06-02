@@ -1,5 +1,5 @@
 {
-  "id": "62b3d9b2-67ed-4954-9f6b-262a43537d9f",
+  "id": "9951fde1-22da-407c-9805-8aa75f5b9107",
   "prevId": "55fe1623-2947-4626-9b84-4f2f1c5da6c0",
   "version": "7",
   "dialect": "postgresql",
@@ -763,13 +763,6 @@
           "nullsNotDistinct": false,
           "columns": [
             "key"
-          ]
-        },
-        "VectorStoreDocument_sha256_unique": {
-          "name": "VectorStoreDocument_sha256_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "sha256"
           ]
         }
       }

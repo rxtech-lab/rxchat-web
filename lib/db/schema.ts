@@ -263,13 +263,8 @@ export const vectorStoreDocument = pgTable('VectorStoreDocument', {
   })
     .notNull()
     .default('pending'),
-  // SHA256 hash of the file content for duplicate detection (unique with NULLS NOT DISTINCT)
+  // SHA256 hash of the file content for duplicate detection
   sha256: text('sha256'),
-}, (table) => {
-  return {
-    // Unique constraint on sha256 with NULLS NOT DISTINCT - allows multiple NULL values but requires unique non-NULL values
-    sha256Unique: unique('VectorStoreDocument_sha256_unique').on(table.sha256).nullsNotDistinct(),
-  };
 });
 
 export type VectorStoreDocument = InferSelectModel<typeof vectorStoreDocument>;

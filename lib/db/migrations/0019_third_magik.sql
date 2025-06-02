@@ -1,0 +1,1 @@
+ALTER TABLE "VectorStoreDocument" ADD COLUMN "sha256" text;
