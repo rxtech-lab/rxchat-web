@@ -2,7 +2,7 @@ import { ThemeProvider } from '@/components/theme-provider';
 import type { Metadata } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
 import { Toaster } from 'sonner';
-
+import { Analytics } from '@vercel/analytics/next';
 import { SessionProvider } from 'next-auth/react';
 import './globals.css';
 
@@ -80,6 +80,7 @@ export default async function RootLayout({
           <Toaster position="top-center" />
           <SessionProvider>{children}</SessionProvider>
         </ThemeProvider>
+        <Analytics />
       </body>
     </html>
   );
