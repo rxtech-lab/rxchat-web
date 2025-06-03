@@ -2,6 +2,7 @@ import type { ArtifactKind } from '@/components/artifact';
 import type { Geo } from '@vercel/functions';
 import type { Attachment } from 'ai';
 import { createMarkitdownClient } from '../document/markitdown';
+import { RecursiveCharacterTextSplitter } from '@langchain/textsplitters';
 
 export const artifactsPrompt = `
 Artifacts is a special user interface mode that helps users with writing, editing, and other content creation tasks. When artifact is open, it is on the right side of the screen, while the conversation is on the left side. When creating or updating documents, changes are reflected in real-time on the artifacts and visible to the user.
@@ -64,7 +65,21 @@ export async function getDocumentPrompt(documentAttachments: Attachment[]) {
   // filter out image attachments
   const resultPromises = documentAttachments
     .filter((attachment) => !attachment.contentType?.startsWith('image/'))
-    .map((attachment) => markitdown.convertToMarkdown(attachment.url));
+    .map(async (attachment) => {
+      const markdown = await markitdown.convertToMarkdown(attachment.url);
+      const splitter = new RecursiveCharacterTextSplitter({
+        chunkSize: 2500,
+        chunkOverlap: 0,
+      });
+      const chunks = await splitter.splitText(markdown);
+
+      // only return the first 2 chunks if the length of the chunks is less than 2500
+      if (chunks.length < 2) {
+        return chunks[0];
+      }
+
+      return chunks.slice(0, 2).join('\n\n');
+    });
 
   const results = await Promise.all(resultPromises);
   const markdownContent = results.join('\n\n');
