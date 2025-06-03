@@ -5,14 +5,16 @@ import { providerSupportsDocuments, type ProviderType } from './models';
  * Filter out document attachments from messages if the provider doesn't support them
  * @param messages - Array of messages that may contain attachments
  * @param provider - The provider type to check support for
+ * @param model - The specific model ID within the provider (optional)
  * @returns Messages with attachments filtered based on provider support
  */
 export function filterDocumentAttachments(
   messages: Message[],
   provider: ProviderType,
+  model?: string,
 ): Message[] {
   // If provider supports documents, return messages as-is
-  if (providerSupportsDocuments(provider)) {
+  if (providerSupportsDocuments(provider, model)) {
     return messages;
   }
 
@@ -32,14 +34,16 @@ export function filterDocumentAttachments(
  * Filter out document attachments from UI attachments if the provider doesn't support them
  * @param attachments - Array of UI attachments
  * @param provider - The provider type to check support for
+ * @param model - The specific model ID within the provider (optional)
  * @returns Attachments filtered based on provider support
  */
 export function filterUIDocumentAttachments(
   attachments: Attachment[],
   provider: ProviderType,
+  model?: string,
 ): Attachment[] {
   // If provider supports documents, return attachments as-is
-  if (providerSupportsDocuments(provider)) {
+  if (providerSupportsDocuments(provider, model)) {
     return attachments;
   }
 

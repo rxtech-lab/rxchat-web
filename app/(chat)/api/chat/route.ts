@@ -203,10 +203,11 @@ export async function POST(request: Request) {
     // Save user message immediately to ensure correct message ordering
     const currentTime = new Date();
     after(async () => {
-      // Filter attachments based on provider support before saving
+      // Filter attachments based on provider and model support before saving
       const filteredAttachments = filterUIDocumentAttachments(
         message.experimental_attachments ?? [],
         selectedChatModelProvider,
+        selectedChatModel,
       );
 
       await saveMessages({
@@ -233,6 +234,7 @@ export async function POST(request: Request) {
         message,
       }),
       selectedChatModelProvider,
+      selectedChatModel,
     );
 
     const { longitude, latitude, city, country } = geolocation(request);

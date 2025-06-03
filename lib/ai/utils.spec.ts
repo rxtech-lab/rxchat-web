@@ -30,8 +30,23 @@ describe('filterDocumentAttachments', () => {
     expect(result[0].experimental_attachments?.[1].contentType).toBe('image/jpeg');
   });
 
+  test('should keep all attachments for openRouter provider with model', () => {
+    const result = filterDocumentAttachments(mockMessages, 'openRouter', 'some-model');
+    
+    expect(result[0].experimental_attachments).toHaveLength(2);
+    expect(result[0].experimental_attachments?.[0].contentType).toBe('application/pdf');
+    expect(result[0].experimental_attachments?.[1].contentType).toBe('image/jpeg');
+  });
+
   test('should filter out document attachments for openAI provider', () => {
     const result = filterDocumentAttachments(mockMessages, 'openAI');
+    
+    expect(result[0].experimental_attachments).toHaveLength(1);
+    expect(result[0].experimental_attachments?.[0].contentType).toBe('image/jpeg');
+  });
+
+  test('should filter out document attachments for openAI provider with model', () => {
+    const result = filterDocumentAttachments(mockMessages, 'openAI', 'gpt-4');
     
     expect(result[0].experimental_attachments).toHaveLength(1);
     expect(result[0].experimental_attachments?.[0].contentType).toBe('image/jpeg');
@@ -89,8 +104,26 @@ describe('filterUIDocumentAttachments', () => {
     ]);
   });
 
+  test('should keep all attachments for openRouter provider with model', () => {
+    const result = filterUIDocumentAttachments(mockAttachments, 'openRouter', 'some-model');
+    
+    expect(result).toHaveLength(3);
+    expect(result.map(a => a.contentType)).toEqual([
+      'application/pdf',
+      'image/jpeg',
+      'text/plain',
+    ]);
+  });
+
   test('should filter out document attachments for openAI provider', () => {
     const result = filterUIDocumentAttachments(mockAttachments, 'openAI');
+    
+    expect(result).toHaveLength(1);
+    expect(result[0].contentType).toBe('image/jpeg');
+  });
+
+  test('should filter out document attachments for openAI provider with model', () => {
+    const result = filterUIDocumentAttachments(mockAttachments, 'openAI', 'gpt-4');
     
     expect(result).toHaveLength(1);
     expect(result[0].contentType).toBe('image/jpeg');

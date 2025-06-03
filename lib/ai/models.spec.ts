@@ -6,8 +6,16 @@ describe('providerSupportsDocuments', () => {
     expect(providerSupportsDocuments('openRouter')).toBe(true);
   });
 
+  test('should return true for openRouter provider with model', () => {
+    expect(providerSupportsDocuments('openRouter', 'some-model')).toBe(true);
+  });
+
   test('should return false for openAI provider', () => {
     expect(providerSupportsDocuments('openAI')).toBe(false);
+  });
+
+  test('should return false for openAI provider with model', () => {
+    expect(providerSupportsDocuments('openAI', 'gpt-4')).toBe(false);
   });
 
   test('should return false for anthropic provider', () => {

@@ -190,15 +190,17 @@ export function getAzureModels(
  * @returns Filtered providers with models
  */
 /**
- * Check if a provider supports document/file uploads
+ * Check if a provider and model combination supports document/file uploads
  * @param providerType - The type of provider to check
- * @returns boolean indicating if the provider supports document uploads
+ * @param modelId - The specific model ID within the provider
+ * @returns boolean indicating if the provider/model supports document uploads
  */
-export function providerSupportsDocuments(providerType: ProviderType): boolean {
-  // Currently, only openRouter provider supports document uploads
+export function providerSupportsDocuments(providerType: ProviderType, modelId?: string): boolean {
+  // Currently, only openRouter provider supports document uploads for all models
   // Other providers don't support it for now
   switch (providerType) {
     case 'openRouter':
+      // All openRouter models currently support document uploads
       return true;
     case 'openAI':
     case 'anthropic':
@@ -207,6 +209,8 @@ export function providerSupportsDocuments(providerType: ProviderType): boolean {
     case 'gemini':
     case 'test':
     default:
+      // Future implementation could check specific models within providers
+      // For now, all other providers don't support document uploads
       return false;
   }
 }
