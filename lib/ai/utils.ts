@@ -1,5 +1,4 @@
-import type { CoreMessage } from 'ai';
-import type { Attachment } from 'ai/react';
+import type { Attachment, Message } from 'ai';
 import { providerSupportsDocuments, type ProviderType } from './models';
 
 /**
@@ -8,10 +7,10 @@ import { providerSupportsDocuments, type ProviderType } from './models';
  * @param provider - The provider type to check support for
  * @returns Messages with attachments filtered based on provider support
  */
-export function filterDocumentAttachments<T extends CoreMessage>(
-  messages: T[],
+export function filterDocumentAttachments(
+  messages: Message[],
   provider: ProviderType,
-): T[] {
+): Message[] {
   // If provider supports documents, return messages as-is
   if (providerSupportsDocuments(provider)) {
     return messages;

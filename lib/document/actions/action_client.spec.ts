@@ -355,8 +355,8 @@ describe('createDocuments', () => {
       .mockResolvedValueOnce(new Response('', { status: 200 }));
 
     mockCompleteDocumentUpload
-      .mockResolvedValueOnce({ success: true })
-      .mockResolvedValueOnce({ success: true });
+      .mockResolvedValueOnce({})
+      .mockResolvedValueOnce({});
 
     // Track callback calls
     const callbackResults: any[] = [];
@@ -401,7 +401,7 @@ describe('createDocuments', () => {
       });
 
     mockFetch.mockResolvedValueOnce(new Response('', { status: 200 }));
-    mockCompleteDocumentUpload.mockResolvedValueOnce({ success: true });
+    mockCompleteDocumentUpload.mockResolvedValueOnce({});
 
     // Track callback calls
     const callbackResults: any[] = [];

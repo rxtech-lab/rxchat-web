@@ -46,11 +46,36 @@ describe('Document Summary Generation Logic', () => {
       'This is a test document about artificial intelligence and machine learning technologies.';
     const expectedSummary = 'Document about AI and ML technologies';
 
-    mockGenerateText.mockResolvedValue({ text: expectedSummary });
+    mockGenerateText.mockResolvedValue({ 
+      text: expectedSummary,
+      reasoning: undefined,
+      files: [],
+      reasoningDetails: [],
+      sources: [],
+      usage: { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
+      finishReason: 'stop',
+      logprobs: undefined,
+      response: { id: 'test', timestamp: new Date(), modelId: 'test', messages: [] },
+      warnings: undefined,
+      providerMetadata: undefined,
+      steps: [],
+      request: { body: '' },
+      rawResponse: { headers: {} }
+    } as any);
 
     // Test the AI generation call pattern
+    const mockModel = {
+      specificationVersion: 'v1' as const,
+      provider: 'test',
+      modelId: 'test-model',
+      defaultObjectGenerationMode: 'auto' as const,
+      stream: jest.fn(),
+      doGenerate: jest.fn(),
+      doStream: jest.fn()
+    };
+    
     const result = await generateText({
-      model: {},
+      model: mockModel as any,
       system: expect.stringContaining('generate a concise summary'),
       prompt: testContent,
     });
@@ -64,8 +89,18 @@ describe('Document Summary Generation Logic', () => {
     mockGenerateText.mockRejectedValue(new Error('AI service unavailable'));
 
     try {
+      const mockModel = {
+        specificationVersion: 'v1' as const,
+        provider: 'test',
+        modelId: 'test-model',
+        defaultObjectGenerationMode: 'auto' as const,
+        stream: jest.fn(),
+        doGenerate: jest.fn(),
+        doStream: jest.fn()
+      };
+      
       await generateText({
-        model: {},
+        model: mockModel as any,
         system: '',
         prompt: testContent,
       });

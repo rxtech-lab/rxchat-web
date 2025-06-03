@@ -1,10 +1,10 @@
 import { filterDocumentAttachments, filterUIDocumentAttachments } from './utils';
-import type { CoreMessage } from 'ai';
-import type { Attachment } from 'ai/react';
+import type { Message, Attachment } from 'ai';
 
 describe('filterDocumentAttachments', () => {
-  const mockMessages: CoreMessage[] = [
+  const mockMessages: Message[] = [
     {
+      id: '1',
       role: 'user',
       content: 'Test message',
       experimental_attachments: [
@@ -45,8 +45,9 @@ describe('filterDocumentAttachments', () => {
   });
 
   test('should handle messages without attachments', () => {
-    const messagesWithoutAttachments: CoreMessage[] = [
+    const messagesWithoutAttachments: Message[] = [
       {
+        id: '2',
         role: 'user',
         content: 'Test message without attachments',
       },

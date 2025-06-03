@@ -51,6 +51,7 @@ describe('searchDocumentsTool', () => {
         userId: 'user-123',
         key: 'test-key',
         status: 'completed' as const,
+        sha256: null,
       },
     ];
 
@@ -97,6 +98,7 @@ describe('searchDocumentsTool', () => {
         userId: 'user-123',
         key: 'test-key',
         status: 'completed' as const,
+        sha256: null,
       },
     ];
 
