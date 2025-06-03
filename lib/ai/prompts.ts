@@ -1,5 +1,7 @@
 import type { ArtifactKind } from '@/components/artifact';
 import type { Geo } from '@vercel/functions';
+import type { Attachment } from 'ai';
+import { createMarkitdownClient } from '../document/markitdown';
 
 export const artifactsPrompt = `
 Artifacts is a special user interface mode that helps users with writing, editing, and other content creation tasks. When artifact is open, it is on the right side of the screen, while the conversation is on the left side. When creating or updating documents, changes are reflected in real-time on the artifacts and visible to the user.
@@ -57,20 +59,41 @@ About the origin of user's request:
 - time: ${requestHints.time}
 `;
 
-export const systemPrompt = ({
+export async function getDocumentPrompt(documentAttachments: Attachment[]) {
+  const markitdown = createMarkitdownClient();
+  // filter out image attachments
+  const resultPromises = documentAttachments
+    .filter((attachment) => !attachment.contentType?.startsWith('image/'))
+    .map((attachment) => markitdown.convertToMarkdown(attachment.url));
+
+  const results = await Promise.all(resultPromises);
+  const markdownContent = results.join('\n\n');
+
+  return `
+  The user has attached the following documents:
+  ${markdownContent}
+  `;
+}
+
+export const systemPrompt = async ({
   selectedChatModel,
   requestHints,
+  isModelSupportedForDocuments,
+  documentAttachments,
 }: {
   selectedChatModel: string;
   requestHints: RequestHints;
+  isModelSupportedForDocuments: boolean;
+  documentAttachments: Attachment[];
 }) => {
   const requestPrompt = getRequestPromptFromHints(requestHints);
+  const documentPrompt = await getDocumentPrompt(documentAttachments);
 
   if (selectedChatModel === 'chat-model-reasoning') {
-    return `${regularPrompt}\n\n${requestPrompt}`;
-  } else {
-    return `${regularPrompt}\n\n${requestPrompt}\n\n${artifactsPrompt}`;
+    return `${documentPrompt}\n\n${regularPrompt}\n\n${requestPrompt}`;
   }
+
+  return `${documentPrompt}\n\n${regularPrompt}\n\n${requestPrompt}\n\n${artifactsPrompt}`;
 };
 
 export const codePrompt = `

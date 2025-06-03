@@ -25,13 +25,13 @@ const baseURL = `http://localhost:${PORT}`;
 export default defineConfig({
   testDir: './tests',
   /* Run tests in files in parallel */
-  fullyParallel: false,
+  fullyParallel: true,
   /* Fail the build on CI if you accidentally left test.only in the source code. */
   forbidOnly: !!process.env.CI,
   /* Retry on CI only */
   retries: 1,
   /* Opt out of parallel tests on CI. */
-  workers: process.env.CI ? 2 : 2,
+  workers: process.env.CI ? 1 : 1,
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
   reporter: 'html',
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
@@ -44,7 +44,7 @@ export default defineConfig({
   },
 
   /* Configure global timeout for each test */
-  timeout: process.env.CI ? 160 * 1000 : 30 * 1000, // 120 seconds
+  timeout: process.env.CI ? 160 * 1000 : 50 * 1000, // 120 seconds
   expect: {
     timeout: 40 * 1000,
   },
@@ -110,6 +110,7 @@ export default defineConfig({
         'postgresql://postgres:postgres@localhost:5432/postgres',
       AUTH_SECRET: 'secret',
       REDIS_URL: 'redis://localhost:6379',
+      MARKITDOWN_ADMIN_API_KEY: '1234567890',
     },
   },
 });

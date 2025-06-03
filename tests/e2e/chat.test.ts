@@ -189,9 +189,6 @@ test.describe('Chat activity', () => {
     // Send a message that will trigger an error
     await chatPage.sendUserMessage('Trigger an error please');
 
-    // Wait a bit for the error to be processed
-    await adaContext.page.waitForTimeout(1000);
-
     // Refresh the page
     await adaContext.page.reload();
 

@@ -29,27 +29,3 @@ export function filterDocumentAttachments(
     ),
   }));
 }
-
-/**
- * Filter out document attachments from UI attachments if the provider doesn't support them
- * @param attachments - Array of UI attachments
- * @param provider - The provider type to check support for
- * @param model - The specific model ID within the provider (optional)
- * @returns Attachments filtered based on provider support
- */
-export function filterUIDocumentAttachments(
-  attachments: Attachment[],
-  provider: ProviderType,
-  model?: string,
-): Attachment[] {
-  // If provider supports documents, return attachments as-is
-  if (providerSupportsDocuments(provider, model)) {
-    return attachments;
-  }
-
-  // Filter out document attachments, keeping only image attachments
-  return attachments.filter((attachment) => {
-    // Keep image attachments, filter out document attachments
-    return attachment.contentType?.startsWith('image/');
-  });
-}
