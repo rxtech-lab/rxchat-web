@@ -189,6 +189,32 @@ export function getAzureModels(
  * @param isTestEnvironment - Whether we're in test environment
  * @returns Filtered providers with models
  */
+/**
+ * Check if a provider and model combination supports document/file uploads
+ * @param providerType - The type of provider to check
+ * @param modelId - The specific model ID within the provider
+ * @returns boolean indicating if the provider/model supports document uploads
+ */
+export function providerSupportsDocuments(providerType: ProviderType, modelId?: string): boolean {
+  // Currently, only openRouter provider supports document uploads for all models
+  // Other providers don't support it for now
+  switch (providerType) {
+    case 'openRouter':
+      // All openRouter models currently support document uploads
+      return true;
+    case 'openAI':
+    case 'anthropic':
+    case 'azure':
+    case 'google':
+    case 'gemini':
+    case 'test':
+    default:
+      // Future implementation could check specific models within providers
+      // For now, all other providers don't support document uploads
+      return false;
+  }
+}
+
 export async function getFilteredProviders(
   user: User,
   userEntitlements: Entitlements,

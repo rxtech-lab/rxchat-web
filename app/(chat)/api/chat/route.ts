@@ -2,7 +2,10 @@ import { auth } from '@/app/(auth)/auth';
 import { createPromptRunner } from '@/lib/agent/prompt-runner/runner';
 import { entitlementsByUserRole } from '@/lib/ai/entitlements';
 import { createMCPClient } from '@/lib/ai/mcp';
-import { getFilteredProviders } from '@/lib/ai/models';
+import {
+  getFilteredProviders,
+  providerSupportsDocuments,
+} from '@/lib/ai/models';
 import { systemPrompt, type RequestHints } from '@/lib/ai/prompts';
 import { getModelProvider } from '@/lib/ai/providers';
 import { createDocument } from '@/lib/ai/tools/create-document';
@@ -10,6 +13,7 @@ import { getWeather } from '@/lib/ai/tools/get-weather';
 import { requestSuggestions } from '@/lib/ai/tools/request-suggestions';
 import { searchDocumentsTool } from '@/lib/ai/tools/search-documents';
 import { updateDocument } from '@/lib/ai/tools/update-document';
+import { filterDocumentAttachments } from '@/lib/ai/utils';
 import { isProductionEnvironment, isTestEnvironment } from '@/lib/constants';
 import {
   createStreamId,
@@ -201,6 +205,7 @@ export async function POST(request: Request) {
 
     // Save user message immediately to ensure correct message ordering
     const currentTime = new Date();
+
     after(async () => {
       await saveMessages({
         messages: [
@@ -218,11 +223,16 @@ export async function POST(request: Request) {
 
     const previousMessages = await getMessagesByChatId({ id });
 
-    const messages = appendClientMessage({
-      // @ts-expect-error: todo add type conversion from DBMessage[] to UIMessage[]
-      messages: previousMessages,
-      message,
-    });
+    // Filter document attachments from messages if provider doesn't support them
+    const messages = filterDocumentAttachments(
+      appendClientMessage({
+        // @ts-expect-error: todo add type conversion from DBMessage[] to UIMessage[]
+        messages: previousMessages,
+        message,
+      }),
+      selectedChatModelProvider,
+      selectedChatModel,
+    );
 
     const { longitude, latitude, city, country } = geolocation(request);
 
@@ -240,9 +250,14 @@ export async function POST(request: Request) {
     // Use cached MCP tools for better performance
     const { tools: mcpTools } = await getMCPTools();
 
-    let defaultSystemPrompt = systemPrompt({
+    let defaultSystemPrompt = await systemPrompt({
       selectedChatModel,
       requestHints,
+      isModelSupportedForDocuments: providerSupportsDocuments(
+        selectedChatModelProvider,
+        selectedChatModel,
+      ),
+      documentAttachments: message.experimental_attachments ?? [],
     });
 
     const userPrompt = await getUserPromptByUserId({
@@ -361,9 +376,17 @@ export async function POST(request: Request) {
       return new Response(stream);
     }
   } catch (error) {
+    console.error('Error in chat route:', error);
     if (error instanceof ChatSDKError) {
       return error.toResponse();
     }
+    return new Response(
+      JSON.stringify({
+        code: 500,
+        message: 'Oops, an error occurred!',
+      }),
+      { status: 500 },
+    );
   }
 }
 
@@ -463,26 +486,40 @@ export async function GET(request: Request) {
 }
 
 export async function DELETE(request: Request) {
-  const { searchParams } = new URL(request.url);
-  const id = searchParams.get('id');
+  try {
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
 
-  if (!id) {
-    return new ChatSDKError('bad_request:api').toResponse();
+    if (!id) {
+      return new ChatSDKError('bad_request:api').toResponse();
+    }
+
+    const session = await auth();
+
+    if (!session?.user) {
+      return new ChatSDKError('unauthorized:chat').toResponse();
+    }
+
+    const chat = await getChatById({ id });
+
+    if (chat.userId !== session.user.id) {
+      return new ChatSDKError('forbidden:chat').toResponse();
+    }
+
+    const deletedChat = await deleteChatById({ id });
+
+    return Response.json(deletedChat, { status: 200 });
+  } catch (error) {
+    console.error('Error in chat delete route:', error);
+    if (error instanceof ChatSDKError) {
+      return error.toResponse();
+    }
+    return new Response(
+      JSON.stringify({
+        code: 500,
+        message: 'Oops, an error occurred!',
+      }),
+      { status: 500 },
+    );
   }
-
-  const session = await auth();
-
-  if (!session?.user) {
-    return new ChatSDKError('unauthorized:chat').toResponse();
-  }
-
-  const chat = await getChatById({ id });
-
-  if (chat.userId !== session.user.id) {
-    return new ChatSDKError('forbidden:chat').toResponse();
-  }
-
-  const deletedChat = await deleteChatById({ id });
-
-  return Response.json(deletedChat, { status: 200 });
 }

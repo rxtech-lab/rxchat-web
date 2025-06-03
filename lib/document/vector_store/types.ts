@@ -46,11 +46,21 @@ export interface SearchOptions {
   userId?: string;
 }
 
+export interface SearchByDocumentIdOptions {
+  limit?: number;
+  userId?: string;
+}
+
 export interface VectorStore {
   addDocument(document: VectorStoreDocument): Promise<void>;
   searchDocument(
     query: string,
     options?: SearchOptions,
+  ): Promise<VectorStoreDocument[]>;
+  searchDocumentById(
+    documentId: string,
+    query: string,
+    options?: SearchByDocumentIdOptions,
   ): Promise<VectorStoreDocument[]>;
   deleteDocument(id: string): Promise<void>;
 }
