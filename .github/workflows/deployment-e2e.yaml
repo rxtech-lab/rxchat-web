@@ -3,13 +3,14 @@ on:
   deployment_status:
 
 concurrency:
-  group: ${{ github.ref != 'refs/heads/main' && format('{0}-{1}', github.workflow, github.ref) || '' }}
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
+
 jobs:
   test:
     timeout-minutes: 60
     runs-on: ubuntu-latest
-    if: github.event.deployment_status.state == 'success'
+    if: github.event.deployment_status.state == 'success' && github.ref != 'refs/heads/main'
     container:
       image: mcr.microsoft.com/playwright:v1.52.0-noble
       options: --user 1001
