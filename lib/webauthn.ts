@@ -22,6 +22,7 @@ import {
   deleteChallenge,
   getChallenge,
 } from '@/lib/webauthn-challenges';
+import { getBrandName } from '@/lib/utils';
 
 /**
  * WebAuthn Implementation with Graceful Challenge Handling
@@ -82,7 +83,7 @@ import {
  */
 
 // Environment variables with defaults for development
-const RP_NAME = process.env.NEXT_PUBLIC_WEBAUTHN_RP_NAME || 'RxChat';
+const RP_NAME = process.env.NEXT_PUBLIC_WEBAUTHN_RP_NAME || getBrandName();
 const RP_ID = process.env.NEXT_PUBLIC_WEBAUTHN_RP_ID || 'localhost';
 const ORIGIN =
   process.env.NEXT_PUBLIC_WEBAUTHN_ORIGIN || 'http://localhost:3000';

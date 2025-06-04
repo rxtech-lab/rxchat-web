@@ -1,5 +1,6 @@
 import React from 'react';
 import Spinner from '@/components/spiner';
+import { getBrandName } from '@/lib/utils';
 
 /**
  * Simplified loading page component for NextJS app
@@ -19,7 +20,7 @@ export default function Loading() {
               size="xl"
               color="blue"
               className="relative z-10"
-              label="Loading RxChat..."
+              label={`Loading ${getBrandName()}...`}
             />
             {/* Pulse effect */}
             <div className="absolute inset-0 rounded-full border-4 border-primary/30 animate-ping" />
@@ -28,7 +29,7 @@ export default function Loading() {
 
         {/* Brand and slogan */}
         <h1 className="text-3xl font-bold text-foreground mb-2 animate-bounce">
-          RxChat
+          {getBrandName()}
         </h1>
         <p className="text-lg text-muted-foreground animate-pulse">
           Where conversations come to life

@@ -50,7 +50,7 @@ export function PromptList({
                 variant="outline"
                 className="flex items-center gap-2"
               >
-                <Plus className="w-4 h-4" />
+                <Plus className="size-4" />
                 Create your first prompt
               </Button>
             )}

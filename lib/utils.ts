@@ -8,6 +8,11 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+// Brand name configuration using environment variable with fallback
+export function getBrandName(): string {
+  return process.env.NEXT_PUBLIC_BRAND_NAME || 'RxChat';
+}
+
 export const fetcher = async (url: string) => {
   const response = await fetch(url);
 

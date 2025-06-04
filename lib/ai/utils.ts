@@ -1,4 +1,4 @@
-import type { Attachment, Message } from 'ai';
+import type { Message } from 'ai';
 import { providerSupportsDocuments, type ProviderType } from './models';
 
 /**

@@ -188,9 +188,11 @@ test.describe('Chat activity', () => {
   }) => {
     // Send a message that will trigger an error
     await chatPage.sendUserMessage('Trigger an error please');
+    await adaContext.page.waitForTimeout(1000);
 
     // Refresh the page
     await adaContext.page.reload();
+    await adaContext.page.waitForTimeout(1000);
 
     // Check that the user message is still visible after refresh
     const userMessage = await chatPage.getRecentUserMessage();
@@ -202,8 +204,11 @@ test.describe('Chat activity', () => {
     await chatPage.sendUserMessage('Why is the sky blue?');
     await chatPage.isGenerationComplete();
 
+    await adaContext.page.waitForTimeout(1000);
+
     // Refresh the page
     await adaContext.page.reload();
+    await adaContext.page.waitForTimeout(1000);
 
     // Check that the user message is still visible after refresh
     const userMessage = await chatPage.getRecentUserMessage();
