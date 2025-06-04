@@ -3,6 +3,7 @@ import { type ClassValue, clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import type { Document } from '@/lib/db/schema';
 import { ChatSDKError, type ErrorCode } from './errors';
+import { Chat } from '@/components/chat';
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -38,11 +39,11 @@ export async function fetchWithErrorHandlers(
 
     return response;
   } catch (error: unknown) {
+    console.error('Error fetching with error handlers:', error);
     if (typeof navigator !== 'undefined' && !navigator.onLine) {
       throw new ChatSDKError('offline:chat');
     }
-
-    throw error;
+    throw new ChatSDKError('bad_request:stream');
   }
 }
 

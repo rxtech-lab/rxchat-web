@@ -47,6 +47,7 @@ import {
 import { generateTitleFromUserMessage } from '../../actions';
 import { postRequestBodySchema, type PostRequestBody } from './schema';
 import { addToolResultToMessage } from '@/lib/ai/utils';
+import { testTool } from '@/lib/ai/tools/test-tool';
 
 export const maxDuration = 60;
 
@@ -275,6 +276,10 @@ export async function POST(request: Request) {
       `;
     }
     const model = provider.languageModel(selectedChatModel);
+    const testingTools: Record<string, any> = {};
+    if (isTestEnvironment) {
+      testingTools.testTool = testTool;
+    }
 
     const stream = createDataStream({
       execute: (dataStream) => {
@@ -309,6 +314,7 @@ export async function POST(request: Request) {
               session,
             }),
             ...mcpTools,
+            ...testingTools,
           },
           onFinish: async ({ response }) => {
             if (session.user?.id) {

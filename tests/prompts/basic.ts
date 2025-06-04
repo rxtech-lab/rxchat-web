@@ -23,6 +23,10 @@ export const TEST_PROMPTS: Record<string, CoreMessage> = {
     role: 'user',
     content: [{ type: 'text', text: 'Trigger an error please' }],
   },
+  USER_TOOL_CALL_ERROR: {
+    role: 'user',
+    content: [{ type: 'text', text: 'Trigger a tool call error please' }],
+  },
   USER_IMAGE_ATTACHMENT: {
     role: 'user',
     content: [
