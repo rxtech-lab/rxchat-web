@@ -639,11 +639,21 @@ export async function updatePrompt({
   prompt: Partial<Prompt>;
 }) {
   try {
-    return await db
+    const updatedPrompts = await db
       .update(prompt)
-      .set(newPrompt)
-      .where(eq(prompt.id, promptId));
+      .set({ ...newPrompt, updatedAt: new Date() })
+      .where(eq(prompt.id, promptId))
+      .returning();
+
+    if (updatedPrompts.length === 0) {
+      throw new ChatSDKError('bad_request:database', 'Prompt not found');
+    }
+
+    return updatedPrompts[0];
   } catch (error) {
+    if (error instanceof ChatSDKError) {
+      throw error;
+    }
     throw new ChatSDKError('bad_request:database', 'Failed to update prompt');
   }
 }

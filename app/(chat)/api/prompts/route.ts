@@ -108,7 +108,7 @@ export async function PATCH(request: Request) {
       ).toResponse();
     }
 
-    await updatePrompt({
+    const updatedPrompt = await updatePrompt({
       promptId: id,
       prompt: {
         title,
@@ -118,7 +118,7 @@ export async function PATCH(request: Request) {
       },
     });
 
-    return Response.json({ success: true }, { status: 200 });
+    return Response.json(updatedPrompt, { status: 200 });
   } catch (error) {
     return new ChatSDKError(
       'bad_request:database',

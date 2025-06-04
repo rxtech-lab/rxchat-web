@@ -3,7 +3,6 @@ import { type ClassValue, clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import type { Document } from '@/lib/db/schema';
 import { ChatSDKError, type ErrorCode } from './errors';
-import { Chat } from '@/components/chat';
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
