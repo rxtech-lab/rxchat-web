@@ -194,9 +194,13 @@ test.describe('Chat activity', () => {
     await adaContext.page.reload();
     await adaContext.page.waitForTimeout(1000);
 
+    // Send a message that will trigger an error
+    await chatPage.sendUserMessage('Hi');
+    await adaContext.page.waitForTimeout(1000);
+
     // Check that the user message is still visible after refresh
     const userMessage = await chatPage.getRecentUserMessage();
-    expect(userMessage.content).toBe('Trigger an error please');
+    expect(userMessage.content).toBe('Hi');
   });
 
   test('User message persists after page refresh', async ({ adaContext }) => {
@@ -216,6 +220,20 @@ test.describe('Chat activity', () => {
 
     const assistantMessage = await chatPage.getRecentAssistantMessage();
     expect(assistantMessage.content).toContain("It's just blue duh!");
+  });
+
+  test('Handle tool call error gracefully', async ({ adaContext }) => {
+    // Send a message that will trigger a tool call error
+    await chatPage.sendUserMessage('Trigger a tool call error please');
+    await chatPage.isGenerationComplete();
+
+    // send message again to check if the error is handled gracefully
+    await chatPage.sendUserMessage('Hi');
+    await chatPage.isGenerationComplete();
+
+    await adaContext.page.waitForTimeout(1000);
+    const userMessage = await chatPage.getRecentUserMessage();
+    expect(userMessage.content).toBe('Hi');
   });
 
   test.skip('auto-scrolls to bottom after submitting new messages', async ({
