@@ -5,11 +5,12 @@ import { Toaster } from 'sonner';
 import { Analytics } from '@vercel/analytics/next';
 import { SpeedInsights } from '@vercel/speed-insights/next';
 import { SessionProvider } from 'next-auth/react';
+import { getBrandName } from '@/lib/utils';
 import './globals.css';
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://chat.vercel.ai'),
-  title: 'RxChat',
+  title: getBrandName(),
   description: 'Next Generation MCP router enabled chat app',
 };
 
