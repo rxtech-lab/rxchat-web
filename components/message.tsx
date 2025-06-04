@@ -272,7 +272,12 @@ const PurePreviewMessage = ({
                 return (
                   <Collapsible key={toolCallId}>
                     <CollapsibleTrigger className="flex items-center gap-2 p-3 hover:bg-muted rounded-lg border w-full text-left">
-                      <span className="font-medium">{toolName}</span>
+                      {/* Display tool name with identifier if present, otherwise just tool name */}
+                      <span className="font-medium">
+                        {toolInvocation.identifier
+                          ? `${toolName} - ${toolInvocation.identifier}`
+                          : toolName}
+                      </span>
                       <span className="text-xs px-2 py-1 rounded">
                         {state === 'call' ? (
                           status === 'streaming' ? (
