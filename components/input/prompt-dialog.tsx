@@ -110,11 +110,16 @@ export function PromptDialog({ currentPrompt }: PromptDialogProps) {
 
     setSubmitting(true);
     try {
-      await updatePrompt(editingPrompt.id, data);
-      setViewMode('list');
-      setEditingPrompt(null);
-      formDataRef.current = null;
-      setFormValid(false);
+      const updatedPrompt = await updatePrompt(editingPrompt.id, data);
+      // Keep dialog open and update the editing prompt with the latest data
+      // Since updatePrompt returns the updated prompt from the server, use that
+      const refreshedPrompts = prompts.find(p => p.id === editingPrompt.id);
+      if (refreshedPrompts) {
+        setEditingPrompt(refreshedPrompts);
+      }
+      // Keep current form data since user might want to make more changes
+      formDataRef.current = data;
+      setFormValid(true);
     } finally {
       setSubmitting(false);
       router.refresh();
