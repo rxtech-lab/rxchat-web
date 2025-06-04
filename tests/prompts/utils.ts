@@ -70,6 +70,33 @@ export const getResponseChunksByPrompt = (
     throw new Error('Model encountered an error');
   }
 
+  // Handle tool call error trigger prompt
+  if (compareMessages(recentMessage, TEST_PROMPTS.USER_TOOL_CALL_ERROR)) {
+    return [
+      {
+        type: 'tool-call',
+        toolCallId: 'call_error_123',
+        toolName: 'testTool',
+        toolCallType: 'function',
+        args: JSON.stringify({ message: 'error' }),
+      },
+      {
+        type: 'error',
+        error:
+          'Tool call failed: This is a simulated tool error for testing purposes',
+      },
+      ...textToDeltas(
+        'I encountered an error while trying to call a tool, but I can still respond to you.',
+      ),
+      {
+        type: 'finish',
+        finishReason: 'stop',
+        logprobs: undefined,
+        usage: { completionTokens: 20, promptTokens: 5 },
+      },
+    ];
+  }
+
   if (isReasoningEnabled) {
     if (compareMessages(recentMessage, TEST_PROMPTS.USER_SKY)) {
       return [

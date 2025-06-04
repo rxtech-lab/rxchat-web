@@ -10,7 +10,7 @@ jobs:
   test:
     timeout-minutes: 60
     runs-on: ubuntu-latest
-    if: github.event.deployment_status.state == 'success' && github.ref != 'refs/heads/main'
+    if: github.event.deployment_status.state == 'success' && github.event.deployment_status.environment != 'Production'
     container:
       image: mcr.microsoft.com/playwright:v1.52.0-noble
       options: --user 1001
