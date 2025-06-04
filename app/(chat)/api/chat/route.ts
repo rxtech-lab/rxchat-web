@@ -242,7 +242,7 @@ export async function POST(request: Request) {
     await createStreamId({ streamId, chatId: id });
 
     // Use cached MCP tools for better performance
-    const { tools: mcpTools } = await getMCPTools();
+    const { tools: mcpTools, client: mcpClient } = await getMCPTools();
 
     let defaultSystemPrompt = await systemPrompt({
       selectedChatModel,
@@ -336,6 +336,7 @@ export async function POST(request: Request) {
             ...testingTools,
           },
           onFinish: async ({ response }) => {
+            mcpClient?.close();
             if (session.user?.id) {
               try {
                 const assistantId = getTrailingMessageId({
