@@ -1,7 +1,12 @@
-import { expect as baseExpect, test as baseTest } from '@playwright/test';
+import {
+  expect as baseExpect,
+  test as baseTest,
+  type Page,
+} from '@playwright/test';
 import {
   createAuthenticatedContext,
   createPasskeyAuthenticatedContext,
+  getRealWorldTestUrl,
   type PasskeyAuthenticatedContext,
   type UserContext,
 } from './helpers';
@@ -12,9 +17,27 @@ interface Fixtures {
   babbageContext: UserContext;
   curieContext: UserContext;
   passkeyContext: PasskeyAuthenticatedContext;
+  realworldContext: { page: Page; context: any; baseUrl: string };
 }
 
 export const test = baseTest.extend<{}, Fixtures>({
+  realworldContext: [
+    async ({ browser }, use, workerInfo) => {
+      const baseUrl = await getRealWorldTestUrl();
+      const context = await browser.newContext();
+      const page = await context.newPage();
+
+      // Add Vercel protection bypass header to all requests
+      await page.setExtraHTTPHeaders({
+        'x-vercel-protection-bypass':
+          process.env.VERCEL_AUTOMATION_BYPASS_SECRET || 'bypass',
+      });
+
+      await use({ page, context, baseUrl });
+      await context.close();
+    },
+    { scope: 'worker' },
+  ],
   passkeyContext: [
     async ({ browser }, use, workerInfo) => {
       const passkey = await createPasskeyAuthenticatedContext({

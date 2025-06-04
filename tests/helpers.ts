@@ -212,3 +212,10 @@ export function generateRandomTestUser() {
     password,
   };
 }
+
+export async function getRealWorldTestUrl() {
+  if (process.env.PLAYWRIGHT_TEST_BASE_URL) {
+    return process.env.PLAYWRIGHT_TEST_BASE_URL;
+  }
+  return 'http://localhost:3000';
+}

@@ -17,7 +17,8 @@
     "db:pull": "drizzle-kit pull",
     "db:check": "drizzle-kit check",
     "db:up": "drizzle-kit up",
-    "test": "export PLAYWRIGHT=True && pnpm exec playwright test",
+    "test": "export PLAYWRIGHT=True && pnpm exec playwright test tests",
+    "test:e2e": "export PLAYWRIGHT=True && pnpm exec playwright test deployment-e2e",
     "test:unit": "jest --forceExit",
     "test:unit:watch": "jest --watch",
     "test:unit:coverage": "jest --coverage"
@@ -128,7 +129,7 @@
     "@babel/preset-react": "^7.27.1",
     "@babel/preset-typescript": "^7.27.1",
     "@biomejs/biome": "1.9.4",
-    "@playwright/test": "^1.50.1",
+    "@playwright/test": "^1.52.0",
     "@tailwindcss/typography": "^0.5.15",
     "@types/d3-scale": "^4.0.8",
     "@types/jest": "^29.5.8",
