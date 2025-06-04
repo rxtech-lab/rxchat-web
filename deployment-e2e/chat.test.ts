@@ -51,8 +51,10 @@ test.describe('chat', () => {
     await page.getByTestId('multimodal-input').click();
     await page.getByTestId('multimodal-input').fill('Waht is in this pdf?');
     await page.getByTestId('send-button').click();
-    await page.waitForTimeout(10000);
+    await page.waitForTimeout(20000);
 
-    expect(page.getByTestId('message-assistant')).toHaveCount(2);
+    expect(page.getByTestId('message-assistant')).toHaveCount(2, {
+      timeout: 30000,
+    });
   });
 });

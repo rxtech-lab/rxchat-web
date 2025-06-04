@@ -46,7 +46,7 @@ describe('Document Summary Generation Logic', () => {
       'This is a test document about artificial intelligence and machine learning technologies.';
     const expectedSummary = 'Document about AI and ML technologies';
 
-    mockGenerateText.mockResolvedValue({ 
+    mockGenerateText.mockResolvedValue({
       text: expectedSummary,
       reasoning: undefined,
       files: [],
@@ -55,12 +55,17 @@ describe('Document Summary Generation Logic', () => {
       usage: { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
       finishReason: 'stop',
       logprobs: undefined,
-      response: { id: 'test', timestamp: new Date(), modelId: 'test', messages: [] },
+      response: {
+        id: 'test',
+        timestamp: new Date(),
+        modelId: 'test',
+        messages: [],
+      },
       warnings: undefined,
       providerMetadata: undefined,
       steps: [],
       request: { body: '' },
-      rawResponse: { headers: {} }
+      rawResponse: { headers: {} },
     } as any);
 
     // Test the AI generation call pattern
@@ -71,9 +76,9 @@ describe('Document Summary Generation Logic', () => {
       defaultObjectGenerationMode: 'auto' as const,
       stream: jest.fn(),
       doGenerate: jest.fn(),
-      doStream: jest.fn()
+      doStream: jest.fn(),
     };
-    
+
     const result = await generateText({
       model: mockModel as any,
       system: expect.stringContaining('generate a concise summary'),
@@ -96,9 +101,9 @@ describe('Document Summary Generation Logic', () => {
         defaultObjectGenerationMode: 'auto' as const,
         stream: jest.fn(),
         doGenerate: jest.fn(),
-        doStream: jest.fn()
+        doStream: jest.fn(),
       };
-      
+
       await generateText({
         model: mockModel as any,
         system: '',

@@ -15,7 +15,10 @@ jest.mock('@/lib/constants', () => ({
   MAX_K: 10,
 }));
 
-import { searchDocuments, searchDocumentsById } from '@/lib/document/actions/action_server';
+import {
+  searchDocuments,
+  searchDocumentsById,
+} from '@/lib/document/actions/action_server';
 
 const mockSearchDocuments = searchDocuments as jest.MockedFunction<
   typeof searchDocuments
@@ -120,7 +123,8 @@ describe('searchDocumentsTool', () => {
     });
 
     expect(result).toEqual({
-      message: 'Found 1 relevant section(s) in the document matching your search query.',
+      message:
+        'Found 1 relevant section(s) in the document matching your search query.',
       results: [
         {
           id: 'doc-1',
@@ -165,7 +169,8 @@ describe('searchDocumentsTool', () => {
     );
 
     expect(result).toEqual({
-      message: 'No content found in the specified document matching your search query.',
+      message:
+        'No content found in the specified document matching your search query.',
       results: [],
     });
   });

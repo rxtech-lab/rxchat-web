@@ -1,5 +1,5 @@
 import { filterDocumentAttachments } from './utils';
-import type { Message, } from 'ai';
+import type { Message } from 'ai';
 
 describe('filterDocumentAttachments', () => {
   const mockMessages: Message[] = [

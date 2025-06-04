@@ -1,4 +1,7 @@
-import { searchDocuments, searchDocumentsById } from '@/lib/document/actions/action_server';
+import {
+  searchDocuments,
+  searchDocumentsById,
+} from '@/lib/document/actions/action_server';
 import type { VectorStoreDocument } from '@/lib/db/schema';
 import { MAX_K } from '@/lib/constants';
 import { tool } from 'ai';
@@ -32,7 +35,7 @@ export const searchDocumentsTool = ({ session }: SearchDocumentsProps) =>
     execute: async ({ query, documentId, limit = MAX_K }) => {
       try {
         let documents: VectorStoreDocument[];
-        
+
         if (documentId) {
           // Search within a specific document
           documents = await searchDocumentsById({
