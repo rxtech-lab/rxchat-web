@@ -20,6 +20,7 @@ import { MessageEditor } from './message-editor';
 import { MessageReasoning } from './message-reasoning';
 import { PreviewAttachment } from './preview-attachment';
 import Spinner from './spiner';
+import { ToolInvocationHeader } from './tool-invocation-header';
 import { Button } from './ui/button';
 import {
   Collapsible,
@@ -271,26 +272,12 @@ const PurePreviewMessage = ({
 
                 return (
                   <Collapsible key={toolCallId}>
-                    <CollapsibleTrigger className="flex items-center gap-2 p-3 hover:bg-muted rounded-lg border w-full text-left">
-                      <span className="font-medium">{toolName}</span>
-                      <span className="text-xs px-2 py-1 rounded">
-                        {state === 'call' ? (
-                          status === 'streaming' ? (
-                            <Spinner
-                              className="text-green-400 color-green-400"
-                              size="sm"
-                              color="black"
-                            />
-                          ) : (
-                            <CircleAlertIcon
-                              size={16}
-                              className="text-red-600"
-                            />
-                          )
-                        ) : (
-                          <CheckIcon size={16} className="text-green-600" />
-                        )}
-                      </span>
+                    <CollapsibleTrigger className="flex items-center gap-3 p-4 hover:bg-muted/50 rounded-lg border w-full text-left transition-colors">
+                      <ToolInvocationHeader
+                        toolName={toolName}
+                        toolInvocation={toolInvocation}
+                        status={status}
+                      />
                     </CollapsibleTrigger>
                     <CollapsibleContent className="mt-2">
                       <Tabs defaultValue={state} className="w-full">
