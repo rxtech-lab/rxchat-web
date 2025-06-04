@@ -1,60 +1,46 @@
-import { expect } from '@playwright/test';
 import { test } from '../tests/fixtures';
-import path from 'node:path';
+import { DeploymentPage } from '../tests/pages/deployment';
 
 test.describe('chat', () => {
-  test('login and chat with pdf', async ({ realworldContext }) => {
+  let deploymentPage: DeploymentPage;
+
+  test.beforeEach(async ({ realworldContext }) => {
     const { page, baseUrl } = realworldContext;
+    deploymentPage = new DeploymentPage(page, baseUrl);
+  });
 
-    await page.goto(`${baseUrl}/login`);
-    await page.getByRole('textbox', { name: 'Email Address' }).click();
-    await page
-      .getByRole('textbox', { name: 'Email Address' })
-      // biome-ignore lint/style/noNonNullAssertion: <explanation>
-      .fill(process.env.TEST_USER_USERNAME!);
-    await page.getByText('Password').click();
-    await page
-      .getByRole('textbox', { name: 'Password' })
-      // biome-ignore lint/style/noNonNullAssertion: <explanation>
-      .fill(process.env.TEST_USER_PASSWORD!);
-    await page.getByRole('button', { name: 'Sign in', exact: true }).click();
-    await page.waitForLoadState('networkidle');
-    expect(page.getByTestId('multimodal-input')).toBeVisible();
-    expect(page.getByTestId('model-selector')).toBeVisible();
-    await page.getByTestId('model-selector').click();
-    await page.waitForTimeout(1000);
+  test('login and chat with pdf', async () => {
+    // Complete initial login and chat flow
+    await deploymentPage.completeInitialFlow(
+      'gemini',
+      'google/gemini-2.5-flash-preview-05-20',
+    );
 
-    await page.getByPlaceholder('Search models...').click();
-    await page.waitForTimeout(1000);
-    await page.getByPlaceholder('Search models...').fill('gemini');
-    await page.waitForTimeout(1000);
-    await page
-      .getByTestId('model-selector-item-google/gemini-2.5-flash-preview-05-20')
-      .click();
-    await page.waitForTimeout(1000);
-    await page.getByTestId('multimodal-input').click();
-    await page.getByTestId('multimodal-input').fill('Hi~');
-    await page.getByTestId('send-button').click();
-    await page.waitForTimeout(10000);
+    await deploymentPage.sendMessage('Hi~');
+    await deploymentPage.waitForAssistantMessages(1);
 
-    // wait for the message to be sent
-    expect(page.getByTestId('message-assistant')).toHaveCount(1);
+    // Send message with PDF attachment
+    await deploymentPage.sendMessageWithAttachment(
+      'mcp.pdf',
+      'Waht is in this pdf?',
+    );
 
-    // file picker
-    const fileChooserPromise = page.waitForEvent('filechooser');
-    await page.getByTestId('attachments-button').click();
-    const fileChooser = await fileChooserPromise;
-    await fileChooser.setFiles(path.join(__dirname, 'mcp.pdf'));
+    // Verify we have 2 assistant messages
+    await deploymentPage.waitForAssistantMessages(2);
+  });
 
-    await page.waitForTimeout(8000);
-    expect(await page.getByTestId('input-attachment-preview')).toBeVisible();
-    await page.getByTestId('multimodal-input').click();
-    await page.getByTestId('multimodal-input').fill('Waht is in this pdf?');
-    await page.getByTestId('send-button').click();
-    await page.waitForTimeout(20000);
+  test('invoke tools ', async () => {
+    // Complete initial login and chat flow
+    await deploymentPage.completeInitialFlow(
+      'gemini',
+      'google/gemini-2.5-pro-preview',
+    );
 
-    expect(page.getByTestId('message-assistant')).toHaveCount(2, {
-      timeout: 30000,
-    });
+    await deploymentPage.sendMessage('What is the current bitcoin trend?');
+    await deploymentPage.waitForAssistantMessages(1, 20000);
+
+    await deploymentPage.sendMessage('Summarize the current bitcoin trend');
+    // Verify we have 2 assistant messages
+    await deploymentPage.waitForAssistantMessages(2, 20000);
   });
 });
