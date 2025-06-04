@@ -54,7 +54,10 @@ export function ToolInvocationHeader({
         {(args?.identifier || args?.query) && (
           <div className="flex items-center gap-2 min-w-0">
             <span className="text-muted-foreground text-xs">→</span>
-            <span className="text-xs text-foreground/80 font-mono bg-muted/50 px-2 py-0.5 rounded max-w-xs truncate overflow-hidden">
+            <span
+              className="text-xs text-foreground/80 font-mono bg-muted/50 px-2 py-0.5 rounded max-w-xs truncate overflow-hidden"
+              title={args?.identifier || args?.query}
+            >
               {args?.identifier || args?.query}
             </span>
           </div>
