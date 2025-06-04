@@ -5,7 +5,10 @@ const tsJestTransformCfg = createDefaultPreset().transform;
 /** @type {import('jest').Config} */
 module.exports = {
   testEnvironment: 'node',
-  transformIgnorePatterns: ['<rootDir>/node_modules/(?!bcrypt-ts/)'],
+  transformIgnorePatterns: [
+    '<rootDir>/node_modules/(?!bcrypt-ts/)',
+    '<rootDir>/tests/*.spec.ts',
+  ],
   testMatch: ['**/*.spec.ts', '**/*.spec.tsx', '**/*.spec.js', '**/*.spec.jsx'],
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/$1',

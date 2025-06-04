@@ -1,0 +1,39 @@
+name: Deployment E2E Tests
+on:
+  deployment_status:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  test:
+    timeout-minutes: 60
+    runs-on: ubuntu-latest
+    if: github.event.deployment_status.state == 'success'
+    container:
+      image: mcr.microsoft.com/playwright:v1.52.0-noble
+      options: --user 1001
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Run Playwright tests
+        run: npx playwright test 'deployment-e2e'
+        env:
+          PLAYWRIGHT_TEST_BASE_URL: ${{ github.event.deployment_status.target_url }}
+          TEST_USER_USERNAME: ${{ secrets.TEST_USER_USERNAME }}
+          TEST_USER_PASSWORD: ${{ secrets.TEST_USER_PASSWORD }}
+          VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 1

@@ -7,7 +7,7 @@ import { defineConfig, devices } from '@playwright/test';
 import { config } from 'dotenv';
 
 config({
-  path: '.env.local',
+  path: '.env.test',
 });
 
 /* Use process.env.PORT by default and fallback to port 3000 */
@@ -61,6 +61,15 @@ export default defineConfig({
     {
       name: 'routes',
       testMatch: /routes\/.*.test.ts/,
+      use: {
+        ...devices['Desktop Chrome'],
+      },
+    },
+    {
+      name: 'realworld',
+      testDir: './deployment-e2e',
+      testMatch: /.*.test.ts/,
+      retries: 1,
       use: {
         ...devices['Desktop Chrome'],
       },
