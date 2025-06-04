@@ -18,7 +18,8 @@ test.describe('chat', () => {
       // biome-ignore lint/style/noNonNullAssertion: <explanation>
       .fill(process.env.TEST_USER_PASSWORD!);
     await page.getByRole('button', { name: 'Sign in', exact: true }).click();
-
+    await page.waitForLoadState('networkidle');
+    expect(page.getByTestId('multimodal-input')).toBeVisible();
     expect(page.getByTestId('model-selector')).toBeVisible();
     await page.getByTestId('model-selector').click();
     await page.waitForTimeout(1000);

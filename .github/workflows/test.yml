@@ -3,7 +3,7 @@ name: Unit Tests
 on: push
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.ref != 'refs/heads/main' && format('{0}-{1}', github.workflow, github.ref) || '' }}
   cancel-in-progress: true
 
 jobs:
