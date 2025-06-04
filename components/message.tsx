@@ -7,7 +7,6 @@ import type { UIMessage } from 'ai';
 import cx from 'classnames';
 import equal from 'fast-deep-equal';
 import { AnimatePresence, motion } from 'framer-motion';
-import { CheckIcon, CircleAlertIcon } from 'lucide-react';
 import { memo, useState } from 'react';
 import { CodeView } from './code-view';
 import { DocumentToolCall, DocumentToolResult } from './document';
@@ -19,7 +18,6 @@ import { MessageActions } from './message-actions';
 import { MessageEditor } from './message-editor';
 import { MessageReasoning } from './message-reasoning';
 import { PreviewAttachment } from './preview-attachment';
-import Spinner from './spiner';
 import { ToolInvocationHeader } from './tool-invocation-header';
 import { Button } from './ui/button';
 import {
