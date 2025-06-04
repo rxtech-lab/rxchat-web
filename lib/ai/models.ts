@@ -195,7 +195,10 @@ export function getAzureModels(
  * @param modelId - The specific model ID within the provider
  * @returns boolean indicating if the provider/model supports document uploads
  */
-export function providerSupportsDocuments(providerType: ProviderType, modelId?: string): boolean {
+export function providerSupportsDocuments(
+  providerType: ProviderType,
+  modelId?: string,
+): boolean {
   // Currently, only openRouter provider supports document uploads for all models
   // Other providers don't support it for now
   switch (providerType) {

@@ -6,18 +6,20 @@ import { useState } from 'react';
 
 // Helper function to determine if a content type represents a document
 const isDocumentContentType = (contentType: string): boolean => {
-  return contentType === 'document' || 
-         contentType === 'application/pdf' ||
-         contentType === 'text/plain' ||
-         contentType === 'text/markdown' ||
-         contentType === 'text/html' ||
-         contentType === 'text/css' ||
-         contentType === 'application/javascript' ||
-         contentType === 'application/json' ||
-         contentType === 'text/xml' ||
-         contentType === 'text/csv' ||
-         contentType === 'application/x-yaml' ||
-         contentType === 'text/yaml';
+  return (
+    contentType === 'document' ||
+    contentType === 'application/pdf' ||
+    contentType === 'text/plain' ||
+    contentType === 'text/markdown' ||
+    contentType === 'text/html' ||
+    contentType === 'text/css' ||
+    contentType === 'application/javascript' ||
+    contentType === 'application/json' ||
+    contentType === 'text/xml' ||
+    contentType === 'text/csv' ||
+    contentType === 'application/x-yaml' ||
+    contentType === 'text/yaml'
+  );
 };
 
 export const PreviewAttachment = ({

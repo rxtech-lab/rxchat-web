@@ -156,7 +156,9 @@ describe('UpstashVectorStore', () => {
 
       mockIndex.query.mockResolvedValue(mockResults);
 
-      const results = await vectorStore.searchDocumentById(documentId, query, { limit: 5 });
+      const results = await vectorStore.searchDocumentById(documentId, query, {
+        limit: 5,
+      });
 
       expect(mockIndex.query).toHaveBeenCalledTimes(1);
       expect(mockIndex.query).toHaveBeenCalledWith(
@@ -184,7 +186,10 @@ describe('UpstashVectorStore', () => {
 
       mockIndex.query.mockResolvedValue([]);
 
-      await vectorStore.searchDocumentById(documentId, query, { userId, limit: 3 });
+      await vectorStore.searchDocumentById(documentId, query, {
+        userId,
+        limit: 3,
+      });
 
       expect(mockIndex.query).toHaveBeenCalledTimes(1);
       expect(mockIndex.query).toHaveBeenCalledWith(

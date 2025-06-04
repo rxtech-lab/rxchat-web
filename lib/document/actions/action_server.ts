@@ -239,7 +239,11 @@ export async function searchDocumentsById({
     throw new ChatSDKError('unauthorized:document');
   }
 
-  const parsed = SearchDocumentsByIdSchema.safeParse({ documentId, query, limit });
+  const parsed = SearchDocumentsByIdSchema.safeParse({
+    documentId,
+    query,
+    limit,
+  });
 
   if (!parsed.success) {
     throw new ChatSDKError('bad_request:api', 'Invalid search parameters');
@@ -253,7 +257,7 @@ export async function searchDocumentsById({
       {
         userId: session.user.id,
         limit: parsed.data.limit,
-      }
+      },
     );
 
     let documents = await getDocumentsByIds({
@@ -277,7 +281,10 @@ export async function searchDocumentsById({
     if (error instanceof ChatSDKError) {
       throw error;
     }
-    throw new ChatSDKError('bad_request:api', 'Failed to search documents by ID');
+    throw new ChatSDKError(
+      'bad_request:api',
+      'Failed to search documents by ID',
+    );
   }
 }
 
