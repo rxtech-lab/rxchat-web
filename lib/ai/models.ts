@@ -11,6 +11,11 @@ export interface ChatModel {
   description: string;
 }
 
+export interface AnthropicModel {
+  id: string;
+  display_name: string;
+}
+
 export const ProviderTypeSchema = z.enum([
   'openAI',
   'openRouter',
@@ -152,11 +157,28 @@ export function getGeminiModels(
   return [];
 }
 
-export function getAnthropicModels(
+export async function getAnthropicModels(
   userEntitlements: Entitlements,
-): Array<ChatModel> {
-  // Placeholder implementation
-  return [];
+): Promise<Array<AnthropicModel>> {
+  const modelResponse = await fetch('https://api.anthropic.com/v1/models', {
+    headers: {
+      // biome-ignore lint/style/noNonNullAssertion: <explanation>
+      'x-api-key': process.env.ANTHROPIC_API_KEY!,
+      'anthropic-version': '2023-06-01',
+    },
+    method: 'GET',
+    cache: 'force-cache',
+    next: {
+      revalidate: 60 * 60 * 24, // 24 hours
+    },
+  });
+
+  const data = await modelResponse.json();
+  if (!modelResponse.ok) {
+    throw new Error(`Anthropic API error: ${data.error.message}`);
+  }
+  const models = data.data as Array<AnthropicModel>;
+  return models;
 }
 
 export function getAzureModels(
@@ -256,10 +278,19 @@ export async function getFilteredProviders(
         }));
         break;
       }
-      case 'anthropic':
-        filteredProviders.anthropic.models =
-          getAnthropicModels(userEntitlements);
+      case 'anthropic': {
+        const models = await getAnthropicModels(userEntitlements);
+        filteredProviders.anthropic.models = models
+          .map((model) => ({
+            id: model.id,
+            name: model.display_name,
+            description: model.display_name,
+          }))
+          .filter((model) => {
+            return !model.name.toLowerCase().includes('opus'); // don't allow opus models
+          });
         break;
+      }
       case 'azure':
         filteredProviders.azure.models = getAzureModels(userEntitlements);
         break;

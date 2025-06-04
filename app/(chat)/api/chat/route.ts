@@ -35,6 +35,7 @@ import {
   appendClientMessage,
   appendResponseMessages,
   createDataStream,
+  NoSuchToolError,
   smoothStream,
   streamText,
 } from 'ai';
@@ -289,6 +290,32 @@ export async function POST(request: Request) {
           messages,
           maxSteps: 20,
           experimental_transform: smoothStream({ chunking: 'word' }),
+          experimental_repairToolCall: async ({
+            toolCall,
+            tools,
+            parameterSchema,
+            error,
+          }) => {
+            if (NoSuchToolError.isInstance(error)) {
+              return null;
+            }
+
+            if (toolCall.toolName === 'useTool') {
+              if (Object.is(toolCall.args, '')) {
+                const args = toolCall.args as unknown as Record<string, any>;
+                if (typeof args.input === 'string') {
+                  return {
+                    ...toolCall,
+                    args: {
+                      ...args,
+                      input: JSON.parse(args.input),
+                    } as any,
+                  };
+                }
+              }
+            }
+            return toolCall;
+          },
           experimental_generateMessageId: generateUUID,
           tools: {
             getWeather,
