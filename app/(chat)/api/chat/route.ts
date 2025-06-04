@@ -12,8 +12,13 @@ import { createDocument } from '@/lib/ai/tools/create-document';
 import { getWeather } from '@/lib/ai/tools/get-weather';
 import { requestSuggestions } from '@/lib/ai/tools/request-suggestions';
 import { searchDocumentsTool } from '@/lib/ai/tools/search-documents';
+import { searchWeb } from '@/lib/ai/tools/search-web';
+import { testTool } from '@/lib/ai/tools/test-tool';
 import { updateDocument } from '@/lib/ai/tools/update-document';
-import { filterDocumentAttachments } from '@/lib/ai/utils';
+import {
+  addToolResultToMessage,
+  filterDocumentAttachments,
+} from '@/lib/ai/utils';
 import { isProductionEnvironment, isTestEnvironment } from '@/lib/constants';
 import {
   createStreamId,
@@ -47,11 +52,8 @@ import {
 } from 'resumable-stream';
 import { generateTitleFromUserMessage } from '../../actions';
 import { postRequestBodySchema, type PostRequestBody } from './schema';
-import { addToolResultToMessage } from '@/lib/ai/utils';
-import { testTool } from '@/lib/ai/tools/test-tool';
-import { searchWeb } from '@/lib/ai/tools/search-web';
 
-export const maxDuration = 60;
+export const maxDuration = 800;
 
 let globalStreamContext: ResumableStreamContext | null = null;
 
