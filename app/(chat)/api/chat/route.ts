@@ -49,6 +49,7 @@ import { generateTitleFromUserMessage } from '../../actions';
 import { postRequestBodySchema, type PostRequestBody } from './schema';
 import { addToolResultToMessage } from '@/lib/ai/utils';
 import { testTool } from '@/lib/ai/tools/test-tool';
+import { searchWeb } from '@/lib/ai/tools/search-web';
 
 export const maxDuration = 60;
 
@@ -288,7 +289,7 @@ export async function POST(request: Request) {
           model,
           system: defaultSystemPrompt,
           messages,
-          maxSteps: 20,
+          maxSteps: 30,
           experimental_transform: smoothStream({ chunking: 'word' }),
           experimental_repairToolCall: async ({
             toolCall,
@@ -340,6 +341,7 @@ export async function POST(request: Request) {
             searchDocuments: searchDocumentsTool({
               session,
             }),
+            searchWeb: searchWeb(),
             ...mcpTools,
             ...testingTools,
           },
