@@ -10,6 +10,7 @@ import {
   titleModel as titleModelTest,
 } from './models.test';
 import { createAzure } from '@ai-sdk/azure';
+import { createAnthropic } from '@ai-sdk/anthropic';
 
 /**
  * Get a provider for a given model and provider type
@@ -62,8 +63,23 @@ export function getModelProvider(
         },
       });
     }
-    case 'anthropic':
-      throw new Error('Anthropic is not supported yet');
+    case 'anthropic': {
+      const anthropicProvider = createAnthropic({
+        apiKey: process.env.ANTHROPIC_API_KEY,
+      });
+      const chatModel = anthropicProvider(modelId);
+      const titleModel = anthropicProvider(modelId);
+      const artifactModel = anthropicProvider(modelId);
+      return customProvider({
+        languageModels: {
+          'chat-model': chatModel,
+          'title-model': titleModel,
+          'artifact-model': artifactModel,
+          [modelId]: chatModel,
+        },
+      });
+    }
+
     case 'azure': {
       const azureProvider = createAzure({
         apiKey: process.env.AZURE_API_KEY,
