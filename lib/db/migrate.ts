@@ -8,6 +8,12 @@ config({
 });
 
 const runMigrate = async () => {
+  // Skip migration in CI or when explicitly disabled
+  if (process.env.CI || process.env.SKIP_MIGRATION === 'true') {
+    console.log('⏭️  Skipping migrations in CI environment');
+    process.exit(0);
+  }
+
   if (!process.env.POSTGRES_URL) {
     throw new Error('POSTGRES_URL is not defined');
   }
