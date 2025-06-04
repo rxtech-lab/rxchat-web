@@ -46,6 +46,7 @@ import {
 } from 'resumable-stream';
 import { generateTitleFromUserMessage } from '../../actions';
 import { postRequestBodySchema, type PostRequestBody } from './schema';
+import { addToolResultToMessage } from '@/lib/ai/utils';
 
 export const maxDuration = 60;
 
@@ -329,7 +330,7 @@ export async function POST(request: Request) {
 
                 await saveMessages({
                   messages: [
-                    {
+                    addToolResultToMessage({
                       id: assistantId,
                       chatId: id,
                       role: assistantMessage.role,
@@ -337,7 +338,7 @@ export async function POST(request: Request) {
                       attachments:
                         assistantMessage.experimental_attachments ?? [],
                       createdAt: new Date(),
-                    },
+                    } as any) as any,
                   ],
                 });
               } catch (_) {

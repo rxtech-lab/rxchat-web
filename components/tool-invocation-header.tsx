@@ -26,6 +26,10 @@ export function ToolInvocationHeader({
   const { args, state } = toolInvocation;
 
   const renderStatusIcon = () => {
+    if (toolInvocation.state === 'failed') {
+      return <CircleAlertIcon size={16} className="text-red-600" />;
+    }
+
     if (state === 'call') {
       return status === 'streaming' ? (
         <Spinner
