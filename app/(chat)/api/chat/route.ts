@@ -54,8 +54,6 @@ import { searchWeb } from '@/lib/ai/tools/search-web';
 export const maxDuration = 60;
 
 let globalStreamContext: ResumableStreamContext | null = null;
-let globalMCPTools: Record<string, any> | null = null;
-let globalMCPClient: any | null = null;
 
 function getStreamContext() {
   if (!globalStreamContext) {
@@ -82,18 +80,10 @@ async function getMCPTools() {
     return { tools: {}, client: null };
   }
 
-  if (!globalMCPTools || !globalMCPClient) {
-    try {
-      globalMCPClient = await createMCPClient();
-      globalMCPTools = await globalMCPClient.tools();
-      console.log(' > MCP tools cached globally');
-    } catch (error) {
-      console.error('Failed to initialize MCP tools:', error);
-      return { tools: {}, client: null };
-    }
-  }
+  const mcpClient = await createMCPClient();
+  const mcpTools = await mcpClient.tools();
 
-  return { tools: globalMCPTools, client: globalMCPClient };
+  return { tools: mcpTools, client: mcpClient };
 }
 
 export async function POST(request: Request) {
