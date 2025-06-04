@@ -41,7 +41,7 @@ export const regularPrompt = `
   If you think it is related to knowledge base, use searchDocuments tool to find the relevant documents.
   Otherwise, use query tool to find the appropriate tools to use or you think the document is not relevant to the user's request.
   **Important**: If user attached a document/pdf, and ask what is in the document, then you do not need to use searchDocuments tool.
-  **Important** Always use query to first then call useTool to use the tool.
+  **Important** Always use query to first, then call schema to get the input and output of the tool, then use the tool.
   `;
 
 export interface RequestHints {
