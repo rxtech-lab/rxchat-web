@@ -3,7 +3,7 @@ on:
   deployment_status:
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.event.deployment_status.environment_url }}
   cancel-in-progress: true
 
 jobs:
