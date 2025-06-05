@@ -25,6 +25,7 @@ import { imageArtifact } from '@/artifacts/image/client';
 import { codeArtifact } from '@/artifacts/code/client';
 import { sheetArtifact } from '@/artifacts/sheet/client';
 import { textArtifact } from '@/artifacts/text/client';
+import { flowchartArtifact } from '@/artifacts/flowchart/client';
 import equal from 'fast-deep-equal';
 import type { UseChatHelpers } from '@ai-sdk/react';
 import type { VisibilityType } from './visibility-selector';
@@ -34,8 +35,11 @@ export const artifactDefinitions = [
   codeArtifact,
   imageArtifact,
   sheetArtifact,
+  flowchartArtifact,
 ];
-export type ArtifactKind = (typeof artifactDefinitions)[number]['kind'];
+export type ArtifactKind =
+  | (typeof artifactDefinitions)[number]['kind']
+  | 'flowchart';
 
 export interface UIArtifact {
   title: string;

@@ -54,11 +54,12 @@ export function getModelProvider(
       const titleModel = openRouterProvider(
         'google/gemini-2.5-flash-preview-05-20',
       );
+      const artifactModel = openRouterProvider('google/gemini-2.5-pro-preview');
       return customProvider({
         languageModels: {
           'chat-model': openRouterProvider(modelId),
           'title-model': titleModel,
-          'artifact-model': openRouterProvider(modelId),
+          'artifact-model': artifactModel,
           [modelId]: openRouterProvider(modelId),
         },
       });

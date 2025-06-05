@@ -8,6 +8,7 @@ import type { ProviderType } from '../ai/models';
 import { imageDocumentHandler } from '@/artifacts/image/server';
 import { sheetDocumentHandler } from '@/artifacts/sheet/server';
 import { textDocumentHandler } from '@/artifacts/text/server';
+import { flowchartDocumentHandler } from '@/artifacts/flowchart/server';
 
 export interface SaveDocumentProps {
   id: string;
@@ -102,6 +103,13 @@ export const documentHandlersByArtifactKind: Array<
   codeDocumentHandler,
   imageDocumentHandler,
   sheetDocumentHandler,
+  flowchartDocumentHandler,
 ];
 
-export const artifactKinds = ['text', 'code', 'image', 'sheet'] as const;
+export const artifactKinds = [
+  'text',
+  'code',
+  'image',
+  'sheet',
+  'flowchart',
+] as const;

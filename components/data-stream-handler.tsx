@@ -17,7 +17,10 @@ export type DataStreamDelta = {
     | 'suggestion'
     | 'clear'
     | 'finish'
-    | 'kind';
+    | 'kind'
+    | 'flow-step'
+    | 'flowchart-delta';
+
   content: string | Suggestion;
 };
 
