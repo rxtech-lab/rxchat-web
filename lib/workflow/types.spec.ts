@@ -18,11 +18,11 @@ describe('Schema validation', () => {
         workflow: {
           title: 'Test Workflow',
           trigger: {
-            identifier: 'daily-trigger',
+            identifier: '550e8400-e29b-41d4-a716-446655440001',
             type: 'cronjob-trigger',
             cron: '0 0 * * *',
             child: {
-              identifier: 'next-node',
+              identifier: '550e8400-e29b-41d4-a716-446655440002',
             },
           },
         },
@@ -32,7 +32,7 @@ describe('Schema validation', () => {
       {
         workflow: {
           trigger: {
-            identifier: 'daily-trigger',
+            identifier: '550e8400-e29b-41d4-a716-446655440001',
             type: 'cronjob-trigger',
             cron: '0 0 * * *',
           },
@@ -51,7 +51,7 @@ describe('Schema validation', () => {
         workflow: {
           title: '',
           trigger: {
-            identifier: 'daily-trigger',
+            identifier: '550e8400-e29b-41d4-a716-446655440001',
             type: 'cronjob-trigger',
             cron: '0 0 * * *',
           },
@@ -80,7 +80,7 @@ describe('Schema validation', () => {
     }[] = [
       {
         trigger: {
-          identifier: 'valid-trigger',
+          identifier: '550e8400-e29b-41d4-a716-446655440001',
           type: 'cronjob-trigger',
           cron: '0 0 * * *', // daily at midnight
         },
@@ -89,11 +89,11 @@ describe('Schema validation', () => {
       },
       {
         trigger: {
-          identifier: 'valid-trigger',
+          identifier: '550e8400-e29b-41d4-a716-446655440001',
           type: 'cronjob-trigger',
           cron: '0 0 * * *',
           child: {
-            identifier: 'next-node',
+            identifier: '550e8400-e29b-41d4-a716-446655440002',
           },
         },
         isValid: true,
@@ -101,7 +101,7 @@ describe('Schema validation', () => {
       },
       {
         trigger: {
-          identifier: 'valid-trigger',
+          identifier: '550e8400-e29b-41d4-a716-446655440001',
           type: 'cronjob-trigger',
           cron: '30 14 * * 1', // every Monday at 2:30 PM
         },
@@ -110,7 +110,7 @@ describe('Schema validation', () => {
       },
       {
         trigger: {
-          identifier: 'valid-trigger',
+          identifier: '550e8400-e29b-41d4-a716-446655440001',
           type: 'cronjob-trigger',
           cron: '*/15 * * * *', // every 15 minutes
         },
@@ -119,7 +119,7 @@ describe('Schema validation', () => {
       },
       {
         trigger: {
-          identifier: 'invalid-trigger',
+          identifier: '550e8400-e29b-41d4-a716-446655440001',
           type: 'cronjob-trigger',
           cron: '60 0 * * *', // invalid minute (60)
         },
@@ -128,7 +128,7 @@ describe('Schema validation', () => {
       },
       {
         trigger: {
-          identifier: 'invalid-trigger',
+          identifier: '550e8400-e29b-41d4-a716-446655440001',
           type: 'cronjob-trigger',
           cron: '0 25 * * *', // invalid hour (25)
         },
@@ -137,7 +137,7 @@ describe('Schema validation', () => {
       },
       {
         trigger: {
-          identifier: 'invalid-trigger',
+          identifier: '550e8400-e29b-41d4-a716-446655440001',
           type: 'cronjob-trigger',
           cron: '0 0 32 * *', // invalid day (32)
         },
@@ -146,7 +146,7 @@ describe('Schema validation', () => {
       },
       {
         trigger: {
-          identifier: 'invalid-trigger',
+          identifier: '550e8400-e29b-41d4-a716-446655440001',
           type: 'cronjob-trigger',
           cron: '0 0 * 13 *', // invalid month (13)
         },
@@ -155,7 +155,7 @@ describe('Schema validation', () => {
       },
       {
         trigger: {
-          identifier: 'invalid-trigger',
+          identifier: '550e8400-e29b-41d4-a716-446655440001',
           type: 'cronjob-trigger',
           cron: '0 0 * * 7', // invalid weekday (7)
         },
@@ -164,7 +164,7 @@ describe('Schema validation', () => {
       },
       {
         trigger: {
-          identifier: 'missing-cron',
+          identifier: '550e8400-e29b-41d4-a716-446655440001',
           type: 'cronjob-trigger',
         },
         isValid: false,
@@ -177,6 +177,15 @@ describe('Schema validation', () => {
         },
         isValid: false,
         description: 'missing identifier',
+      },
+      {
+        trigger: {
+          identifier: 'invalid-uuid',
+          type: 'cronjob-trigger',
+          cron: '0 0 * * *',
+        },
+        isValid: false,
+        description: 'invalid UUID identifier',
       },
     ];
 
@@ -199,55 +208,51 @@ describe('Schema validation', () => {
     }[] = [
       {
         node: {
-          identifier: 'email-tool',
+          identifier: '550e8400-e29b-41d4-a716-446655440001',
           type: 'tool',
-          tool: 'send-email',
+          toolIdentifier: 'send-email',
         },
         isValid: true,
-        description: 'valid tool node without parent/child',
+        description: 'valid tool node without child',
       },
       {
         node: {
-          identifier: 'email-tool',
+          identifier: '550e8400-e29b-41d4-a716-446655440001',
           type: 'tool',
-          tool: 'send-email',
-          parent: {
-            identifier: 'parent-node',
-          },
+          toolIdentifier: 'send-email',
           child: {
-            identifier: 'child-node',
+            identifier: '550e8400-e29b-41d4-a716-446655440002',
+            type: 'tool',
+            toolIdentifier: 'another-tool',
           },
         },
         isValid: true,
-        description: 'valid tool node with parent and child',
+        description: 'valid tool node with child',
       },
       {
         node: {
-          identifier: 'email-tool',
-          type: 'tool',
-          tool: 'send-email',
-          parent: {
-            identifier: 'parent-node',
-          },
-        },
-        isValid: true,
-        description: 'valid tool node with only parent',
-      },
-      {
-        node: {
-          identifier: 'invalid-tool',
+          identifier: '550e8400-e29b-41d4-a716-446655440001',
           type: 'tool',
         },
         isValid: false,
-        description: 'missing tool field',
+        description: 'missing toolIdentifier field',
       },
       {
         node: {
           type: 'tool',
-          tool: 'send-email',
+          toolIdentifier: 'send-email',
         },
         isValid: false,
         description: 'missing identifier',
+      },
+      {
+        node: {
+          identifier: 'invalid-uuid',
+          type: 'tool',
+          toolIdentifier: 'send-email',
+        },
+        isValid: false,
+        description: 'invalid UUID identifier',
       },
     ];
 
@@ -270,37 +275,52 @@ describe('Schema validation', () => {
     }[] = [
       {
         node: {
-          identifier: 'check-status',
+          identifier: '550e8400-e29b-41d4-a716-446655440001',
           type: 'condition',
           runtime: 'js',
           code: 'return input.status === "active";',
-          parents: [],
           children: [],
         },
         isValid: true,
-        description: 'valid condition node with empty parents/children',
+        description: 'valid condition node with empty children',
       },
       {
         node: {
-          identifier: 'check-status',
+          identifier: '550e8400-e29b-41d4-a716-446655440001',
           type: 'condition',
           runtime: 'js',
           code: 'return input.status === "active";',
-          parents: [{ identifier: 'parent1' }, { identifier: 'parent2' }],
-          children: [{ identifier: 'child1' }, { identifier: 'child2' }],
+          children: [
+            {
+              identifier: '550e8400-e29b-41d4-a716-446655440002',
+            },
+            {
+              identifier: '550e8400-e29b-41d4-a716-446655440003',
+            },
+          ],
         },
         isValid: true,
-        description: 'valid condition node with multiple parents and children',
+        description: 'valid condition node with multiple children',
       },
       {
         node: {
-          identifier: 'invalid-condition',
+          identifier: '550e8400-e29b-41d4-a716-446655440001',
           type: 'condition',
-          parents: [],
           children: [],
         },
         isValid: false,
-        description: 'missing runtime code',
+        description: 'missing runtime and code',
+      },
+      {
+        node: {
+          identifier: 'invalid-uuid',
+          type: 'condition',
+          runtime: 'js',
+          code: 'return true;',
+          children: [],
+        },
+        isValid: false,
+        description: 'invalid UUID identifier',
       },
     ];
 
@@ -323,50 +343,60 @@ describe('Schema validation', () => {
     }[] = [
       {
         node: {
-          identifier: 'data-converter',
+          identifier: '550e8400-e29b-41d4-a716-446655440001',
           type: 'converter',
           converter: 'json-to-csv',
           runtime: 'js',
           code: 'return convertJsonToCsv(input);',
         },
         isValid: true,
-        description: 'valid converter node without parent/child',
+        description: 'valid converter node without child',
       },
       {
         node: {
-          identifier: 'data-converter',
+          identifier: '550e8400-e29b-41d4-a716-446655440001',
           type: 'converter',
           converter: 'json-to-csv',
           runtime: 'js',
           code: 'return convertJsonToCsv(input);',
-          parent: {
-            identifier: 'parent-node',
-          },
           child: {
-            identifier: 'child-node',
+            identifier: '550e8400-e29b-41d4-a716-446655440002',
+            type: 'tool',
+            toolIdentifier: 'test-tool',
           },
         },
         isValid: true,
-        description: 'valid converter node with parent and child',
+        description: 'valid converter node with child',
       },
       {
         node: {
-          identifier: 'invalid-converter',
+          identifier: '550e8400-e29b-41d4-a716-446655440001',
           type: 'converter',
           converter: 'json-to-csv',
         },
         isValid: false,
-        description: 'missing runtime code',
+        description: 'missing runtime and code',
       },
       {
         node: {
-          identifier: 'invalid-converter',
+          identifier: '550e8400-e29b-41d4-a716-446655440001',
           type: 'converter',
           runtime: 'js',
           code: 'return input;',
         },
         isValid: false,
         description: 'missing converter field',
+      },
+      {
+        node: {
+          identifier: 'invalid-uuid',
+          type: 'converter',
+          converter: 'json-to-csv',
+          runtime: 'js',
+          code: 'return input;',
+        },
+        isValid: false,
+        description: 'invalid UUID identifier',
       },
     ];
 
@@ -431,38 +461,46 @@ describe('Schema validation', () => {
   });
 
   describe('Node Relationship Constraints', () => {
-    it('should validate that tool nodes can only have one parent and one child', () => {
+    it('should validate that tool nodes can only have one child', () => {
       const validToolNode = {
-        identifier: 'single-tool',
+        identifier: '550e8400-e29b-41d4-a716-446655440001',
         type: 'tool',
-        tool: 'test-tool',
-        parent: { identifier: 'parent' },
-        child: { identifier: 'child' },
+        toolIdentifier: 'test-tool',
+        child: {
+          identifier: '550e8400-e29b-41d4-a716-446655440002',
+          type: 'tool',
+          toolIdentifier: 'child-tool',
+        },
       };
 
       expect(() => ToolNodeSchema.parse(validToolNode)).not.toThrow();
 
-      // Should not accept arrays (this would fail at TypeScript level)
+      // Should not accept parent property (ToolNodeSchema extends RegularNodeSchema which only has child)
       const invalidToolNode = {
-        identifier: 'multi-tool',
+        identifier: '550e8400-e29b-41d4-a716-446655440001',
         type: 'tool',
-        tool: 'test-tool',
-        parents: [{ identifier: 'parent1' }, { identifier: 'parent2' }],
-        children: [{ identifier: 'child1' }, { identifier: 'child2' }],
+        toolIdentifier: 'test-tool',
+        parent: { identifier: '550e8400-e29b-41d4-a716-446655440002' },
       };
 
-      // This should fail because the schema doesn't have parents/children properties
+      // This should fail because the schema doesn't have parent property
       expect(() => ToolNodeSchema.parse(invalidToolNode)).toThrow();
     });
 
-    it('should validate that condition nodes can have multiple parents and children', () => {
+    it('should validate that condition nodes can have multiple children', () => {
       const validConditionNode = {
-        identifier: 'multi-condition',
+        identifier: '550e8400-e29b-41d4-a716-446655440001',
         type: 'condition',
         runtime: 'js',
         code: 'return true;',
-        parents: [{ identifier: 'parent1' }, { identifier: 'parent2' }],
-        children: [{ identifier: 'child1' }, { identifier: 'child2' }],
+        children: [
+          {
+            identifier: '550e8400-e29b-41d4-a716-446655440002',
+          },
+          {
+            identifier: '550e8400-e29b-41d4-a716-446655440003',
+          },
+        ],
       };
 
       expect(() => ConditionNodeSchema.parse(validConditionNode)).not.toThrow();
@@ -470,23 +508,25 @@ describe('Schema validation', () => {
 
     it('should validate that trigger nodes can only have one child and no parents', () => {
       const validTriggerNode = {
-        identifier: 'single-trigger',
+        identifier: '550e8400-e29b-41d4-a716-446655440001',
         type: 'cronjob-trigger',
         cron: '0 0 * * *',
-        child: { identifier: 'child' },
+        child: {
+          identifier: '550e8400-e29b-41d4-a716-446655440002',
+        },
       };
 
       expect(() =>
         CronjobTriggerNodeSchema.parse(validTriggerNode),
       ).not.toThrow();
 
-      // Should not accept parent property (this would fail at TypeScript level)
+      // Should not accept parent property (TriggerNodeSchema doesn't have parent property)
       const invalidTriggerNode = {
-        identifier: 'invalid-trigger',
+        identifier: '550e8400-e29b-41d4-a716-446655440001',
         type: 'cronjob-trigger',
         cron: '0 0 * * *',
-        parent: { identifier: 'parent' },
-        child: { identifier: 'child' },
+        parent: { identifier: '550e8400-e29b-41d4-a716-446655440002' },
+        child: { identifier: '550e8400-e29b-41d4-a716-446655440003' },
       };
 
       // This should fail because trigger schema doesn't have parent property

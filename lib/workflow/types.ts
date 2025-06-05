@@ -2,7 +2,10 @@ import { z } from 'zod';
 import { isValidCron } from 'cron-validator';
 
 const BaseNodeSchema = z.object({
-  identifier: z.string().describe("unique tool's identifier"),
+  identifier: z
+    .string()
+    .describe('random generated identifier for the node')
+    .uuid(),
 });
 
 export type BaseNode = z.infer<typeof BaseNodeSchema>;
@@ -17,18 +20,29 @@ export const RuntimeCodeSchema = z.discriminatedUnion('runtime', [
 export type RuntimeCode = z.infer<typeof RuntimeCodeSchema>;
 
 // Schema for regular nodes that can only have one parent and one child
+// Using z.lazy() for forward references to avoid circular dependency
 export const RegularNodeSchema = BaseNodeSchema.extend({
-  parent: BaseNodeSchema.optional().describe('parent node of the current node'),
-  child: BaseNodeSchema.optional().describe('child node of the current node'),
+  /**
+   * The child node of the current node.
+   * Uses z.lazy to allow for forward references and avoid circular dependency issues.
+   * Can be a ToolNode, ConverterNode, or ConditionNode, or undefined.
+   */
+  child: z
+    .union([
+      z.lazy((): any => ToolNodeSchema),
+      z.lazy((): any => ConverterNodeSchema),
+      z.lazy((): any => ConditionNodeSchema),
+    ])
+    .optional()
+    .describe('child node of the current node'),
 }).strict();
 
 export type RegularNode = z.infer<typeof RegularNodeSchema>;
 
 // Schema for conditional nodes that can have multiple parents and children
 export const ConditionalNodeSchema = BaseNodeSchema.extend({
-  parents: z.array(BaseNodeSchema).describe('parent nodes of the current node'),
   children: z
-    .array(BaseNodeSchema)
+    .array(z.lazy(() => BaseNodeSchema))
     .describe('children nodes of the current node'),
 }).strict();
 
@@ -36,9 +50,8 @@ export type ConditionalNode = z.infer<typeof ConditionalNodeSchema>;
 
 // Legacy Node schema for backward compatibility (deprecated)
 export const NodeSchema = BaseNodeSchema.extend({
-  parents: z.array(BaseNodeSchema).describe('parent nodes of the current node'),
   children: z
-    .array(BaseNodeSchema)
+    .array(z.lazy(() => BaseNodeSchema))
     .describe('children nodes of the current node'),
 });
 
@@ -51,6 +64,9 @@ export type Node = z.infer<typeof NodeSchema>;
 export const ConditionNodeSchema = ConditionalNodeSchema.extend({
   type: z.literal('condition'),
   runtime: z.literal('js'),
+  children: RegularNodeSchema.array().describe(
+    'parent nodes ids of the current node',
+  ),
   code: z.string().describe('JavaScript code to execute for this condition'),
 }).strict();
 
@@ -61,7 +77,7 @@ export type ConditionNode = z.infer<typeof ConditionNodeSchema>;
  */
 export const ToolNodeSchema = RegularNodeSchema.extend({
   type: z.literal('tool'),
-  tool: z.string(),
+  toolIdentifier: z.string().describe('identifier of the tool to execute'),
 }).strict();
 
 export type ToolNode = z.infer<typeof ToolNodeSchema>;
@@ -83,7 +99,7 @@ export type ConverterNode = z.infer<typeof ConverterNodeSchema>;
  */
 export const TriggerNodeSchema = BaseNodeSchema.extend({
   type: z.literal('trigger'),
-  child: BaseNodeSchema.optional().describe('child node of the trigger'),
+  child: RegularNodeSchema.optional(),
 }).strict();
 
 export type TriggerNode = z.infer<typeof TriggerNodeSchema>;
@@ -123,3 +139,37 @@ export const WorkflowSchema = z.object({
 });
 
 export type Workflow = z.infer<typeof WorkflowSchema>;
+
+export const ConditionNodeInputSchema = z.object({
+  input: z.any().describe('The input to the condition node'),
+  nodeId: z.string().describe('The id of the condition node'),
+});
+
+export type ConditionNodeInput = z.infer<typeof ConditionNodeInputSchema>;
+
+export const ConditionNodeExecutionInputSchema = z
+  .array(ConditionNodeInputSchema)
+  .describe('The inputs to the condition node');
+
+export type ConditionNodeExecutionInput = z.infer<
+  typeof ConditionNodeExecutionInputSchema
+>;
+
+export const ConditionNodeExecutionResultSchema = z
+  .string()
+  .describe('The next node to be executed. Null means exit')
+  .nullable();
+
+export type ConditionNodeExecutionResult = z.infer<
+  typeof ConditionNodeExecutionResultSchema
+>;
+
+export const ConverterNodeExecutionResultSchema = z
+  .any()
+  .describe(
+    "The output that converts from the input node and matches the child's input schema",
+  );
+
+export type ConverterNodeExecutionResult = z.infer<
+  typeof ConverterNodeExecutionResultSchema
+>;

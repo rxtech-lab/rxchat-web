@@ -30,9 +30,9 @@ MCP tools contain logic including fetching external resources, and they provide 
 
 ## Conditional Node
 
-This node takes multiple inputs from external sources and outputs the next node's ID along with the input for the next node. If it returns null, then the whole workflow exits.
+This node takes one input from external sources and multiple children and decide which child to be next executed child.
 
-**Conditional nodes are the only nodes that can have multiple parents and multiple children**, allowing for complex branching and merging logic. Only when all parent nodes have finished their work will the conditional node process and determine the next execution path.
+**Conditional nodes are the only nodes that can multiple children**, allowing for complex branching and merging logic.
 
 ## Triggers
 
@@ -41,3 +41,15 @@ Triggers are the entry point of the workflow and can either carry input and pass
 ## Converter
 
 This node converts input from one format to another. **Converter nodes can only have one parent and one child**, maintaining a linear data transformation flow.
+
+## Code
+
+### JS Code
+
+If you defined a js code for your converter, you should have the following function defined:
+
+```typescript
+async function handle(input: any): Promise<any> {
+  return input;
+}
+```
