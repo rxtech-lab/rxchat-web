@@ -179,6 +179,9 @@ importers:
       codemirror:
         specifier: ^6.0.1
         version: 6.0.1
+      cron-validator:
+        specifier: ^1.3.1
+        version: 1.3.1
       date-fns:
         specifier: ^4.1.0
         version: 4.1.0
@@ -4185,6 +4188,9 @@ packages:
 
   crelt@1.0.6:
     resolution: {integrity: sha512-VQ2MBenTq1fWZUH9DJNGti7kKv6EeAuYr3cLwxUWhIu1baTaXh4Ib5W2CqHVqib4/MqbYGJqiL3Zb8GJZr3l4g==}
+
+  cron-validator@1.3.1:
+    resolution: {integrity: sha512-C1HsxuPCY/5opR55G5/WNzyEGDWFVG+6GLrA+fW/sCTcP6A6NTjUP2AK7B8n2PyFs90kDG2qzwm8LMheADku6A==}
 
   cross-spawn@7.0.6:
     resolution: {integrity: sha512-uV2QOWP2nWzsy2aMp8aRibhi9dlzF5Hgh5SHaB9OiTGEyDTiJJyx0uy51QXdyWbtAHNua4XJzUKca3OzKUd3vA==}
@@ -11588,6 +11594,8 @@ snapshots:
       - ts-node
 
   crelt@1.0.6: {}
+
+  cron-validator@1.3.1: {}
 
   cross-spawn@7.0.6:
     dependencies:
