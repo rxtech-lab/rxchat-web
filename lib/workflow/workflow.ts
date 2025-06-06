@@ -1,432 +1,385 @@
-import { WorkflowEngineError } from './errors';
-import {
-  type ConditionNode,
-  type ConditionNodeExecutionResult,
-  ConditionNodeExecutionResultSchema,
-  type ConditionNodeInput,
-  type ConverterNode,
-  type ConverterNodeExecutionResult,
-  ConverterNodeExecutionResultSchema,
-  type CronjobTriggerNode,
-  type RegularNode,
-  type ToolNode,
-  type TriggerNode,
-  type Workflow,
+import { tool } from 'ai';
+import type {
+  BaseNode,
+  CronjobTriggerNode,
+  RegularNode,
+  ToolNode,
+  Workflow as WorkflowType,
 } from './types';
+import { RegularNodeSchema, WorkflowSchema } from './types';
+import { z } from 'zod';
+import { v4 } from 'uuid';
 
-// Union type for all actual node types that have a 'type' property
-type WorkflowNode =
-  | ToolNode
-  | ConverterNode
-  | CronjobTriggerNode
-  | ConditionNode;
+export interface WorkflowInterface {
+  // Add a child node to the workflow as child of the node with the identifier.
+  addChild(identifier: string | undefined, child: RegularNode): void;
+  // Remove a existing child node from the workflow. Throw an error if the node is not found.
+  removeChild(identifier: string): void;
+  // Modify a existing child node from the workflow. Throw an error if the node is not found.
+  modifyChild(identifier: string, child: RegularNode): void;
+  // Check if the workflow is valid using zod
+  compile(): WorkflowType;
+  // Construct a workflow from a JSON object
+  readFrom(workflow: WorkflowType): void;
+}
 
-interface WorkflowEngineInterface {
+export const addNodeTool = (workflow: Workflow) =>
+  tool({
+    description: 'Add a new tool node to the workflow',
+    parameters: z.object({
+      id: z
+        .string()
+        .nullable()
+        .describe(
+          'The id this node would be added after. Null if it is added after the trigger node (root).' +
+            'This id is different from the tool identifier, which is used to find the tool in the tool registry.',
+        ),
+      toolIdentifier: z.string().describe("The tool's unique identifier"),
+    }),
+    execute: async ({ id, toolIdentifier }) => {
+      try {
+        const node: ToolNode = {
+          identifier: v4(),
+          type: 'tool',
+          toolIdentifier,
+          child: null,
+        };
+        if (id === null || (typeof id === 'string' && id.trim() === '')) {
+          workflow.addChild(undefined, node);
+        } else {
+          workflow.addChild(id, node);
+        }
+
+        return `Added tool node with identifier ${toolIdentifier} as child of ${id ?? 'root'}`;
+      } catch (error) {
+        console.log(error);
+        return {
+          error: error,
+        };
+      }
+    },
+  });
+
+export const addConditionTool = (workflow: Workflow) =>
+  tool({
+    description: 'Add a new condition node to the workflow',
+    parameters: z.object({
+      identifier: z
+        .string()
+        .nullable()
+        .describe(
+          'The identifier for the condition node to be added as child of the node with the identifier. Empty if it added as root.',
+        ),
+      code: z
+        .string()
+        .optional()
+        .describe(
+          `The code for the condition. Should be in the format export async function handle(input: Record<string, any>): Promise<string>. The return is the next tool identifier to use`,
+        ),
+    }),
+  });
+
+export const removeNodeTool = (workflow: Workflow) =>
+  tool({
+    description: 'Remove a node from the workflow',
+    parameters: z.object({
+      identifier: z.string(),
+    }),
+    execute: async ({ identifier }) => {
+      workflow.removeChild(identifier);
+      return `Removed node with identifier ${identifier}`;
+    },
+  });
+
+export const modifyToolNode = (workflow: Workflow) =>
+  tool({
+    description:
+      'Modify a tool node in the workflow. This function cannot modify any other node type.',
+    parameters: z.object({
+      id: z.string().describe('The id of the node to modify'),
+      node: z.object({
+        toolIdentifier: z.string().describe("The tool's unique identifier"),
+      }),
+    }),
+    execute: async ({ id, node }) => {
+      // Get the current node to preserve its existing child relationship
+      const currentNode = workflow.findNode(id);
+      const existingChild =
+        currentNode && 'child' in currentNode ? currentNode.child : null;
+
+      workflow.modifyChild(id, {
+        identifier: id,
+        type: 'tool',
+        toolIdentifier: node.toolIdentifier,
+        child: existingChild,
+      } as ToolNode);
+
+      return `Modified tool node with identifier ${id} to ${node.toolIdentifier}`;
+    },
+  });
+
+export const compileTool = (workflow: Workflow) =>
+  tool({
+    description: 'Compile the workflow to see if it is valid',
+    parameters: z.object({}),
+    execute: async () => {
+      workflow.compile();
+    },
+  });
+
+export const viewWorkflow = (workflow: Workflow) =>
+  tool({
+    description: 'View workflow in json',
+    parameters: z.object({}),
+    execute: async () => {
+      return workflow.getWorkflow();
+    },
+  });
+
+export class Workflow implements WorkflowInterface {
+  private workflow: WorkflowType;
+
+  constructor(title: string, trigger: CronjobTriggerNode) {
+    this.workflow = {
+      title,
+      trigger,
+    };
+  }
+
   /**
-   * Execute the workflow follow the order using BFS.
-   * @throws `WorkflowEngineError` if the workflow failed to execute
+   * Type guard to check if an object is a BaseNode
    */
-  execute(workflow: Workflow, input?: any): Promise<void>;
-}
-
-interface ExecutionContext {
-  nodeId: string;
-  input?: any;
-}
-
-export interface ToolExecutionEngine {
-  execute(tool: string, input: any): Promise<any>;
-}
-
-export interface JSCodeExecutionEngine {
-  execute(input: any, code: string, context: any): unknown;
-}
-
-export class WorkflowEngine implements WorkflowEngineInterface {
-  private executionQueue: ExecutionContext[] = [];
-  private executedNodes: Set<string> = new Set();
-  private nodeOutputs: Map<string, any> = new Map();
-  private conditionalNodeParentTracker: Map<string, Set<string>> = new Map();
-  private workflow!: Workflow; // Using definite assignment assertion since it's set in execute()
-
-  private jsCodeExecutionEngine: JSCodeExecutionEngine;
-  private toolExecutionEngine: ToolExecutionEngine;
-
-  constructor(
-    jsCodeExecutionEngine: JSCodeExecutionEngine,
-    toolExecutionEngine: ToolExecutionEngine,
-  ) {
-    this.jsCodeExecutionEngine = jsCodeExecutionEngine;
-    this.toolExecutionEngine = toolExecutionEngine;
+  private isBaseNode(obj: any): obj is BaseNode {
+    return obj && typeof obj === 'object' && typeof obj.identifier === 'string';
   }
 
-  async execute(workflow: Workflow, input?: any): Promise<void> {
-    try {
-      this.reset();
-      this.workflow = workflow;
-      // Skip the trigger node and start execution from its child
-      if (workflow.trigger.child) {
-        this.executionQueue.push({
-          nodeId: workflow.trigger.child.identifier,
-          input: input,
+  /**
+   * Add a child node to the workflow as child of the node with the identifier.
+   * If identifier is undefined, adds as child of the trigger node.
+   */
+  addChild(identifier: string | undefined, child: RegularNode): void {
+    if (!identifier) {
+      // Add as child of trigger node
+      this.workflow.trigger.child = child;
+      return;
+    }
+
+    const parentNode = this.findNode(identifier);
+    if (!parentNode) {
+      throw new Error(`Node with identifier ${identifier} not found`);
+    }
+
+    // Check if parent node can have children
+    if ('child' in parentNode && parentNode.child === null) {
+      (parentNode as any).child = child;
+    } else if (
+      'children' in parentNode &&
+      Array.isArray((parentNode as any).children)
+    ) {
+      // For conditional nodes that can have multiple children
+      (parentNode as any).children.push(child);
+    } else {
+      throw new Error(
+        `Node with identifier ${identifier} already has a child or doesn't support children`,
+      );
+    }
+  }
+
+  /**
+   * Remove an existing child node from the workflow. Throw an error if the node is not found.
+   */
+  removeChild(identifier: string): void {
+    const nodeToRemove = this.findNode(identifier);
+    if (!nodeToRemove) {
+      throw new Error(`Node with identifier ${identifier} not found`);
+    }
+
+    // Find parent and remove the child
+    const parentNode = this.findParentNode(identifier);
+    if (!parentNode) {
+      throw new Error(`Cannot remove root trigger node`);
+    }
+
+    if (
+      'child' in parentNode &&
+      parentNode.child &&
+      this.isBaseNode(parentNode.child) &&
+      parentNode.child.identifier === identifier
+    ) {
+      (parentNode as any).child = null;
+    } else if (
+      'children' in parentNode &&
+      Array.isArray((parentNode as any).children)
+    ) {
+      const children = (parentNode as any).children as BaseNode[];
+      const childIndex = children.findIndex(
+        (child: BaseNode) => child.identifier === identifier,
+      );
+      if (childIndex !== -1) {
+        children.splice(childIndex, 1);
+      }
+    }
+  }
+
+  /**
+   * Modify an existing child node from the workflow. Throw an error if the node is not found.
+   */
+  modifyChild(identifier: string, child: RegularNode): void {
+    const existingNode = this.findNode(identifier);
+    if (!existingNode) {
+      throw new Error(`Node with identifier ${identifier} not found`);
+    }
+
+    // Find parent and replace the child
+    const parentNode = this.findParentNode(identifier);
+    if (!parentNode) {
+      throw new Error(`Cannot modify root trigger node`);
+    }
+
+    if (
+      'child' in parentNode &&
+      parentNode.child &&
+      this.isBaseNode(parentNode.child) &&
+      parentNode.child.identifier === identifier
+    ) {
+      (parentNode as any).child = child;
+    } else if (
+      'children' in parentNode &&
+      Array.isArray((parentNode as any).children)
+    ) {
+      const children = (parentNode as any).children as BaseNode[];
+      const childIndex = children.findIndex(
+        (childNode: BaseNode) => childNode.identifier === identifier,
+      );
+      if (childIndex !== -1) {
+        children[childIndex] = child;
+      }
+    }
+  }
+
+  /**
+   * Check if the workflow is valid using zod
+   */
+  compile(): WorkflowType {
+    const result = WorkflowSchema.safeParse(this.workflow);
+    if (!result.success) {
+      throw new Error(`Workflow validation failed: ${result.error.message}`);
+    }
+    return result.data;
+  }
+
+  /**
+   * Construct a workflow from a JSON object
+   */
+  readFrom(workflow: WorkflowType): void {
+    const result = WorkflowSchema.safeParse(workflow);
+    if (!result.success) {
+      throw new Error(`Invalid workflow format: ${result.error.message}`);
+    }
+    this.workflow = result.data;
+  }
+
+  /**
+   * Find a node by identifier in the workflow tree
+   */
+  findNode(identifier: string): BaseNode | null {
+    const queue: BaseNode[] = [this.workflow.trigger];
+
+    while (queue.length > 0) {
+      const current = queue.shift();
+      if (!current) continue;
+
+      if (current.identifier === identifier) {
+        return current;
+      }
+
+      // Add children to queue for traversal
+      if (
+        'child' in current &&
+        current.child &&
+        this.isBaseNode(current.child)
+      ) {
+        queue.push(current.child);
+      }
+      if ('children' in current && Array.isArray((current as any).children)) {
+        const children = (current as any).children as BaseNode[];
+        children.forEach((child) => {
+          if (this.isBaseNode(child)) {
+            queue.push(child);
+          }
         });
-      } else {
-        throw new WorkflowEngineError('Trigger node has no child to execute');
-      }
-
-      while (this.executionQueue.length > 0) {
-        const context = this.executionQueue.shift();
-
-        if (!context || this.executedNodes.has(context.nodeId)) {
-          continue; // Skip already executed nodes
-        }
-
-        await this.executeNode(context, workflow);
-      }
-    } catch (error) {
-      if (error instanceof WorkflowEngineError) {
-        throw error;
-      }
-      throw new WorkflowEngineError(
-        `Workflow execution failed: ${error instanceof Error ? error.message : String(error)}`,
-      );
-    }
-  }
-
-  private reset(): void {
-    this.executionQueue = [];
-    this.executedNodes.clear();
-    this.nodeOutputs.clear();
-    this.conditionalNodeParentTracker.clear();
-  }
-
-  private async executeNode(
-    context: ExecutionContext,
-    workflow: Workflow,
-  ): Promise<void> {
-    const node = this.findNodeById(context.nodeId, workflow);
-
-    if (!node) {
-      throw new WorkflowEngineError(
-        `Node with identifier '${context.nodeId}' not found in workflow`,
-      );
-    }
-
-    console.log(`Executing node: ${node.identifier} (type: ${node.type})`);
-
-    // Check if this is a conditional node that needs to wait for all parents
-    if (this.isConditionalNode(node)) {
-      const shouldWait = this.shouldWaitForParents(node as ConditionNode);
-      if (shouldWait) {
-        // Re-queue this node for later execution
-        this.executionQueue.push(context);
-        return;
-      }
-    }
-
-    let output: any;
-
-    switch (node.type) {
-      case 'cronjob-trigger':
-        output = await this.executeTriggerNode(
-          node as CronjobTriggerNode,
-          context.input,
-        );
-        break;
-      case 'tool':
-        output = await this.executeToolNode(node as ToolNode, context.input);
-        break;
-      case 'condition':
-        output = await this.executeConditionNode(
-          node as ConditionNode,
-          context.input,
-        );
-        break;
-      case 'converter':
-        output = await this.executeConverterNode(
-          node as ConverterNode,
-          context.input,
-        );
-        break;
-      default:
-        throw new WorkflowEngineError(
-          `Unknown node type: ${(node as any).type}`,
-        );
-    }
-
-    // Mark node as executed and store output
-    this.executedNodes.add(node.identifier);
-    this.nodeOutputs.set(node.identifier, output);
-
-    // Queue next nodes for execution
-    this.queueNextNodes(node, output, workflow);
-  }
-
-  private findNodeById(
-    nodeId: string,
-    workflow: Workflow,
-  ): WorkflowNode | null {
-    // Start with trigger
-    if (workflow.trigger.identifier === nodeId) {
-      return workflow.trigger;
-    }
-
-    // Recursively search through all nodes starting from the trigger
-    return this.searchNodeRecursively(nodeId, workflow.trigger);
-  }
-
-  private searchNodeRecursively(
-    nodeId: string,
-    node: WorkflowNode,
-  ): WorkflowNode | null {
-    // Check if this is the node we're looking for
-    if (node.identifier === nodeId) {
-      return node;
-    }
-
-    // Search in children based on node type
-    if (this.isConditionalNode(node)) {
-      const conditionNode = node as ConditionNode;
-      for (const child of conditionNode.children) {
-        // Check if child is a full node object (has 'type' property) or just a reference
-        if ('type' in child) {
-          const found = this.searchNodeRecursively(
-            nodeId,
-            child as WorkflowNode,
-          );
-          if (found) return found;
-        }
-      }
-    } else if (this.hasRegularNodeStructure(node)) {
-      const regularNode = node as ToolNode | ConverterNode | CronjobTriggerNode;
-      if (regularNode.child) {
-        // Check if child is a full node object (has 'type' property) or just a reference
-        if ('type' in regularNode.child) {
-          const found = this.searchNodeRecursively(
-            nodeId,
-            regularNode.child as WorkflowNode,
-          );
-          if (found) return found;
-        }
       }
     }
 
     return null;
   }
 
-  private isConditionalNode(node: WorkflowNode): boolean {
-    return node.type === 'condition';
-  }
+  /**
+   * Find the parent node of a given identifier
+   */
+  private findParentNode(identifier: string): BaseNode | null {
+    const queue: BaseNode[] = [this.workflow.trigger];
 
-  private isTriggerNode(node: WorkflowNode): boolean {
-    return node.type === 'cronjob-trigger';
-  }
+    while (queue.length > 0) {
+      const current = queue.shift();
+      if (!current) continue;
 
-  private shouldWaitForParents(conditionNode: ConditionNode): boolean {
-    const nodeId = conditionNode.identifier;
-
-    // Initialize parent tracker if not exists
-    if (!this.conditionalNodeParentTracker.has(nodeId)) {
-      this.conditionalNodeParentTracker.set(nodeId, new Set());
-    }
-
-    const executedParents = this.conditionalNodeParentTracker.get(nodeId);
-    if (!executedParents) {
-      throw new WorkflowEngineError(
-        `Failed to get parent tracker for node '${nodeId}'`,
-      );
-    }
-
-    // Find all parent nodes that reference this conditional node
-    const parentNodes = this.findParentNodes(nodeId, this.workflow);
-    const totalParents = parentNodes.length;
-
-    // Check if all parents have executed
-    for (const parent of parentNodes) {
-      if (this.isTriggerNode(parent)) {
-        executedParents.add(parent.identifier);
-        continue; // Trigger nodes are always executed
+      // Check if any child matches the identifier
+      if (
+        'child' in current &&
+        current.child &&
+        this.isBaseNode(current.child) &&
+        current.child.identifier === identifier
+      ) {
+        return current;
       }
-      if (this.executedNodes.has(parent.identifier)) {
-        executedParents.add(parent.identifier);
-      }
-    }
-
-    return executedParents.size < totalParents;
-  }
-
-  private async executeTriggerNode(
-    node: CronjobTriggerNode,
-    input?: any,
-  ): Promise<any> {
-    console.log(
-      `Trigger node executed: ${node.identifier} with cron: ${node.cron}`,
-    );
-    // Trigger nodes can pass through input or provide initial data
-    return (
-      input || { trigger: 'executed', timestamp: new Date().toISOString() }
-    );
-  }
-
-  private async executeToolNode(node: ToolNode, input?: any): Promise<any> {
-    console.log(
-      `Tool node executed: ${node.identifier} using tool: ${node.toolIdentifier}`,
-    );
-
-    try {
-      // Use the actual tool execution engine
-      const result = await this.toolExecutionEngine.execute(
-        node.toolIdentifier,
-        input,
-      );
-      return result;
-    } catch (error) {
-      throw new WorkflowEngineError(
-        `Tool node '${node.identifier}' execution failed: ${error instanceof Error ? error.message : String(error)}`,
-      );
-    }
-  }
-
-  private async executeConditionNode(
-    node: ConditionNode,
-    input?: any,
-  ): Promise<ConditionNodeExecutionResult> {
-    console.log(`Condition node executed: ${node.identifier}`);
-
-    try {
-      // Collect inputs from all parent nodes
-      let parentInput: ConditionNodeInput | null = null;
-
-      const parentNodes = this.findParentNodes(
-        node.identifier,
-        this.workflow,
-      ).filter((parent) => !this.isTriggerNode(parent));
-
-      // condition node can only have one parent node
-      if (parentNodes.length > 0) {
-        const firstParent = parentNodes[0];
-        const parentOutput = this.nodeOutputs.get(firstParent.identifier);
-        if (parentOutput !== undefined) {
-          parentInput = {
-            input: parentOutput,
-            nodeId: firstParent.identifier,
-          };
+      if ('children' in current && Array.isArray((current as any).children)) {
+        const children = (current as any).children as BaseNode[];
+        const hasChild = children.some(
+          (child: BaseNode) =>
+            this.isBaseNode(child) && child.identifier === identifier,
+        );
+        if (hasChild) {
+          return current;
         }
-      }
-
-      const result = this.jsCodeExecutionEngine.execute(
-        parentInput,
-        node.code,
-        {
-          nodeId: node.identifier,
-        },
-      );
-
-      return ConditionNodeExecutionResultSchema.parse(result);
-    } catch (error) {
-      throw new WorkflowEngineError(
-        `Condition node '${node.identifier}' execution failed: ${error instanceof Error ? error.message : String(error)}`,
-      );
-    }
-  }
-
-  private async executeConverterNode(
-    node: ConverterNode,
-    input?: any,
-  ): Promise<ConverterNodeExecutionResult> {
-    console.log(
-      `Converter node executed: ${node.identifier} using converter: ${node.converter}`,
-    );
-
-    try {
-      // Execute the JavaScript code for conversion
-      const result = this.jsCodeExecutionEngine.execute(input, node.code, {
-        input,
-        converter: node.converter,
-        nodeId: node.identifier,
-      });
-
-      return ConverterNodeExecutionResultSchema.parse(result);
-    } catch (error) {
-      throw new WorkflowEngineError(
-        `Converter node '${node.identifier}' execution failed: ${error instanceof Error ? error.message : String(error)}`,
-      );
-    }
-  }
-
-  private queueNextNodes(
-    node: WorkflowNode,
-    output: any,
-    workflow: Workflow,
-  ): void {
-    if (this.hasRegularNodeStructure(node)) {
-      // Regular nodes (Tool, Converter, Trigger) have single child
-      const regularNode = node as ToolNode | ConverterNode | CronjobTriggerNode;
-      if (regularNode.child) {
-        this.executionQueue.push({
-          nodeId: regularNode.child.identifier,
-          input: output,
+        children.forEach((child) => {
+          if (this.isBaseNode(child)) {
+            queue.push(child);
+          }
         });
       }
-    } else if (this.isConditionalNode(node)) {
-      // The condition result should determine which child to execute
-      // If result is null, exit the workflow
-      if (output === null) {
-        console.log('Workflow terminated by condition node returning null');
-        return;
+
+      // Continue traversal
+      if (
+        'child' in current &&
+        current.child &&
+        this.isBaseNode(current.child)
+      ) {
+        queue.push(current.child);
       }
-
-      // Result is a string - execute the node with that identifier
-      this.executionQueue.push({
-        nodeId: output,
-        input: null, // No specific input for string result
-      });
     }
-  }
 
-  private hasRegularNodeStructure(node: WorkflowNode): boolean {
-    return 'child' in node && !('children' in node);
+    return null;
   }
 
   /**
-   * Find all parent nodes that reference the given node ID
-   * This implements a DFS search through the workflow to find parent-child relationships
+   * Get the workflow data
    */
-  private findParentNodes(nodeId: string, workflow: Workflow): WorkflowNode[] {
-    const parents: WorkflowNode[] = [];
+  getWorkflow(): WorkflowType {
+    return this.workflow;
+  }
 
-    const searchForParents = (currentNode: WorkflowNode): void => {
-      // Check if current node is a parent of the target node
-      if (this.hasRegularNodeStructure(currentNode)) {
-        const regularNode = currentNode as
-          | ToolNode
-          | ConverterNode
-          | CronjobTriggerNode;
-        if (regularNode.child && regularNode.child.identifier === nodeId) {
-          parents.push(currentNode);
-        }
-        // Continue searching in the child
-        if (regularNode.child && 'type' in regularNode.child) {
-          searchForParents(regularNode.child as WorkflowNode);
-        }
-      } else if (this.isConditionalNode(currentNode)) {
-        const conditionNode = currentNode as ConditionNode;
-        // Check if any children match the target node
-        for (const child of conditionNode.children) {
-          if (child.identifier === nodeId) {
-            parents.push(currentNode);
-          }
-          // Continue searching in children
-          if ('type' in child) {
-            searchForParents(child as WorkflowNode);
-          }
-        }
-      }
-    };
+  /**
+   * Get workflow title
+   */
+  getTitle(): string {
+    return this.workflow.title;
+  }
 
-    // Start search from the trigger node
-    searchForParents(workflow.trigger);
-
-    return parents;
+  /**
+   * Get workflow trigger
+   */
+  getTrigger(): CronjobTriggerNode {
+    return this.workflow.trigger;
   }
 }

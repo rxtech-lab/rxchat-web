@@ -6,6 +6,7 @@ import {
   ConverterNodeSchema,
   RuntimeCodeSchema,
 } from './types';
+import { v4 } from 'uuid';
 
 describe('Schema validation', () => {
   describe('WorkflowSchema', () => {
@@ -23,6 +24,9 @@ describe('Schema validation', () => {
             cron: '0 0 * * *',
             child: {
               identifier: '550e8400-e29b-41d4-a716-446655440002',
+              type: 'tool',
+              toolIdentifier: 'test-tool',
+              child: null,
             },
           },
         },
@@ -35,6 +39,7 @@ describe('Schema validation', () => {
             identifier: '550e8400-e29b-41d4-a716-446655440001',
             type: 'cronjob-trigger',
             cron: '0 0 * * *',
+            child: null,
           },
         },
         isValid: false,
@@ -54,10 +59,34 @@ describe('Schema validation', () => {
             identifier: '550e8400-e29b-41d4-a716-446655440001',
             type: 'cronjob-trigger',
             cron: '0 0 * * *',
+            child: null,
           },
         },
         isValid: false,
         description: 'empty title',
+      },
+      {
+        workflow: {
+          title: 'New Workflow',
+          trigger: {
+            identifier: v4(),
+            type: 'cronjob-trigger',
+            cron: '0 2 * * *',
+            child: {
+              identifier: v4(),
+              type: 'tool',
+              toolIdentifier: 'crypto-data',
+              child: {
+                identifier: v4(),
+                type: 'tool',
+                toolIdentifier: 'binance',
+                child: null,
+              },
+            },
+          },
+        },
+        isValid: true,
+        description: 'valid workflow with nested tool nodes',
       },
     ];
 
@@ -83,6 +112,7 @@ describe('Schema validation', () => {
           identifier: '550e8400-e29b-41d4-a716-446655440001',
           type: 'cronjob-trigger',
           cron: '0 0 * * *', // daily at midnight
+          child: null,
         },
         isValid: true,
         description: 'valid daily cron without child',
@@ -94,6 +124,9 @@ describe('Schema validation', () => {
           cron: '0 0 * * *',
           child: {
             identifier: '550e8400-e29b-41d4-a716-446655440002',
+            type: 'tool',
+            toolIdentifier: 'test-tool',
+            child: null,
           },
         },
         isValid: true,
@@ -104,6 +137,7 @@ describe('Schema validation', () => {
           identifier: '550e8400-e29b-41d4-a716-446655440001',
           type: 'cronjob-trigger',
           cron: '30 14 * * 1', // every Monday at 2:30 PM
+          child: null,
         },
         isValid: true,
         description: 'valid weekly cron',
@@ -113,6 +147,7 @@ describe('Schema validation', () => {
           identifier: '550e8400-e29b-41d4-a716-446655440001',
           type: 'cronjob-trigger',
           cron: '*/15 * * * *', // every 15 minutes
+          child: null,
         },
         isValid: true,
         description: 'valid interval cron',
@@ -122,6 +157,7 @@ describe('Schema validation', () => {
           identifier: '550e8400-e29b-41d4-a716-446655440001',
           type: 'cronjob-trigger',
           cron: '60 0 * * *', // invalid minute (60)
+          child: null,
         },
         isValid: false,
         description: 'invalid minute value',
@@ -131,6 +167,7 @@ describe('Schema validation', () => {
           identifier: '550e8400-e29b-41d4-a716-446655440001',
           type: 'cronjob-trigger',
           cron: '0 25 * * *', // invalid hour (25)
+          child: null,
         },
         isValid: false,
         description: 'invalid hour value',
@@ -140,6 +177,7 @@ describe('Schema validation', () => {
           identifier: '550e8400-e29b-41d4-a716-446655440001',
           type: 'cronjob-trigger',
           cron: '0 0 32 * *', // invalid day (32)
+          child: null,
         },
         isValid: false,
         description: 'invalid day value',
@@ -149,6 +187,7 @@ describe('Schema validation', () => {
           identifier: '550e8400-e29b-41d4-a716-446655440001',
           type: 'cronjob-trigger',
           cron: '0 0 * 13 *', // invalid month (13)
+          child: null,
         },
         isValid: false,
         description: 'invalid month value',
@@ -158,6 +197,7 @@ describe('Schema validation', () => {
           identifier: '550e8400-e29b-41d4-a716-446655440001',
           type: 'cronjob-trigger',
           cron: '0 0 * * 7', // invalid weekday (7)
+          child: null,
         },
         isValid: false,
         description: 'invalid weekday value',
@@ -166,6 +206,7 @@ describe('Schema validation', () => {
         trigger: {
           identifier: '550e8400-e29b-41d4-a716-446655440001',
           type: 'cronjob-trigger',
+          child: null,
         },
         isValid: false,
         description: 'missing cron field',
@@ -174,6 +215,7 @@ describe('Schema validation', () => {
         trigger: {
           type: 'cronjob-trigger',
           cron: '0 0 * * *',
+          child: null,
         },
         isValid: false,
         description: 'missing identifier',
@@ -183,6 +225,7 @@ describe('Schema validation', () => {
           identifier: 'invalid-uuid',
           type: 'cronjob-trigger',
           cron: '0 0 * * *',
+          child: null,
         },
         isValid: false,
         description: 'invalid UUID identifier',
@@ -211,6 +254,7 @@ describe('Schema validation', () => {
           identifier: '550e8400-e29b-41d4-a716-446655440001',
           type: 'tool',
           toolIdentifier: 'send-email',
+          child: null,
         },
         isValid: true,
         description: 'valid tool node without child',
@@ -224,6 +268,7 @@ describe('Schema validation', () => {
             identifier: '550e8400-e29b-41d4-a716-446655440002',
             type: 'tool',
             toolIdentifier: 'another-tool',
+            child: null,
           },
         },
         isValid: true,
@@ -233,6 +278,7 @@ describe('Schema validation', () => {
         node: {
           identifier: '550e8400-e29b-41d4-a716-446655440001',
           type: 'tool',
+          child: null,
         },
         isValid: false,
         description: 'missing toolIdentifier field',
@@ -241,6 +287,7 @@ describe('Schema validation', () => {
         node: {
           type: 'tool',
           toolIdentifier: 'send-email',
+          child: null,
         },
         isValid: false,
         description: 'missing identifier',
@@ -250,6 +297,7 @@ describe('Schema validation', () => {
           identifier: 'invalid-uuid',
           type: 'tool',
           toolIdentifier: 'send-email',
+          child: null,
         },
         isValid: false,
         description: 'invalid UUID identifier',
@@ -293,9 +341,15 @@ describe('Schema validation', () => {
           children: [
             {
               identifier: '550e8400-e29b-41d4-a716-446655440002',
+              type: 'tool',
+              toolIdentifier: 'test-tool-1',
+              child: null,
             },
             {
               identifier: '550e8400-e29b-41d4-a716-446655440003',
+              type: 'tool',
+              toolIdentifier: 'test-tool-2',
+              child: null,
             },
           ],
         },
@@ -348,6 +402,7 @@ describe('Schema validation', () => {
           converter: 'json-to-csv',
           runtime: 'js',
           code: 'return convertJsonToCsv(input);',
+          child: null,
         },
         isValid: true,
         description: 'valid converter node without child',
@@ -363,6 +418,7 @@ describe('Schema validation', () => {
             identifier: '550e8400-e29b-41d4-a716-446655440002',
             type: 'tool',
             toolIdentifier: 'test-tool',
+            child: null,
           },
         },
         isValid: true,
@@ -373,6 +429,7 @@ describe('Schema validation', () => {
           identifier: '550e8400-e29b-41d4-a716-446655440001',
           type: 'converter',
           converter: 'json-to-csv',
+          child: null,
         },
         isValid: false,
         description: 'missing runtime and code',
@@ -383,6 +440,7 @@ describe('Schema validation', () => {
           type: 'converter',
           runtime: 'js',
           code: 'return input;',
+          child: null,
         },
         isValid: false,
         description: 'missing converter field',
@@ -394,6 +452,7 @@ describe('Schema validation', () => {
           converter: 'json-to-csv',
           runtime: 'js',
           code: 'return input;',
+          child: null,
         },
         isValid: false,
         description: 'invalid UUID identifier',
@@ -470,6 +529,7 @@ describe('Schema validation', () => {
           identifier: '550e8400-e29b-41d4-a716-446655440002',
           type: 'tool',
           toolIdentifier: 'child-tool',
+          child: null,
         },
       };
 
@@ -480,6 +540,7 @@ describe('Schema validation', () => {
         identifier: '550e8400-e29b-41d4-a716-446655440001',
         type: 'tool',
         toolIdentifier: 'test-tool',
+        child: null,
         parent: { identifier: '550e8400-e29b-41d4-a716-446655440002' },
       };
 
@@ -496,9 +557,15 @@ describe('Schema validation', () => {
         children: [
           {
             identifier: '550e8400-e29b-41d4-a716-446655440002',
+            type: 'tool',
+            toolIdentifier: 'test-tool-1',
+            child: null,
           },
           {
             identifier: '550e8400-e29b-41d4-a716-446655440003',
+            type: 'tool',
+            toolIdentifier: 'test-tool-2',
+            child: null,
           },
         ],
       };
@@ -513,6 +580,9 @@ describe('Schema validation', () => {
         cron: '0 0 * * *',
         child: {
           identifier: '550e8400-e29b-41d4-a716-446655440002',
+          type: 'tool',
+          toolIdentifier: 'test-tool',
+          child: null,
         },
       };
 
@@ -526,7 +596,12 @@ describe('Schema validation', () => {
         type: 'cronjob-trigger',
         cron: '0 0 * * *',
         parent: { identifier: '550e8400-e29b-41d4-a716-446655440002' },
-        child: { identifier: '550e8400-e29b-41d4-a716-446655440003' },
+        child: {
+          identifier: '550e8400-e29b-41d4-a716-446655440003',
+          type: 'tool',
+          toolIdentifier: 'test-tool',
+          child: null,
+        },
       };
 
       // This should fail because trigger schema doesn't have parent property

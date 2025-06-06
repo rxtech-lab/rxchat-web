@@ -12,6 +12,10 @@ import {
 import { createAzure } from '@ai-sdk/azure';
 import { createAnthropic } from '@ai-sdk/anthropic';
 
+export const openRouterProvider = createOpenRouter({
+  apiKey: process.env.OPENROUTER_API_KEY,
+});
+
 /**
  * Get a provider for a given model and provider type
  * @param modelId - The ID of the model to use
