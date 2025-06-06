@@ -264,19 +264,6 @@ export function WorkflowView({ workflow, className }: WorkflowViewProps) {
           <Background />
         </ReactFlow>
       </div>
-
-      {/* Workflow info header */}
-      <div className="absolute top-4 left-4 bg-white rounded-lg shadow-md p-3 border">
-        <h3 className="font-semibold text-gray-800 mb-1">{workflow.title}</h3>
-        <div className="text-sm text-gray-600">
-          Trigger: {workflow.trigger.type}
-          {workflow.trigger.type === 'cronjob-trigger' && (
-            <span className="ml-2 font-mono bg-gray-100 px-1 rounded text-xs">
-              {(workflow.trigger as CronjobTriggerNode).cron}
-            </span>
-          )}
-        </div>
-      </div>
     </div>
   );
 }

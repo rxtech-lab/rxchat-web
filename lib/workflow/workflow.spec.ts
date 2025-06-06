@@ -1,203 +1,269 @@
-import { WorkflowEngineError } from './errors';
-import type { ConditionNode, ConverterNode, ToolNode, Workflow } from './types';
-import {
-  type JSCodeExecutionEngine,
-  type ToolExecutionEngine,
-  WorkflowEngine,
-} from './workflow';
+import type { CronjobTriggerNode, ToolNode } from './types';
+import { Workflow } from './workflow';
 
-describe('WorkflowEngine', () => {
-  let engine: WorkflowEngine;
-  let jsCodeExecutionEngine: JSCodeExecutionEngine;
-  let toolExecutionEngine: ToolExecutionEngine;
+describe('Workflow', () => {
+  let workflow: Workflow;
+  const mockTrigger: CronjobTriggerNode = {
+    identifier: '550e8400-e29b-41d4-a716-446655440000',
+    type: 'cronjob-trigger',
+    cron: '0 2 * * *',
+    child: null,
+  };
 
   beforeEach(() => {
-    jsCodeExecutionEngine = {
-      execute: jest.fn(),
-    };
-    toolExecutionEngine = {
-      execute: jest.fn(),
-    };
-    engine = new WorkflowEngine(jsCodeExecutionEngine, toolExecutionEngine);
+    workflow = new Workflow('Test Workflow', mockTrigger);
   });
 
-  describe('Basic Workflow Execution', () => {
-    it('should throw error if workflow with just a trigger', async () => {
-      const workflow: Workflow = {
-        title: 'Simple Trigger Workflow',
-        trigger: {
-          identifier: 'test-trigger',
-          type: 'cronjob-trigger',
-          cron: '0 0 * * *',
-        },
+  describe('Constructor', () => {
+    it('should create a workflow with title and trigger', () => {
+      expect(workflow.getTitle()).toBe('Test Workflow');
+      expect(workflow.getTrigger()).toEqual(mockTrigger);
+      expect(workflow.getWorkflow()).toEqual({
+        title: 'Test Workflow',
+        trigger: mockTrigger,
+      });
+    });
+  });
+
+  describe('addChild', () => {
+    it('should be able to add a child node to the trigger when identifier is undefined', () => {
+      const childNode: ToolNode = {
+        identifier: '550e8400-e29b-41d4-a716-446655440001',
+        type: 'tool',
+        toolIdentifier: 'test-tool',
+        child: null,
       };
 
-      // Should not throw any errors
-      await expect(engine.execute(workflow)).rejects.toThrow();
+      workflow.addChild(undefined, childNode);
+      expect(workflow.getWorkflow().trigger.child).toEqual(childNode);
     });
 
-    it('Should be able to execute a workflow with condition node', async () => {
-      const node1: ToolNode = {
-        identifier: 'node1',
+    it('should be able to add a child node to a specific parent', () => {
+      const parentNode: ToolNode = {
+        identifier: '550e8400-e29b-41d4-a716-446655440002',
         type: 'tool',
-        toolIdentifier: 'tool1',
+        toolIdentifier: 'parent-tool',
+        child: null,
       };
 
-      const node2: ToolNode = {
-        identifier: 'node2',
+      const childNode: ToolNode = {
+        identifier: '550e8400-e29b-41d4-a716-446655440003',
         type: 'tool',
-        toolIdentifier: 'tool2',
+        toolIdentifier: 'child-tool',
+        child: null,
       };
 
-      const conditionNode: ConditionNode = {
-        identifier: 'condition',
-        type: 'condition',
-        code: 'return "node1";',
-        children: [node1, node2],
-        runtime: 'js',
+      workflow.addChild(undefined, parentNode);
+      workflow.addChild('550e8400-e29b-41d4-a716-446655440002', childNode);
+
+      const workflowData = workflow.getWorkflow();
+      expect((workflowData.trigger.child as ToolNode).child).toEqual(childNode);
+    });
+
+    it('should throw error when parent node is not found', () => {
+      const childNode: ToolNode = {
+        identifier: '550e8400-e29b-41d4-a716-446655440004',
+        type: 'tool',
+        toolIdentifier: 'test-tool',
+        child: null,
       };
 
-      const workflow: Workflow = {
-        title: 'Condition Workflow',
-        trigger: {
-          identifier: 'test-trigger',
-          type: 'cronjob-trigger',
-          cron: '0 0 * * *',
-          child: conditionNode,
-        },
-      };
-
-      // mock the jsCodeExecutionEngine to return "node1"
-      jsCodeExecutionEngine.execute = jest.fn().mockReturnValue('node1');
-
-      // mock the toolExecutionEngine to return "tool1"
-      toolExecutionEngine.execute = jest.fn().mockReturnValue('tool1');
-
-      await expect(engine.execute(workflow)).resolves.not.toThrow();
-      // toolExecutionEngine should be called 1 time
-      expect(toolExecutionEngine.execute).toHaveBeenCalledTimes(1);
-      // jsCodeExecutionEngine should be called 1 time
-      expect(jsCodeExecutionEngine.execute).toHaveBeenCalledTimes(1);
-
-      // expect input to be "tool1"
-      expect(jsCodeExecutionEngine.execute).toHaveBeenCalledWith(
-        null,
-        'return "node1";',
-        { nodeId: 'condition' },
+      expect(() => {
+        workflow.addChild('550e8400-e29b-41d4-a716-446655440999', childNode);
+      }).toThrow(
+        'Node with identifier 550e8400-e29b-41d4-a716-446655440999 not found',
       );
     });
 
-    it('Should be able to execute a workflow with condition node in the middle', async () => {
-      const node2: ToolNode = {
-        identifier: 'node2',
+    it('should throw error when parent node already has a child', () => {
+      const parentNode: ToolNode = {
+        identifier: '550e8400-e29b-41d4-a716-446655440005',
         type: 'tool',
-        toolIdentifier: 'tool2',
+        toolIdentifier: 'parent-tool',
+        child: {
+          identifier: '550e8400-e29b-41d4-a716-446655440006',
+          type: 'tool',
+          toolIdentifier: 'existing-tool',
+          child: null,
+        } as ToolNode,
       };
 
-      const conditionNode: ConditionNode = {
-        identifier: 'condition',
-        type: 'condition',
-        code: 'return "node1";',
-        children: [node2],
-        runtime: 'js',
-      };
-
-      const node1: ToolNode = {
-        identifier: 'node1',
+      const newChildNode: ToolNode = {
+        identifier: '550e8400-e29b-41d4-a716-446655440007',
         type: 'tool',
-        toolIdentifier: 'tool1',
-        child: conditionNode,
+        toolIdentifier: 'new-tool',
+        child: null,
       };
 
-      const workflow: Workflow = {
-        title: 'Condition Workflow',
-        trigger: {
-          identifier: 'test-trigger',
-          type: 'cronjob-trigger',
-          cron: '0 0 * * *',
-          child: node1,
-        },
+      workflow.addChild(undefined, parentNode);
+
+      expect(() => {
+        workflow.addChild('550e8400-e29b-41d4-a716-446655440005', newChildNode);
+      }).toThrow(
+        "Node with identifier 550e8400-e29b-41d4-a716-446655440005 already has a child or doesn't support children",
+      );
+    });
+  });
+
+  describe('removeChild', () => {
+    it('should remove a child node from the workflow', () => {
+      const childNode: ToolNode = {
+        identifier: '550e8400-e29b-41d4-a716-446655440008',
+        type: 'tool',
+        toolIdentifier: 'test-tool',
+        child: null,
       };
 
-      // mock the jsCodeExecutionEngine to return "node1"
-      jsCodeExecutionEngine.execute = jest.fn().mockReturnValue('node1');
+      workflow.addChild(undefined, childNode);
+      expect(workflow.getWorkflow().trigger.child).toEqual(childNode);
 
-      // mock the toolExecutionEngine to return "tool1"
-      toolExecutionEngine.execute = jest.fn().mockReturnValue('tool1');
+      workflow.removeChild('550e8400-e29b-41d4-a716-446655440008');
+      expect(workflow.getWorkflow().trigger.child).toBeNull();
+    });
 
-      await expect(engine.execute(workflow)).resolves.not.toThrow();
-      // toolExecutionEngine should be called 1 time
-      expect(toolExecutionEngine.execute).toHaveBeenCalledTimes(1);
-      // jsCodeExecutionEngine should be called 1 time
-      expect(jsCodeExecutionEngine.execute).toHaveBeenCalledTimes(1);
-
-      // expect input to be "tool1"
-      expect(jsCodeExecutionEngine.execute).toHaveBeenCalledWith(
-        {
-          input: 'tool1',
-          nodeId: 'node1',
-        },
-        'return "node1";',
-        { nodeId: 'condition' },
+    it('should throw error when trying to remove non-existent node', () => {
+      expect(() => {
+        workflow.removeChild('550e8400-e29b-41d4-a716-446655440999');
+      }).toThrow(
+        'Node with identifier 550e8400-e29b-41d4-a716-446655440999 not found',
       );
     });
 
-    it('Should be able to execute a workflow with converter node', async () => {
-      const converterNode: ConverterNode = {
-        identifier: 'converter',
-        type: 'converter',
-        code: 'return "tool1";',
-        converter: 'converter1',
-        runtime: 'js',
-      };
+    it('should throw error when trying to remove root trigger node', () => {
+      expect(() => {
+        workflow.removeChild('550e8400-e29b-41d4-a716-446655440000');
+      }).toThrow('Cannot remove root trigger node');
+    });
+  });
 
-      const node1: ToolNode = {
-        identifier: 'node1',
+  describe('modifyChild', () => {
+    it('should modify an existing child node', () => {
+      const originalChild: ToolNode = {
+        identifier: '550e8400-e29b-41d4-a716-446655440009',
         type: 'tool',
-        toolIdentifier: 'tool1',
+        toolIdentifier: 'original-tool',
+        child: null,
       };
 
-      const node2: ToolNode = {
-        identifier: 'node2',
+      const modifiedChild: ToolNode = {
+        identifier: '550e8400-e29b-41d4-a716-446655440009',
         type: 'tool',
-        toolIdentifier: 'tool2',
+        toolIdentifier: 'modified-tool',
+        child: null,
       };
 
-      node1.child = converterNode;
-      converterNode.child = node2;
-
-      const workflow: Workflow = {
-        title: 'Condition Workflow',
-        trigger: {
-          identifier: 'test-trigger',
-          type: 'cronjob-trigger',
-          cron: '0 0 * * *',
-          child: node1,
-        },
-      };
-
-      // mock the jsCodeExecutionEngine to return "node1"
-      jsCodeExecutionEngine.execute = jest.fn().mockReturnValue('string');
-
-      // mock the toolExecutionEngine to return "tool1"
-      toolExecutionEngine.execute = jest.fn().mockReturnValue('tools');
-
-      await expect(engine.execute(workflow)).resolves.not.toThrow();
-      // toolExecutionEngine should be called 1 time
-      expect(toolExecutionEngine.execute).toHaveBeenCalledTimes(2);
-      // jsCodeExecutionEngine should be called 1 time
-      expect(jsCodeExecutionEngine.execute).toHaveBeenCalledTimes(1);
-
-      // expect input to be "tools"
-      expect(jsCodeExecutionEngine.execute).toHaveBeenCalledWith(
-        'tools',
-        'return "tool1";',
-        {
-          input: 'tools',
-          converter: 'converter1',
-          nodeId: 'converter',
-        },
+      workflow.addChild(undefined, originalChild);
+      workflow.modifyChild(
+        '550e8400-e29b-41d4-a716-446655440009',
+        modifiedChild,
       );
+
+      expect(workflow.getWorkflow().trigger.child).toEqual(modifiedChild);
+    });
+
+    it('should throw error when trying to modify non-existent node', () => {
+      const childNode: ToolNode = {
+        identifier: '550e8400-e29b-41d4-a716-446655440010',
+        type: 'tool',
+        toolIdentifier: 'test-tool',
+        child: null,
+      };
+
+      expect(() => {
+        workflow.modifyChild('550e8400-e29b-41d4-a716-446655440999', childNode);
+      }).toThrow(
+        'Node with identifier 550e8400-e29b-41d4-a716-446655440999 not found',
+      );
+    });
+
+    it('should throw error when trying to modify root trigger node', () => {
+      const childNode: ToolNode = {
+        identifier: '550e8400-e29b-41d4-a716-446655440000',
+        type: 'tool',
+        toolIdentifier: 'test-tool',
+        child: null,
+      };
+
+      expect(() => {
+        workflow.modifyChild('550e8400-e29b-41d4-a716-446655440000', childNode);
+      }).toThrow('Cannot modify root trigger node');
+    });
+  });
+
+  describe('compile', () => {
+    it('should validate and return workflow when valid', () => {
+      // Test with a fresh workflow that has no children added
+      const freshTrigger: CronjobTriggerNode = {
+        identifier: '550e8400-e29b-41d4-a716-446655440100',
+        type: 'cronjob-trigger',
+        cron: '0 2 * * *',
+        child: null,
+      };
+      const freshWorkflow = new Workflow('Test Workflow', freshTrigger);
+      const result = freshWorkflow.compile();
+      expect(result).toEqual({
+        title: 'Test Workflow',
+        trigger: freshTrigger,
+      });
+    });
+
+    it('should throw error when workflow is invalid', () => {
+      // Create workflow with invalid trigger (empty title)
+      const freshTrigger: CronjobTriggerNode = {
+        identifier: '550e8400-e29b-41d4-a716-446655440101',
+        type: 'cronjob-trigger',
+        cron: '0 2 * * *',
+        child: null,
+      };
+      const invalidWorkflow = new Workflow('', freshTrigger);
+
+      expect(() => {
+        invalidWorkflow.compile();
+      }).toThrow('Workflow validation failed:');
+    });
+  });
+
+  describe('readFrom', () => {
+    it('should construct workflow from valid JSON object', () => {
+      const workflowData = {
+        title: 'Imported Workflow',
+        trigger: {
+          identifier: '550e8400-e29b-41d4-a716-446655440011',
+          type: 'cronjob-trigger' as const,
+          cron: '0 0 * * *',
+          child: null,
+        },
+      };
+
+      workflow.readFrom(workflowData);
+      expect(workflow.getWorkflow()).toEqual(workflowData);
+    });
+
+    it('should throw error when JSON object is invalid', () => {
+      const invalidWorkflowData = {
+        title: '',
+        trigger: null,
+      };
+
+      expect(() => {
+        workflow.readFrom(invalidWorkflowData as any);
+      }).toThrow('Invalid workflow format:');
+    });
+  });
+
+  describe('Getters', () => {
+    it('should return correct workflow data', () => {
+      const workflowData = workflow.getWorkflow();
+      expect(workflowData.title).toBe('Test Workflow');
+      expect(workflowData.trigger).toEqual(mockTrigger);
+    });
+
+    it('should return correct title', () => {
+      expect(workflow.getTitle()).toBe('Test Workflow');
+    });
+
+    it('should return correct trigger', () => {
+      expect(workflow.getTrigger()).toEqual(mockTrigger);
     });
   });
 });

@@ -33,7 +33,7 @@ export const RegularNodeSchema = BaseNodeSchema.extend({
       z.lazy((): any => ConverterNodeSchema),
       z.lazy((): any => ConditionNodeSchema),
     ])
-    .optional()
+    .nullable()
     .describe('child node of the current node'),
 }).strict();
 
@@ -42,7 +42,11 @@ export type RegularNode = z.infer<typeof RegularNodeSchema>;
 // Schema for conditional nodes that can have multiple parents and children
 export const ConditionalNodeSchema = BaseNodeSchema.extend({
   children: z
-    .array(z.lazy(() => BaseNodeSchema))
+    .array(
+      z.lazy((): any =>
+        z.union([ToolNodeSchema, ConverterNodeSchema, ConditionNodeSchema]),
+      ),
+    )
     .describe('children nodes of the current node'),
 }).strict();
 
@@ -64,9 +68,13 @@ export type Node = z.infer<typeof NodeSchema>;
 export const ConditionNodeSchema = ConditionalNodeSchema.extend({
   type: z.literal('condition'),
   runtime: z.literal('js'),
-  children: RegularNodeSchema.array().describe(
-    'parent nodes ids of the current node',
-  ),
+  children: z
+    .array(
+      z.lazy((): any =>
+        z.union([ToolNodeSchema, ConverterNodeSchema, ConditionNodeSchema]),
+      ),
+    )
+    .describe('children nodes of the current node'),
   code: z.string().describe('JavaScript code to execute for this condition'),
 }).strict();
 
@@ -99,7 +107,11 @@ export type ConverterNode = z.infer<typeof ConverterNodeSchema>;
  */
 export const TriggerNodeSchema = BaseNodeSchema.extend({
   type: z.literal('trigger'),
-  child: RegularNodeSchema.optional(),
+  child: z
+    .lazy((): any =>
+      z.union([ToolNodeSchema, ConverterNodeSchema, ConditionNodeSchema]),
+    )
+    .nullable(),
 }).strict();
 
 export type TriggerNode = z.infer<typeof TriggerNodeSchema>;

@@ -1,5 +1,5 @@
 import { createRunnerEnvironment } from '@/lib/agent/runtime/runner-environment';
-import type { JSCodeExecutionEngine } from '../workflow';
+import type { JSCodeExecutionEngine } from '../workflow-engine';
 
 export class JSExecutionEngine implements JSCodeExecutionEngine {
   async execute(input: any, code: string, context: any): Promise<unknown> {

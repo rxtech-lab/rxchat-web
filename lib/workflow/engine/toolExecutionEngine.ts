@@ -1,4 +1,4 @@
-import type { ToolExecutionEngine } from '../workflow';
+import type { ToolExecutionEngine } from '../workflow-engine';
 
 export class McpToolExecutionEngine implements ToolExecutionEngine {
   async execute(tool: string, input: any): Promise<any> {
