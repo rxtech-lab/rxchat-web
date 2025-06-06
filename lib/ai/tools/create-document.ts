@@ -22,8 +22,9 @@ export const createDocument = ({
   dataStream,
 }: CreateDocumentProps) =>
   tool({
-    description:
-      'Create a document for a writing or content creation activities. This tool will call other functions that will generate the contents of the document based on the title and kind.',
+    description: `Create a document for a writing or content creation activities. 
+    This tool will call other functions that will generate the contents of the document based on the title and kind. 
+    When user asking about build a workflow, use the flowchart kind.`,
     parameters: z.object({
       title: z.string(),
       kind: z.enum(artifactKinds),

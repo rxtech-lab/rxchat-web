@@ -9,7 +9,7 @@ export const sheetDocumentHandler = (
   selectedChatModel: string,
   selectedChatModelProvider: ProviderType,
 ) =>
-  createDocumentHandler<'sheet'>({
+  createDocumentHandler<'sheet'>({  
     kind: 'sheet',
     selectedChatModel,
     selectedChatModelProvider,
