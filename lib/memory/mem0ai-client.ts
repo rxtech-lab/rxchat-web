@@ -22,6 +22,7 @@ export class Mem0AIClient implements IMemoryClient {
       throw new Error('MEM_ZERO_AI_API_KEY environment variable is required');
     }
 
+    // Initialize client
     this.client = new Mem0Client({ apiKey });
   }
 
@@ -65,6 +66,9 @@ export class Mem0AIClient implements IMemoryClient {
     try {
       const searchOptions: any = {
         user_id: options.user_id,
+        // Enable graph memory for enhanced relationship tracking
+        // See: https://docs.mem0.ai/platform/features/graph-memory
+        enable_graph: true,
       };
 
       if (options.limit) {
@@ -98,28 +102,7 @@ export class Mem0AIClient implements IMemoryClient {
     }
   }
 
-  /**
-   * Get all memories for a user
-   */
-  async getAll(userId: string): Promise<MemorySearchResult[]> {
-    try {
-      const response = await this.client.getAll({ user_id: userId });
 
-      return (
-        response?.map((result: any) => ({
-          id: result.id || '',
-          text: result.memory || result.text || '',
-          score: 1.0, // Default score since getAll doesn't provide scores
-          metadata: result.metadata || {},
-        })) || []
-      );
-    } catch (error) {
-      console.error('Error getting all memories:', error);
-      throw new Error(
-        `Failed to get all memories: ${error instanceof Error ? error.message : 'Unknown error'}`,
-      );
-    }
-  }
 
   /**
    * Delete a specific memory

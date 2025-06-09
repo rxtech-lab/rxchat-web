@@ -4,7 +4,7 @@ import type { MemoryMessage } from './types';
 // Mock the actual functions that will be called
 const mockAdd = jest.fn();
 const mockSearch = jest.fn();
-const mockGetAll = jest.fn();
+
 const mockDelete = jest.fn();
 
 // Mock mem0ai module
@@ -12,7 +12,6 @@ jest.mock('mem0ai', () => {
   return jest.fn().mockImplementation(() => ({
     add: mockAdd,
     search: mockSearch,
-    getAll: mockGetAll,
     delete: mockDelete,
   }));
 });
@@ -102,6 +101,7 @@ describe('Mem0AIClient', () => {
       expect(mockSearch).toHaveBeenCalledWith(query, {
         user_id: 'user123',
         version: 'v2',
+        enable_graph: true,
         filters: { AND: [{ user_id: 'user123' }] },
       });
       expect(result).toEqual({
@@ -128,42 +128,7 @@ describe('Mem0AIClient', () => {
     });
   });
 
-  describe('getAll', () => {
-    it('should get all memories for a user', async () => {
-      const userId = 'user123';
 
-      mockGetAll.mockResolvedValue([
-        {
-          id: '1',
-          memory: 'User preference 1',
-          metadata: { type: 'preference' },
-        },
-        {
-          id: '2',
-          memory: 'User preference 2',
-          metadata: { type: 'preference' },
-        },
-      ]);
-
-      const result = await client.getAll(userId);
-
-      expect(mockGetAll).toHaveBeenCalledWith({ user_id: userId });
-      expect(result).toEqual([
-        {
-          id: '1',
-          text: 'User preference 1',
-          score: 1.0,
-          metadata: { type: 'preference' },
-        },
-        {
-          id: '2',
-          text: 'User preference 2',
-          score: 1.0,
-          metadata: { type: 'preference' },
-        },
-      ]);
-    });
-  });
 
   describe('delete', () => {
     it('should delete a memory successfully', async () => {

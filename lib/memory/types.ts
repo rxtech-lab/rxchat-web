@@ -76,10 +76,7 @@ export interface MemoryClient {
     options: SearchMemoryOptions,
   ): Promise<SearchMemoryResponse>;
 
-  /**
-   * Get all memories for a user
-   */
-  getAll(userId: string): Promise<MemorySearchResult[]>;
+
 
   /**
    * Delete a specific memory

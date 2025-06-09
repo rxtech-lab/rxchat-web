@@ -14,7 +14,6 @@ jest.mock('mem0ai', () => {
     return {
       add: jest.fn(),
       search: jest.fn(),
-      getAll: jest.fn(),
       delete: jest.fn(),
     };
   });

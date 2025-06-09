@@ -6,7 +6,7 @@ import {
   getFilteredProviders,
   providerSupportsDocuments,
 } from '@/lib/ai/models';
-import { systemPrompt, type RequestHints } from '@/lib/ai/prompts';
+import { systemPrompt, type RequestHints, getMemoryContext } from '@/lib/ai/prompts';
 import { getModelProvider } from '@/lib/ai/providers';
 import { createDocument } from '@/lib/ai/tools/create-document';
 import { getWeather } from '@/lib/ai/tools/get-weather';
@@ -272,40 +272,7 @@ export async function POST(request: Request) {
     }
 
     // Search memory for relevant context to enhance the system prompt
-    let memoryContext = '';
-    try {
-      const memoryClient = createMemoryClient();
-      const userMessage = message.content;
-
-      const memoryResults = await memoryClient.search(userMessage, {
-        user_id: session.user.id,
-        limit: 5,
-        version: 'v2',
-        filters: {
-          AND: [
-            {
-              user_id: session.user.id,
-            },
-          ],
-        },
-      });
-
-      if (memoryResults.results.length > 0) {
-        const memories = memoryResults.results
-          .map((result) => result.text)
-          .join('\n');
-
-        memoryContext = `
-
-Based on your previous conversations, here are some relevant memories:
-${memories}
-
-Please consider this context when responding to the user.`;
-      }
-    } catch (error) {
-      console.error('Failed to retrieve memory context:', error);
-      // Continue without memory context if there's an error
-    }
+    const memoryContext = await getMemoryContext(message.content, session.user.id);
 
     // Add memory context to system prompt if available
     if (memoryContext) {

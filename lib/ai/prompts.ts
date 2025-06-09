@@ -3,6 +3,7 @@ import type { Geo } from '@vercel/functions';
 import type { Attachment } from 'ai';
 import { createMarkitdownClient } from '../document/markitdown';
 import { RecursiveCharacterTextSplitter } from '@langchain/textsplitters';
+import { createMemoryClient } from '@/lib/memory';
 
 export const artifactsPrompt = `
 Artifacts is a special user interface mode that helps users with writing, editing, and other content creation tasks. When artifact is open, it is on the right side of the screen, while the conversation is on the left side. When creating or updating documents, changes are reflected in real-time on the artifacts and visible to the user.
@@ -165,3 +166,47 @@ Improve the following spreadsheet based on the given prompt.
 ${currentContent}
 `
         : '';
+
+/**
+ * Generate memory context from user's previous conversations
+ * @param userMessage - The current user message to search for relevant memories
+ * @param userId - The user ID to search memories for
+ * @returns Memory context string to append to system prompt
+ */
+export async function getMemoryContext(userMessage: string, userId: string): Promise<string> {
+  try {
+    const memoryClient = createMemoryClient();
+    
+    const memoryResults = await memoryClient.search(userMessage, {
+      user_id: userId,
+      limit: 5,
+      version: 'v2',
+      filters: {
+        AND: [
+          {
+            user_id: userId,
+          },
+        ],
+      },
+    });
+
+    if (memoryResults.results.length > 0) {
+      const memories = memoryResults.results
+        .map((result) => result.text)
+        .join('\n');
+
+      return `
+
+Based on your previous conversations, here are some relevant memories:
+${memories}
+
+Please consider this context when responding to the user.`;
+    }
+
+    return '';
+  } catch (error) {
+    console.error('Failed to retrieve memory context:', error);
+    // Return empty string if there's an error, don't break the main flow
+    return '';
+  }
+}

@@ -9,7 +9,6 @@ jest.mock('mem0ai', () => {
     return {
       add: jest.fn(),
       search: jest.fn(),
-      getAll: jest.fn(),
       delete: jest.fn(),
     };
   });
@@ -29,7 +28,6 @@ describe('Memory Client Factory', () => {
     expect(client).toBeDefined();
     expect(typeof client.add).toBe('function');
     expect(typeof client.search).toBe('function');
-    expect(typeof client.getAll).toBe('function');
     expect(typeof client.delete).toBe('function');
   });
 
