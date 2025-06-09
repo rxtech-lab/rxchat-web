@@ -27,7 +27,7 @@ describe('Mem0AIClient', () => {
   });
 
   afterEach(() => {
-    process.env.MEM_ZERO_AI_API_KEY = undefined;
+    delete process.env.MEM_ZERO_AI_API_KEY;
   });
 
   describe('constructor', () => {
