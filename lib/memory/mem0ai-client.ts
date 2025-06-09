@@ -22,7 +22,7 @@ export class Mem0AIClient implements IMemoryClient {
       throw new Error('MEM_ZERO_AI_API_KEY environment variable is required');
     }
 
-    this.client = new Mem0Client(apiKey);
+    this.client = new Mem0Client({ apiKey });
   }
 
   /**
@@ -40,7 +40,12 @@ export class Mem0AIClient implements IMemoryClient {
 
       return {
         message: 'Messages added to memory successfully',
-        results: response.results || [],
+        results:
+          response?.map((memory: any) => ({
+            id: memory.id || '',
+            event: memory.event || 'ADD',
+            data: memory.memory || memory.data || '',
+          })) || [],
       };
     } catch (error) {
       console.error('Error adding messages to memory:', error);
@@ -78,7 +83,7 @@ export class Mem0AIClient implements IMemoryClient {
 
       return {
         results:
-          response.results?.map((result: any) => ({
+          response?.map((result: any) => ({
             id: result.id || '',
             text: result.memory || result.text || '',
             score: result.score || 0,
@@ -101,7 +106,7 @@ export class Mem0AIClient implements IMemoryClient {
       const response = await this.client.getAll({ user_id: userId });
 
       return (
-        response.results?.map((result: any) => ({
+        response?.map((result: any) => ({
           id: result.id || '',
           text: result.memory || result.text || '',
           score: 1.0, // Default score since getAll doesn't provide scores

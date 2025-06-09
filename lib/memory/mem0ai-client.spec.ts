@@ -52,9 +52,9 @@ describe('Mem0AIClient', () => {
       ];
       const options = { user_id: 'user123' };
 
-      mockAdd.mockResolvedValue({
-        results: [{ id: '1', event: 'add', data: 'memory added' }],
-      });
+      mockAdd.mockResolvedValue([
+        { id: '1', event: 'ADD', memory: 'memory added' },
+      ]);
 
       const result = await client.add(messages, options);
 
@@ -63,7 +63,7 @@ describe('Mem0AIClient', () => {
       });
       expect(result).toEqual({
         message: 'Messages added to memory successfully',
-        results: [{ id: '1', event: 'add', data: 'memory added' }],
+        results: [{ id: '1', event: 'ADD', data: 'memory added' }],
       });
     });
 
@@ -88,16 +88,14 @@ describe('Mem0AIClient', () => {
         filters: { AND: [{ user_id: 'user123' }] },
       };
 
-      mockSearch.mockResolvedValue({
-        results: [
-          {
-            id: '1',
-            memory: 'User likes pepperoni pizza',
-            score: 0.9,
-            metadata: { type: 'preference' },
-          },
-        ],
-      });
+      mockSearch.mockResolvedValue([
+        {
+          id: '1',
+          memory: 'User likes pepperoni pizza',
+          score: 0.9,
+          metadata: { type: 'preference' },
+        },
+      ]);
 
       const result = await client.search(query, options);
 
@@ -134,20 +132,18 @@ describe('Mem0AIClient', () => {
     it('should get all memories for a user', async () => {
       const userId = 'user123';
 
-      mockGetAll.mockResolvedValue({
-        results: [
-          {
-            id: '1',
-            memory: 'User preference 1',
-            metadata: { type: 'preference' },
-          },
-          {
-            id: '2',
-            memory: 'User preference 2',
-            metadata: { type: 'preference' },
-          },
-        ],
-      });
+      mockGetAll.mockResolvedValue([
+        {
+          id: '1',
+          memory: 'User preference 1',
+          metadata: { type: 'preference' },
+        },
+        {
+          id: '2',
+          memory: 'User preference 2',
+          metadata: { type: 'preference' },
+        },
+      ]);
 
       const result = await client.getAll(userId);
 
