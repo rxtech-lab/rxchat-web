@@ -86,6 +86,8 @@ export type ConditionNode = z.infer<typeof ConditionNodeSchema>;
 export const ToolNodeSchema = RegularNodeSchema.extend({
   type: z.literal('tool'),
   toolIdentifier: z.string().describe('identifier of the tool to execute'),
+  inputSchema: z.any().describe('input schema of the tool'),
+  outputSchema: z.any().describe('output schema of the tool'),
 }).strict();
 
 export type ToolNode = z.infer<typeof ToolNodeSchema>;
