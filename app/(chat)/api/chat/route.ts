@@ -20,6 +20,7 @@ import {
   filterDocumentAttachments,
 } from '@/lib/ai/utils';
 import { isProductionEnvironment, isTestEnvironment } from '@/lib/constants';
+import { createMemoryClient } from '@/lib/memory';
 import {
   createStreamId,
   deleteChatById,
@@ -269,6 +270,47 @@ export async function POST(request: Request) {
       ${userPromptResult}
       `;
     }
+
+    // Search memory for relevant context to enhance the system prompt
+    let memoryContext = '';
+    try {
+      const memoryClient = createMemoryClient();
+      const userMessage = message.content;
+
+      const memoryResults = await memoryClient.search(userMessage, {
+        user_id: session.user.id,
+        limit: 5,
+        version: 'v2',
+        filters: {
+          AND: [
+            {
+              user_id: session.user.id,
+            },
+          ],
+        },
+      });
+
+      if (memoryResults.results.length > 0) {
+        const memories = memoryResults.results
+          .map((result) => result.text)
+          .join('\n');
+
+        memoryContext = `
+
+Based on your previous conversations, here are some relevant memories:
+${memories}
+
+Please consider this context when responding to the user.`;
+      }
+    } catch (error) {
+      console.error('Failed to retrieve memory context:', error);
+      // Continue without memory context if there's an error
+    }
+
+    // Add memory context to system prompt if available
+    if (memoryContext) {
+      defaultSystemPrompt = `${defaultSystemPrompt}${memoryContext}`;
+    }
     const model = provider.languageModel(selectedChatModel);
     const testingTools: Record<string, any> = {};
     if (isTestEnvironment) {
@@ -369,6 +411,45 @@ export async function POST(request: Request) {
                     } as any) as any,
                   ],
                 });
+
+                // Add conversation to memory for future context
+                try {
+                  const memoryClient = createMemoryClient();
+
+                  // Extract assistant response content from parts
+                  const assistantContent =
+                    assistantMessage.parts
+                      ?.filter((part: any) => part.type === 'text')
+                      ?.map((part: any) => part.text)
+                      ?.join(' ') || '';
+
+                  if (assistantContent.trim()) {
+                    const conversationMessages = [
+                      {
+                        role: 'user' as const,
+                        content: message.content,
+                      },
+                      {
+                        role: 'assistant' as const,
+                        content: assistantContent,
+                      },
+                    ];
+
+                    await memoryClient.add(conversationMessages, {
+                      user_id: session.user.id,
+                      metadata: {
+                        chat_id: id,
+                        timestamp: new Date().toISOString(),
+                      },
+                    });
+                  }
+                } catch (memoryError) {
+                  console.error(
+                    'Failed to add conversation to memory:',
+                    memoryError,
+                  );
+                  // Don't throw here to avoid breaking the main chat flow
+                }
               } catch (_) {
                 console.error('Failed to save chat');
               }

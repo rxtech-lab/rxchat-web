@@ -113,7 +113,7 @@ export function PromptDialog({ currentPrompt }: PromptDialogProps) {
       const updatedPrompt = await updatePrompt(editingPrompt.id, data);
       // Keep dialog open and update the editing prompt with the latest data
       // Since updatePrompt returns the updated prompt from the server, use that
-      const refreshedPrompts = prompts.find(p => p.id === editingPrompt.id);
+      const refreshedPrompts = prompts.find((p) => p.id === editingPrompt.id);
       if (refreshedPrompts) {
         setEditingPrompt(refreshedPrompts);
       }
