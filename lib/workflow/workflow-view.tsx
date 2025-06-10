@@ -13,8 +13,17 @@ import {
   useReactFlow,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import { Clock, Code, GitBranch, Wrench, Zap } from 'lucide-react';
-import { useEffect, useMemo } from 'react';
+import { Clock, Code, GitBranch, Wrench, Zap, Eye } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import Editor from '@monaco-editor/react';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
 import type {
   Workflow,
   BaseNode,
@@ -92,6 +101,8 @@ const ConditionNodeComponent = ({ data }: { data: ConditionNode }) => (
       'bg-yellow-50 border-yellow-300 shadow-md',
     )}
   >
+    <Handle type="target" position={Position.Top} />
+    <Handle type="source" position={Position.Bottom} />
     <div className="flex items-center gap-2 mb-1">
       <GitBranch className="size-4 text-yellow-600" />
       <span className="font-semibold text-yellow-800">Condition</span>
@@ -111,34 +122,94 @@ const ConditionNodeComponent = ({ data }: { data: ConditionNode }) => (
   </div>
 );
 
-const ConverterNodeComponent = ({ data }: { data: ConverterNode }) => (
-  <div
-    className={cn(
-      'px-4 py-3 rounded-lg border-2 min-w-[200px]',
-      'bg-purple-50 border-purple-300 shadow-md',
-    )}
-  >
-    <div className="flex items-center gap-2 mb-1">
-      <Code className="size-4 text-purple-600" />
-      <span className="font-semibold text-purple-800">Converter</span>
-    </div>
-    <div className="text-sm text-purple-700">
-      <div>
-        Converter:{' '}
-        <span className="font-mono bg-purple-100 px-1 rounded">
-          {data.converter}
-        </span>
+const ConverterNodeComponent = ({ data }: { data: ConverterNode }) => {
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+
+  return (
+    <div
+      className={cn(
+        'px-4 py-3 rounded-lg border-2 min-w-[200px]',
+        'bg-purple-50 border-purple-300 shadow-md',
+      )}
+    >
+      <Handle type="target" position={Position.Top} />
+      <Handle type="source" position={Position.Bottom} />
+      <div className="flex items-center gap-2 mb-1">
+        <Code className="size-4 text-purple-600" />
+        <span className="font-semibold text-purple-800">Converter</span>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="ml-auto p-1 h-6 w-6 text-purple-600 hover:text-purple-800 hover:bg-purple-100 z-10 relative"
+          onClick={(e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            setIsDialogOpen(true);
+          }}
+          onMouseDown={(e) => {
+            e.stopPropagation();
+          }}
+        >
+          <Eye className="size-3" />
+        </Button>
+        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <DialogContent className="max-w-4xl max-h-[80vh] overflow-hidden">
+            <DialogHeader>
+              <DialogTitle>Converter Code - {data.identifier}</DialogTitle>
+            </DialogHeader>
+            <div className="flex flex-col gap-2">
+              <div className="text-sm text-gray-600">
+                Runtime:{' '}
+                <span className="font-mono bg-gray-100 px-1 rounded">
+                  {data.runtime}
+                </span>
+              </div>
+              <div
+                className="border rounded-lg overflow-hidden"
+                style={{ height: '500px' }}
+              >
+                <Editor
+                  height="500px"
+                  language="typescript"
+                  theme="vs-light"
+                  value={data.code}
+                  options={{
+                    readOnly: true,
+                    minimap: { enabled: true },
+                    fontSize: 14,
+                    lineNumbers: 'on',
+                    scrollBeyondLastLine: false,
+                    automaticLayout: true,
+                    wordWrap: 'on',
+                  }}
+                />
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
-      <div>
-        Runtime:{' '}
-        <span className="font-mono bg-purple-100 px-1 rounded">
-          {data.runtime}
-        </span>
+      <div className="text-sm text-purple-700">
+        <div>
+          Code:{' '}
+          <span className="font-mono bg-purple-100 px-1 rounded text-xs">
+            {data.code.length > 20
+              ? `${data.code.substring(0, 20)}...`
+              : data.code}
+          </span>
+        </div>
+        <div>
+          Runtime:{' '}
+          <span className="font-mono bg-purple-100 px-1 rounded">
+            {data.runtime}
+          </span>
+        </div>
+        <div className="text-xs text-purple-600 mt-1">
+          ID: {data.identifier}
+        </div>
       </div>
-      <div className="text-xs text-purple-600 mt-1">ID: {data.identifier}</div>
     </div>
-  </div>
-);
+  );
+};
 
 const DefaultNodeComponent = ({
   data,
@@ -340,7 +411,7 @@ export function WorkflowView({ workflow, className }: WorkflowViewProps) {
             padding: 20,
             includeHiddenNodes: false,
           }}
-          elementsSelectable={false}
+          elementsSelectable={true}
           nodesConnectable={false}
           nodesDraggable={false}
         >

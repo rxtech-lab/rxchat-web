@@ -333,14 +333,14 @@ export class WorkflowEngine implements WorkflowEngineInterface {
     input?: any,
   ): Promise<ConverterNodeExecutionResult> {
     console.log(
-      `Converter node executed: ${node.identifier} using converter: ${node.converter}`,
+      `Converter node executed: ${node.identifier} using converter: ${node.code}`,
     );
 
     try {
       // Execute the JavaScript code for conversion
       const result = this.jsCodeExecutionEngine.execute(input, node.code, {
         input,
-        converter: node.converter,
+        code: node.code,
         nodeId: node.identifier,
       });
 

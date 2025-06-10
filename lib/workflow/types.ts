@@ -86,6 +86,9 @@ export type ConditionNode = z.infer<typeof ConditionNodeSchema>;
 export const ToolNodeSchema = RegularNodeSchema.extend({
   type: z.literal('tool'),
   toolIdentifier: z.string().describe('identifier of the tool to execute'),
+  description: z.string().nullable(),
+  inputSchema: z.any().describe('input schema of the tool'),
+  outputSchema: z.any().describe('output schema of the tool'),
 }).strict();
 
 export type ToolNode = z.infer<typeof ToolNodeSchema>;
@@ -95,7 +98,6 @@ export type ToolNode = z.infer<typeof ToolNodeSchema>;
  */
 export const ConverterNodeSchema = RegularNodeSchema.extend({
   type: z.literal('converter'),
-  converter: z.string(),
   runtime: z.literal('js'),
   code: z.string().describe('JavaScript code to execute for this converter'),
 }).strict();
@@ -137,13 +139,6 @@ export const CronjobTriggerNodeSchema = TriggerNodeSchema.extend({
 }).strict();
 
 export type CronjobTriggerNode = z.infer<typeof CronjobTriggerNodeSchema>;
-
-export const ConversionNodeSchema = BaseNodeSchema.extend({
-  type: z.literal('conversion'),
-  conversion: z.string(),
-});
-
-export type ConversionNode = z.infer<typeof ConversionNodeSchema>;
 
 export const WorkflowSchema = z.object({
   title: z.string().min(1).describe('title of the workflow'),
