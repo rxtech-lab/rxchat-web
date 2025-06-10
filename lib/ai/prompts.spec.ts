@@ -1,4 +1,4 @@
-import { getDocumentPrompt } from './prompts';
+import { getDocumentPrompt, getMemoryContext } from './prompts';
 import { createMarkitdownClient } from '../document/markitdown';
 import type { Attachment } from 'ai';
 
@@ -7,8 +7,19 @@ jest.mock('../document/markitdown', () => ({
   createMarkitdownClient: jest.fn(),
 }));
 
+// Mock the memory module
+jest.mock('@/lib/memory', () => ({
+  createMemoryClient: jest.fn(),
+}));
+
+import { createMemoryClient } from '@/lib/memory';
+
 const mockCreateMarkitdownClient =
   createMarkitdownClient as jest.MockedFunction<typeof createMarkitdownClient>;
+
+const mockCreateMemoryClient = createMemoryClient as jest.MockedFunction<
+  typeof createMemoryClient
+>;
 
 describe('getDocumentPrompt', () => {
   beforeEach(() => {
@@ -264,5 +275,209 @@ Unknown file content
   The user has attached the following documents:
   
   `);
+  });
+});
+
+describe('getMemoryContext', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('should return empty string when shouldLoadMemory is false', async () => {
+    const mockMemoryClient = {
+      search: jest.fn().mockResolvedValue({
+        results: [
+          {
+            id: '1',
+            text: 'User prefers Italian food',
+            score: 0.9,
+            metadata: { type: 'preference' },
+          },
+        ],
+      }),
+    };
+
+    mockCreateMemoryClient.mockReturnValue(mockMemoryClient as any);
+
+    const result = await getMemoryContext(
+      'What should I eat for dinner?',
+      'user123',
+      false,
+    );
+
+    // Should not call search when shouldLoadMemory is false
+    expect(mockMemoryClient.search).not.toHaveBeenCalled();
+    expect(result).toBe('');
+  });
+
+  it('should load memory when shouldLoadMemory is true (default behavior)', async () => {
+    const mockMemoryClient = {
+      search: jest.fn().mockResolvedValue({
+        results: [
+          {
+            id: '1',
+            text: 'User prefers Italian food',
+            score: 0.9,
+            metadata: { type: 'preference' },
+          },
+        ],
+      }),
+    };
+
+    mockCreateMemoryClient.mockReturnValue(mockMemoryClient as any);
+
+    const result = await getMemoryContext(
+      'What should I eat for dinner?',
+      'user123',
+      true,
+    );
+
+    expect(mockMemoryClient.search).toHaveBeenCalledWith(
+      'What should I eat for dinner?',
+      {
+        user_id: 'user123',
+        limit: 5,
+        version: 'v2',
+        filters: {
+          AND: [
+            {
+              user_id: 'user123',
+            },
+          ],
+        },
+      },
+    );
+
+    expect(result).toBe(`
+
+Based on your previous conversations, here are some relevant memories:
+User prefers Italian food
+
+Please consider this context when responding to the user.`);
+  });
+
+  it('should return formatted memory context when memories are found', async () => {
+    const mockMemoryClient = {
+      search: jest.fn().mockResolvedValue({
+        results: [
+          {
+            id: '1',
+            text: 'User prefers Italian food',
+            score: 0.9,
+            metadata: { type: 'preference' },
+          },
+          {
+            id: '2',
+            text: 'User is allergic to nuts',
+            score: 0.8,
+            metadata: { type: 'health' },
+          },
+        ],
+      }),
+    };
+
+    mockCreateMemoryClient.mockReturnValue(mockMemoryClient as any);
+
+    const result = await getMemoryContext(
+      'What should I eat for dinner?',
+      'user123',
+    );
+
+    expect(mockMemoryClient.search).toHaveBeenCalledWith(
+      'What should I eat for dinner?',
+      {
+        user_id: 'user123',
+        limit: 5,
+        version: 'v2',
+        filters: {
+          AND: [
+            {
+              user_id: 'user123',
+            },
+          ],
+        },
+      },
+    );
+
+    expect(result).toBe(`
+
+Based on your previous conversations, here are some relevant memories:
+User prefers Italian food
+User is allergic to nuts
+
+Please consider this context when responding to the user.`);
+  });
+
+  it('should return empty string when no memories are found', async () => {
+    const mockMemoryClient = {
+      search: jest.fn().mockResolvedValue({
+        results: [],
+      }),
+    };
+
+    mockCreateMemoryClient.mockReturnValue(mockMemoryClient as any);
+
+    const result = await getMemoryContext('Random query', 'user123');
+
+    expect(mockMemoryClient.search).toHaveBeenCalledWith('Random query', {
+      user_id: 'user123',
+      limit: 5,
+      version: 'v2',
+      filters: {
+        AND: [
+          {
+            user_id: 'user123',
+          },
+        ],
+      },
+    });
+
+    expect(result).toBe('');
+  });
+
+  it('should return empty string when memory client throws an error', async () => {
+    const mockMemoryClient = {
+      search: jest
+        .fn()
+        .mockRejectedValue(new Error('Memory service unavailable')),
+    };
+
+    mockCreateMemoryClient.mockReturnValue(mockMemoryClient as any);
+
+    // Spy on console.error to check if error is logged
+    const consoleSpy = jest
+      .spyOn(console, 'error')
+      .mockImplementation(() => {});
+
+    const result = await getMemoryContext('Any query', 'user123');
+
+    expect(result).toBe('');
+    expect(consoleSpy).toHaveBeenCalledWith(
+      'Failed to retrieve memory context:',
+      expect.any(Error),
+    );
+
+    consoleSpy.mockRestore();
+  });
+
+  it('should return empty string when createMemoryClient throws an error', async () => {
+    mockCreateMemoryClient.mockImplementation(() => {
+      throw new Error('MEM_ZERO_AI_API_KEY environment variable is required');
+    });
+
+    // Spy on console.error to check if error is logged
+    const consoleSpy = jest
+      .spyOn(console, 'error')
+      .mockImplementation(() => {});
+
+    const result = await getMemoryContext('Any query', 'user123');
+
+    expect(result).toBe('');
+    expect(consoleSpy).toHaveBeenCalledWith(
+      'Failed to retrieve memory context:',
+      expect.any(Error),
+    );
+
+    consoleSpy.mockRestore();
   });
 });

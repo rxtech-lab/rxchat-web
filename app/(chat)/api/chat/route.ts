@@ -6,7 +6,11 @@ import {
   getFilteredProviders,
   providerSupportsDocuments,
 } from '@/lib/ai/models';
-import { systemPrompt, type RequestHints } from '@/lib/ai/prompts';
+import {
+  systemPrompt,
+  type RequestHints,
+  getMemoryContext,
+} from '@/lib/ai/prompts';
 import { getModelProvider } from '@/lib/ai/providers';
 import { createDocument } from '@/lib/ai/tools/create-document';
 import { getWeather } from '@/lib/ai/tools/get-weather';
@@ -20,6 +24,7 @@ import {
   filterDocumentAttachments,
 } from '@/lib/ai/utils';
 import { isProductionEnvironment, isTestEnvironment } from '@/lib/constants';
+import { createMemoryClient } from '@/lib/memory';
 import {
   createStreamId,
   deleteChatById,
@@ -34,7 +39,11 @@ import {
 } from '@/lib/db/queries/queries';
 import type { Chat } from '@/lib/db/schema';
 import { ChatSDKError } from '@/lib/errors';
-import { generateUUID, getTrailingMessageId } from '@/lib/utils';
+import {
+  generateUUID,
+  getTrailingMessageId,
+  estimateTokenCount,
+} from '@/lib/utils';
 import { geolocation } from '@vercel/functions';
 import {
   appendClientMessage,
@@ -269,6 +278,26 @@ export async function POST(request: Request) {
       ${userPromptResult}
       `;
     }
+
+    // Determine if memory should be loaded based on optimization conditions:
+    // 1. First conversation (no previous messages), OR
+    // 2. Current chat has more than 10k tokens
+    const estimatedTokens = estimateTokenCount([
+      ...previousMessages.map((msg) => ({ parts: msg.parts as any[] })),
+      { parts: message.parts as any[] },
+    ]);
+
+    // Search memory for relevant context to enhance the system prompt
+    const memoryContext = await getMemoryContext(
+      message.content,
+      session.user.id,
+      true,
+    );
+
+    // Add memory context to system prompt if available
+    if (memoryContext) {
+      defaultSystemPrompt = `${defaultSystemPrompt}${memoryContext}`;
+    }
     const model = provider.languageModel(selectedChatModel);
     const testingTools: Record<string, any> = {};
     if (isTestEnvironment) {
@@ -369,6 +398,41 @@ export async function POST(request: Request) {
                     } as any) as any,
                   ],
                 });
+
+                // Add conversation to memory for future context
+                try {
+                  const memoryClient = createMemoryClient();
+
+                  // Extract assistant response content from parts
+                  const assistantContent =
+                    assistantMessage.parts
+                      ?.filter((part: any) => part.type === 'text')
+                      ?.map((part: any) => part.text)
+                      ?.join(' ') || '';
+
+                  if (assistantContent.trim()) {
+                    const conversationMessages = [
+                      {
+                        role: 'user' as const,
+                        content: message.content,
+                      },
+                      {
+                        role: 'assistant' as const,
+                        content: assistantContent,
+                      },
+                    ];
+
+                    await memoryClient.add(conversationMessages, {
+                      user_id: session.user.id,
+                    });
+                  }
+                } catch (memoryError) {
+                  console.error(
+                    'Failed to add conversation to memory:',
+                    memoryError,
+                  );
+                  // Don't throw here to avoid breaking the main chat flow
+                }
               } catch (_) {
                 console.error('Failed to save chat');
               }

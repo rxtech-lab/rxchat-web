@@ -94,3 +94,26 @@ export function getTrailingMessageId({
 export function sanitizeText(text: string) {
   return text.replace('<has_function_call>', '');
 }
+
+/**
+ * Estimate token count from messages based on text content
+ * Uses rough approximation: 1 token ≈ 4 characters
+ * @param messages - Array of messages to count tokens for
+ * @returns Estimated token count
+ */
+export function estimateTokenCount(messages: Array<{ parts: any[] }>): number {
+  let totalChars = 0;
+
+  for (const message of messages) {
+    if (message.parts && Array.isArray(message.parts)) {
+      for (const part of message.parts) {
+        if (part.type === 'text' && typeof part.text === 'string') {
+          totalChars += part.text.length;
+        }
+      }
+    }
+  }
+
+  // Rough approximation: 1 token ≈ 4 characters
+  return Math.ceil(totalChars / 4);
+}

@@ -1,5 +1,5 @@
 import { addToolResultToMessage } from './ai/utils';
-import { getBrandName } from './utils';
+import { getBrandName, estimateTokenCount } from './utils';
 
 describe('getBrandName', () => {
   const originalEnv = process.env;
@@ -163,5 +163,72 @@ describe('addToolResultToMessage', () => {
   it('should add a failed result to the message', () => {
     const result = addToolResultToMessage(errorMessage as any) as any;
     expect(result.parts[10].toolInvocation.result).toBeDefined();
+  });
+});
+
+describe('estimateTokenCount', () => {
+  it('should return 0 for empty messages array', () => {
+    expect(estimateTokenCount([])).toBe(0);
+  });
+
+  it('should count tokens from text parts correctly', () => {
+    const messages = [
+      {
+        parts: [
+          { type: 'text', text: 'Hello world' }, // 11 chars = ~3 tokens
+          { type: 'text', text: 'How are you?' }, // 12 chars = ~3 tokens
+        ],
+      },
+    ];
+    // Total: 23 chars / 4 = ~6 tokens
+    expect(estimateTokenCount(messages)).toBe(6);
+  });
+
+  it('should ignore non-text parts', () => {
+    const messages = [
+      {
+        parts: [
+          { type: 'text', text: 'Hello world' }, // 11 chars = ~3 tokens
+          { type: 'tool-call', data: 'some tool data' }, // Should be ignored
+          { type: 'image', url: 'image.jpg' }, // Should be ignored
+        ],
+      },
+    ];
+    expect(estimateTokenCount(messages)).toBe(3);
+  });
+
+  it('should handle messages without parts', () => {
+    const messages = [
+      { parts: [] },
+      { parts: [{ type: 'text', text: 'Test' }] }, // 4 chars = 1 token
+    ];
+    expect(estimateTokenCount(messages)).toBe(1);
+  });
+
+  it('should handle multiple messages', () => {
+    const messages = [
+      {
+        parts: [
+          { type: 'text', text: 'First message' }, // 13 chars = ~4 tokens
+        ],
+      },
+      {
+        parts: [
+          { type: 'text', text: 'Second message is longer' }, // 24 chars = ~6 tokens
+        ],
+      },
+    ];
+    // Total: 37 chars / 4 = ~10 tokens
+    expect(estimateTokenCount(messages)).toBe(10);
+  });
+
+  it('should handle edge case with very long text', () => {
+    const longText = 'a'.repeat(40000); // 40k characters = 10k tokens
+    const messages = [
+      {
+        parts: [{ type: 'text', text: longText }],
+      },
+    ];
+    expect(estimateTokenCount(messages)).toBe(10000);
   });
 });
