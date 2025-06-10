@@ -8,6 +8,28 @@ import type {
   SearchMemoryResponse,
 } from './types';
 
+// Maximum context size in tokens before limiting message history
+const MAX_CONTEXT_SIZE_TOKENS = 10000;
+
+/**
+ * Estimate token count from memory messages based on text content
+ * Uses rough approximation: 1 token ≈ 4 characters
+ * @param messages - Array of memory messages to count tokens for
+ * @returns Estimated token count
+ */
+function estimateMemoryTokenCount(messages: MemoryMessage[]): number {
+  let totalChars = 0;
+
+  for (const message of messages) {
+    if (typeof message.content === 'string') {
+      totalChars += message.content.length;
+    }
+  }
+
+  // Rough approximation: 1 token ≈ 4 characters
+  return Math.ceil(totalChars / 4);
+}
+
 /**
  * Mem0AI implementation of the memory client
  */
@@ -33,9 +55,32 @@ export class Mem0AIClient implements IMemoryClient {
     options: AddMemoryOptions,
   ): Promise<AddMemoryResponse> {
     try {
-      const response = await this.client.add(messages, {
+      // Estimate token count for the messages
+      const estimatedTokens = estimateMemoryTokenCount(messages);
+
+      let messagesToAdd = messages;
+
+      // If context size exceeds limit, only include the current query (last user message)
+      // and rely on memory context for historical information
+      if (estimatedTokens > MAX_CONTEXT_SIZE_TOKENS) {
+        // Find the last user message (current query)
+        const currentQuery = messages
+          .filter((msg) => msg.role === 'user')
+          .pop();
+
+        if (currentQuery) {
+          // Only include the current query, not the whole history
+          messagesToAdd = [currentQuery];
+          console.log(
+            `Context size (${estimatedTokens} tokens) exceeds limit (${MAX_CONTEXT_SIZE_TOKENS}). Using current query only.`,
+          );
+        }
+      }
+
+      const response = await this.client.add(messagesToAdd, {
         user_id: options.user_id,
         ...options.metadata,
+        enable_graph: true,
       });
 
       return {
