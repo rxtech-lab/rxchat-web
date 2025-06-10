@@ -1225,7 +1225,7 @@ describe('Workflow', () => {
         },
       };
 
-      workflow.readFrom(workflowData);
+      const workflow = Workflow.readFrom(workflowData);
       expect(workflow.getWorkflow()).toEqual(workflowData);
     });
 
@@ -1236,7 +1236,7 @@ describe('Workflow', () => {
       };
 
       expect(() => {
-        workflow.readFrom(invalidWorkflowData as any);
+        Workflow.readFrom(invalidWorkflowData as any);
       }).toThrow('Invalid workflow format:');
     });
   });

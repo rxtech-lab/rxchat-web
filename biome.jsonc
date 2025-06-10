@@ -58,7 +58,7 @@
         "noBannedTypes": "off"
       },
       "correctness": {
-        "noUnusedImports": "warn", // Not in recommended ruleset, turning on manually
+        "noUnusedImports": "error", // Not in recommended ruleset, turning on manually
         "useArrayLiterals": "warn", // Not in recommended ruleset, turning on manually
         "noNewSymbol": "warn", // Not in recommended ruleset, turning on manually
         "useJsxKeyInIterable": "off", // Rule is buggy, revisit later

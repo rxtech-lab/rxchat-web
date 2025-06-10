@@ -180,3 +180,33 @@ export const ConverterNodeExecutionResultSchema = z
 export type ConverterNodeExecutionResult = z.infer<
   typeof ConverterNodeExecutionResultSchema
 >;
+
+export const DiscoverySchema = z.object({
+  selectedTools: z.array(z.string()).describe('The selected tools identifiers'),
+  reasoning: z.string().describe('The reasoning for the selected tools'),
+});
+
+export const SuggestionSchema = z.object({
+  suggestions: z
+    .array(z.string())
+    .describe('The suggestions for the workflow')
+    .optional(),
+  modifications: z
+    .array(z.string())
+    .describe('The modifications for the workflow')
+    .optional(),
+  nextStep: z
+    .enum(['continue', 'stop'])
+    .describe('The next step for the workflow'),
+});
+
+export const OnStepSchema = z.object({
+  title: z.string(),
+  type: z.enum(['error', 'info', 'success']),
+  error: z.instanceof(Error).nullable(),
+  toolDiscovery: DiscoverySchema.nullable(),
+  suggestion: SuggestionSchema.nullable(),
+  workflow: z.any().nullable(),
+});
+
+export type OnStep = z.infer<typeof OnStepSchema>;
