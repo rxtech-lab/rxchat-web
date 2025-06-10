@@ -1,11 +1,9 @@
 import { agent } from './agent';
-import { WorkflowSchema } from '@/lib/workflow/types';
 
 // Add mocks for external dependencies
-import { generateText, generateObject } from 'ai';
-import { createMCPClient } from '../ai/mcp';
 import { createOpenRouter } from '@openrouter/ai-sdk-provider';
-import { Workflow } from './workflow';
+import { generateObject, generateText } from 'ai';
+import { createMCPClient } from '../ai/mcp';
 
 // Mock the external dependencies
 jest.mock('ai');
@@ -128,8 +126,7 @@ describe('agent should handle the compilation errors', () => {
 
     // Verify the result
     expect(result).toBeDefined();
-    expect(result?.workflow).toBeInstanceOf(Workflow);
-    expect(result?.response).toBeDefined();
+    expect(result?.workflow).toBeDefined();
 
     // Verify tool discovery was called
     expect(mockGenerateText).toHaveBeenCalledWith(
@@ -191,10 +188,7 @@ describe('agent should handle the compilation errors', () => {
 
     // Verify the result
     expect(result).toBeDefined();
-    expect(result?.workflow).toBeInstanceOf(Workflow);
-    expect(result?.response).toBe(
-      'Workflow built successfully without any issues',
-    );
+    expect(result?.workflow).toBeDefined();
 
     // Verify all agents were called appropriately
     expect(mockGenerateText).toHaveBeenCalledTimes(2); // tool discovery + workflow builder
@@ -205,7 +199,7 @@ describe('agent should handle the compilation errors', () => {
     expect(mockMcpClient.close).toHaveBeenCalled();
 
     // Verify the workflow has the expected structure
-    const workflowData = result?.workflow.getWorkflow();
+    const workflowData = result?.workflow;
     if (workflowData) {
       expect(workflowData.trigger.identifier).toBe(
         '123e4567-e89b-12d3-a456-426614174000',
@@ -275,7 +269,7 @@ describe('agent should handle the compilation errors', () => {
 
     // Verify the result exists despite initial error
     expect(result).toBeDefined();
-    expect(result?.workflow).toBeInstanceOf(Workflow);
+    expect(result?.workflow).toBeDefined();
 
     // Verify error handling - the count is higher due to retry logic in the actual implementation
     expect(mockGenerateText).toHaveBeenCalledTimes(4); // discovery + failed builder + retry discovery + retry builder

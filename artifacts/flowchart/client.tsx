@@ -1,29 +1,30 @@
 import { Artifact } from '@/components/create-artifact';
 import { DocumentSkeleton } from '@/components/document-skeleton';
 
-import type { Suggestion } from '@/lib/db/schema';
 import { toast } from 'sonner';
 import { getSuggestions } from '../actions';
 
 // React Flow imports
 import { ClockRewind } from '@/components/icons';
-import { WorkflowSchema, type Workflow } from '@/lib/workflow/types';
+import type { Suggestion } from '@/lib/db/schema';
+import OnStepView from '@/lib/workflow/onstep-view';
+import { OnStepSchema } from '@/lib/workflow/types';
 import '@xyflow/react/dist/style.css';
-import { CopyIcon, PenIcon, RedoIcon, UndoIcon, ZapIcon } from 'lucide-react';
-import WorkflowView from '@/lib/workflow/workflow-view';
+import {
+  CopyIcon,
+  EyeIcon,
+  PenIcon,
+  RedoIcon,
+  UndoIcon,
+  ZapIcon,
+} from 'lucide-react';
 
 /**
  * Interface for flowchart metadata containing suggestions and workflow steps
  */
 interface FlowchartArtifactMetadata {
   suggestions: Array<Suggestion>;
-  workflowSteps?: Array<{
-    step: number;
-    agent: string;
-    status: 'running' | 'completed' | 'error';
-    message: string;
-    result?: any;
-  }>;
+  showMainInfo: boolean;
 }
 
 /**
@@ -40,31 +41,16 @@ export const flowchartArtifact = new Artifact<
     const suggestions = await getSuggestions({ documentId });
     setMetadata({
       suggestions,
-      workflowSteps: [],
+      showMainInfo: true,
     });
   },
   onStreamPart: ({ streamPart, setMetadata, setArtifact }) => {
-    if (streamPart.type === 'suggestion') {
-      setMetadata((metadata) => ({
-        ...metadata,
-        suggestions: [
-          ...metadata.suggestions,
-          streamPart.content as Suggestion,
-        ],
-      }));
-    }
-
     // Handle custom stream parts for workflow steps
-    if ((streamPart as any).type === 'flow-step') {
-      setMetadata((metadata) => {
-        const currentMetadata = metadata || {
-          suggestions: [],
-          workflowSteps: [],
-        };
-        return {
-          ...currentMetadata,
-        };
-      });
+    if ((streamPart as any).type === 'flowchart-step-delta') {
+      setArtifact((draftArtifact) => ({
+        ...draftArtifact,
+        content: (streamPart as any).content as string,
+      }));
     }
 
     // Handle custom stream parts for flowchart content
@@ -73,7 +59,7 @@ export const flowchartArtifact = new Artifact<
         ...draftArtifact,
         content: (streamPart as any).content as string,
         isVisible: true,
-        status: 'streaming',
+        status: 'idle',
       }));
     }
   },
@@ -93,31 +79,34 @@ export const flowchartArtifact = new Artifact<
       );
     }
 
-    // try parse the content
-    let workflow: Workflow | null = null;
     try {
       const jsonObject = JSON.parse(content);
-      workflow = jsonObject.workflow;
-      const parsed = WorkflowSchema.safeParse(jsonObject);
+      const parsed = OnStepSchema.safeParse(jsonObject);
       if (parsed.success) {
-        workflow = parsed.data;
-      } else {
-        console.log('jsonObject', jsonObject);
-        console.error('Error parsing workflow:', parsed.error);
+        return (
+          <OnStepView
+            onStep={parsed.data}
+            showMainInfo={metadata.showMainInfo}
+          />
+        );
       }
-    } catch (error) {}
-
-    if (!workflow) {
-      return <div />;
+    } catch (error) {
+      console.error('Error parsing OnStep:', error);
     }
 
-    return (
-      <div className="h-full">
-        <WorkflowView workflow={workflow} />
-      </div>
-    );
+    return <div />;
   },
   actions: [
+    {
+      icon: <EyeIcon size={18} />,
+      description: 'Show main info',
+      onClick: ({ setMetadata }) => {
+        setMetadata((draftMetadata) => ({
+          ...draftMetadata,
+          showMainInfo: !draftMetadata.showMainInfo,
+        }));
+      },
+    },
     {
       icon: <ClockRewind size={18} />,
       description: 'View changes',

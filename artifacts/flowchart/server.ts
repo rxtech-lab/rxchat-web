@@ -1,9 +1,8 @@
-import { createMCPClient } from '@/lib/ai/mcp';
 import type { ProviderType } from '@/lib/ai/models';
 import { createDocumentHandler } from '@/lib/artifacts/server';
 import { agent } from '@/lib/workflow/agent';
-import { Workflow } from '@/lib/workflow/workflow';
-import { z } from 'zod';
+import { OnStepSchema } from '@/lib/workflow/types';
+import type { Workflow } from '@/lib/workflow/workflow';
 
 /**
  * Main flowchart document handler
@@ -17,28 +16,36 @@ export const flowchartDocumentHandler = (
     selectedChatModel,
     selectedChatModelProvider,
     onCreateDocument: async ({ title, dataStream }) => {
-      const workflow = await agent(title);
-      // Fallback workflow
-      const workflowResult = {
-        query: title,
-        workflow: workflow?.workflow.getWorkflow(),
-        suggestions: {
-          suggestions: [],
-          modifications: [],
-          nextSteps: [],
-        },
-      };
-      const draftContent = JSON.stringify(workflowResult, null, 2);
+      const workflow = await agent(title, null, (step) => {
+        dataStream.writeData({
+          type: 'flowchart-step-delta',
+          content: JSON.stringify(step, null, 2),
+        });
+      });
 
       dataStream.writeData({
         type: 'flowchart-delta',
-        content: draftContent,
+        content: JSON.stringify(workflow, null, 2),
       });
 
-      return draftContent;
+      return JSON.stringify(workflow, null, 2);
     },
     onUpdateDocument: async ({ document, description, dataStream }) => {
-      const workflowResult = await agent(description);
+      let workflow: Workflow | null = null;
+      try {
+        const parsed = JSON.parse(document.content as unknown as string);
+        const data = OnStepSchema.safeParse(parsed);
+        if (data.success) {
+          workflow = data.data.workflow;
+        }
+      } catch {}
+
+      const workflowResult = await agent(description, workflow, (step) => {
+        dataStream.writeData({
+          type: 'flowchart-step-delta',
+          content: JSON.stringify(step, null, 2),
+        });
+      });
       const draftContent = JSON.stringify(workflowResult, null, 2);
 
       dataStream.writeData({

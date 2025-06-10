@@ -1,7 +1,7 @@
 import type { CoreAssistantMessage, CoreToolMessage, UIMessage } from 'ai';
 import { type ClassValue, clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
-import type { Document } from '@/lib/db/schema';
+import type { DBMessage, Document } from '@/lib/db/schema';
 import { ChatSDKError, type ErrorCode } from './errors';
 
 export function cn(...inputs: ClassValue[]) {
@@ -101,19 +101,14 @@ export function sanitizeText(text: string) {
  * @param messages - Array of messages to count tokens for
  * @returns Estimated token count
  */
-export function estimateTokenCount(messages: Array<{ parts: any[] }>): number {
-  let totalChars = 0;
+export function estimateTokenCount(messages: Array<DBMessage>): number {
+  let totalTokens = 0;
 
   for (const message of messages) {
-    if (message.parts && Array.isArray(message.parts)) {
-      for (const part of message.parts) {
-        if (part.type === 'text' && typeof part.text === 'string') {
-          totalChars += part.text.length;
-        }
-      }
+    if (message.usage) {
+      totalTokens = Math.max(totalTokens, (message.usage as any).totalTokens);
     }
   }
 
-  // Rough approximation: 1 token ≈ 4 characters
-  return Math.ceil(totalChars / 4);
+  return Number.isNaN(totalTokens) ? 0 : totalTokens;
 }

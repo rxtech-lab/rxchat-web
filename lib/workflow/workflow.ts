@@ -33,8 +33,6 @@ export interface WorkflowInterface {
   modifyChild(identifier: string, child: RegularNode): void;
   // Check if the workflow is valid using zod
   compile(): Promise<WorkflowType>;
-  // Construct a workflow from a JSON object
-  readFrom(workflow: WorkflowType): void;
 }
 
 export const addNodeTool = (workflow: Workflow) =>
@@ -522,12 +520,12 @@ export class Workflow implements WorkflowInterface {
   /**
    * Construct a workflow from a JSON object
    */
-  readFrom(workflow: WorkflowType): void {
+  static readFrom(workflow: WorkflowType): Workflow {
     const result = WorkflowSchema.safeParse(workflow);
     if (!result.success) {
       throw new Error(`Invalid workflow format: ${result.error.message}`);
     }
-    this.workflow = result.data;
+    return new Workflow(result.data.title, result.data.trigger);
   }
 
   /**

@@ -1,12 +1,15 @@
+'server-only';
+
 import { createOpenRouter } from '@openrouter/ai-sdk-provider';
 import { generateObject, generateText, tool } from 'ai';
 import { v4 } from 'uuid';
-import { z } from 'zod';
+import type { z } from 'zod';
 import { createMCPClient } from '../ai/mcp';
 import {
   WorkflowInputOutputMismatchError,
   WorkflowToolMissingError,
 } from './errors';
+import { DiscoverySchema, type OnStep, SuggestionSchema } from './types';
 import {
   addConditionTool,
   addConverterTool,
@@ -28,25 +31,6 @@ const modelProviders = () => {
     suggestion: openRouter('google/gemini-2.5-flash-preview-05-20'),
   };
 };
-
-const DiscoverySchema = z.object({
-  selectedTools: z.array(z.string()).describe('The selected tools identifiers'),
-  reasoning: z.string().describe('The reasoning for the selected tools'),
-});
-
-const SuggestionSchema = z.object({
-  suggestions: z
-    .array(z.string())
-    .describe('The suggestions for the workflow')
-    .optional(),
-  modifications: z
-    .array(z.string())
-    .describe('The modifications for the workflow')
-    .optional(),
-  nextStep: z
-    .enum(['continue', 'stop'])
-    .describe('The next step for the workflow'),
-});
 
 const DiscoverySystemPrompt = `
     You are a tool discovery agent. 
@@ -319,30 +303,62 @@ async function suggestionAgent(
   return object.object;
 }
 
-export async function agent(query: string) {
+export async function agent(
+  query: string,
+  oldWorkflow: Workflow | null = null,
+  onStep?: (step: OnStep) => void,
+): Promise<OnStep> {
   const mcpClient = await createMCPClient();
-  let workflowResult: { workflow: Workflow; response: string } | null = {
-    workflow: new Workflow('New Workflow', {
-      identifier: v4(),
-      type: 'cronjob-trigger',
-      cron: '0 2 * * *',
-      child: null,
-    }),
-    response: '',
-  };
+  let workflowResult: { workflow: Workflow; response: string } | null =
+    oldWorkflow
+      ? {
+          workflow: new Workflow('New Workflow', {
+            identifier: v4(),
+            type: 'cronjob-trigger',
+            cron: '0 2 * * *',
+            child: null,
+          }),
+          response: '',
+        }
+      : {
+          workflow: new Workflow('New Workflow', {
+            identifier: v4(),
+            type: 'cronjob-trigger',
+            cron: '0 2 * * *',
+            child: null,
+          }),
+          response: '',
+        };
   let toolDiscovery: z.infer<typeof DiscoverySchema> | null = null;
   let suggestion: z.infer<typeof SuggestionSchema> | null = null;
   const maxSteps = 4;
+  let status: 'success' | 'error' | 'continue' = 'success';
+  let error: Error | null = null;
 
   try {
     let step = 0;
+    onStep?.({
+      title: 'Start',
+      type: 'info',
+      toolDiscovery,
+      suggestion,
+      workflow: workflowResult?.workflow.getWorkflow(),
+      error: null,
+    });
     while (true) {
       try {
         if (step >= maxSteps) {
           break;
         }
         toolDiscovery = await toolDiscoveryAgent(query, suggestion, mcpClient);
-        console.log('toolDiscovery', toolDiscovery);
+        onStep?.({
+          title: 'Tool Discovery',
+          type: 'info',
+          toolDiscovery,
+          suggestion,
+          workflow: workflowResult?.workflow.getWorkflow(),
+          error: null,
+        });
         workflowResult = await workflowBuilderAgent(
           query,
           suggestion,
@@ -350,25 +366,54 @@ export async function agent(query: string) {
           toolDiscovery,
           workflowResult?.workflow,
         );
-        console.dir(workflowResult, { depth: null });
+        onStep?.({
+          title: 'Workflow Builder',
+          type: 'info',
+          toolDiscovery,
+          suggestion,
+          workflow: workflowResult?.workflow.getWorkflow(),
+          error: null,
+        });
         suggestion = await suggestionAgent(
           query,
           null,
           workflowResult.workflow,
           toolDiscovery,
         );
-        console.log('suggestion', suggestion);
+        onStep?.({
+          title: 'Suggestion',
+          type: 'info',
+          toolDiscovery,
+          suggestion,
+          error: null,
+          workflow: workflowResult?.workflow.getWorkflow(),
+        });
         if (suggestion.nextStep === 'stop') {
           break;
         }
       } catch (error) {
-        console.log(error);
+        onStep?.({
+          title: 'Error',
+          type: 'error',
+          toolDiscovery,
+          suggestion,
+          workflow: workflowResult?.workflow.getWorkflow(),
+          error: error as Error,
+        });
         suggestion = await suggestionAgent(
           query,
           error as Error,
           workflowResult?.workflow,
           toolDiscovery ?? null,
         );
+        onStep?.({
+          title: 'Suggestion',
+          type: 'info',
+          toolDiscovery,
+          suggestion,
+          error: error as Error,
+          workflow: workflowResult?.workflow.getWorkflow(),
+        });
         if (suggestion.nextStep === 'stop') {
           break;
         }
@@ -376,14 +421,30 @@ export async function agent(query: string) {
         step++;
       }
     }
-
-    console.log('workflowResult', workflowResult);
-    return workflowResult;
-  } catch (error) {
-    console.error('Error occurred during workflow generation:', error);
+    return {
+      workflow: workflowResult?.workflow.getWorkflow(),
+      suggestion,
+      toolDiscovery,
+      error: null,
+      type: 'success',
+      title: 'Success',
+    };
+  } catch (err) {
+    console.error('Error occurred during workflow generation:', err);
+    status = 'error';
+    error = err as Error;
   } finally {
     if (mcpClient) {
       await mcpClient.close();
     }
   }
+
+  return {
+    workflow: workflowResult?.workflow.getWorkflow(),
+    suggestion,
+    toolDiscovery,
+    error: error,
+    type: status,
+    title: status,
+  };
 }

@@ -23,7 +23,11 @@ import {
   addToolResultToMessage,
   filterDocumentAttachments,
 } from '@/lib/ai/utils';
-import { isProductionEnvironment, isTestEnvironment } from '@/lib/constants';
+import {
+  isProductionEnvironment,
+  isTestEnvironment,
+  MAX_CONTEXT_TOKEN_COUNT,
+} from '@/lib/constants';
 import { createMemoryClient } from '@/lib/memory';
 import {
   createStreamId,
@@ -221,6 +225,7 @@ export async function POST(request: Request) {
             parts: message.parts,
             attachments: message.experimental_attachments ?? [],
             createdAt: currentTime,
+            usage: null,
           },
         ],
       });
@@ -282,10 +287,7 @@ export async function POST(request: Request) {
     // Determine if memory should be loaded based on optimization conditions:
     // 1. First conversation (no previous messages), OR
     // 2. Current chat has more than 10k tokens
-    const estimatedTokens = estimateTokenCount([
-      ...previousMessages.map((msg) => ({ parts: msg.parts as any[] })),
-      { parts: message.parts as any[] },
-    ]);
+    const estimatedTokens = estimateTokenCount(messages as any);
 
     // Search memory for relevant context to enhance the system prompt
     const memoryContext = await getMemoryContext(
@@ -298,6 +300,21 @@ export async function POST(request: Request) {
     if (memoryContext) {
       defaultSystemPrompt = `${defaultSystemPrompt}${memoryContext}`;
     }
+
+    // Compress context if tokens exceed MAX_CONTEXT_TOKEN_COUNT by only using memory context and current message
+    let finalMessages = messages;
+    if (estimatedTokens > MAX_CONTEXT_TOKEN_COUNT) {
+      // Only include the current user message, not the full conversation history
+      finalMessages = [
+        {
+          id: message.id,
+          role: 'user' as const,
+          content: message.content,
+          experimental_attachments: message.experimental_attachments,
+        },
+      ];
+    }
+
     const model = provider.languageModel(selectedChatModel);
     const testingTools: Record<string, any> = {};
     if (isTestEnvironment) {
@@ -309,7 +326,7 @@ export async function POST(request: Request) {
         const result = streamText({
           model,
           system: defaultSystemPrompt,
-          messages,
+          messages: finalMessages,
           maxSteps: 30,
           experimental_transform: smoothStream({ chunking: 'word' }),
           experimental_repairToolCall: async ({
@@ -366,7 +383,7 @@ export async function POST(request: Request) {
             ...mcpTools,
             ...testingTools,
           },
-          onFinish: async ({ response }) => {
+          onFinish: async ({ response, usage }) => {
             mcpClient?.close();
             if (session.user?.id) {
               try {
@@ -395,6 +412,7 @@ export async function POST(request: Request) {
                       attachments:
                         assistantMessage.experimental_attachments ?? [],
                       createdAt: new Date(),
+                      usage,
                     } as any) as any,
                   ],
                 });

@@ -1,37 +1,35 @@
 'use client';
 
+import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
+import Editor from '@monaco-editor/react';
 import type { Edge, Node } from '@xyflow/react';
 import {
   Background,
   ConnectionMode,
   Controls,
   Handle,
-  MiniMap,
   Position,
   ReactFlow,
   useReactFlow,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import { Clock, Code, GitBranch, Wrench, Zap, Eye } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
-import Editor from '@monaco-editor/react';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
+import { Clock, Code, Eye, GitBranch, Wrench, Zap } from 'lucide-react';
+import { memo, useEffect, useMemo, useState } from 'react';
 import type {
-  Workflow,
   BaseNode,
-  ToolNode,
   ConditionNode,
   ConverterNode,
-  TriggerNode,
   CronjobTriggerNode,
+  ToolNode,
+  TriggerNode,
+  Workflow,
 } from './types';
 
 // Union type for all possible workflow nodes
@@ -140,7 +138,7 @@ const ConverterNodeComponent = ({ data }: { data: ConverterNode }) => {
         <Button
           variant="ghost"
           size="sm"
-          className="ml-auto p-1 h-6 w-6 text-purple-600 hover:text-purple-800 hover:bg-purple-100 z-10 relative"
+          className="ml-auto p-1 size-6 text-purple-600 hover:text-purple-800 hover:bg-purple-100 z-10 relative"
           onClick={(e) => {
             e.stopPropagation();
             e.preventDefault();
@@ -265,9 +263,9 @@ function WorkflowFlowComponent({
       // Use setTimeout to ensure the nodes are rendered before fitting
       setTimeout(() => {
         reactFlowInstance.fitView({
-          padding: 5, // Minimal padding for maximum display size
+          padding: 20, // More padding for better spacing
           includeHiddenNodes: false,
-          minZoom: 2.0, // Force much larger display
+          minZoom: 1.2, // Zoom out more for better overview
           maxZoom: 10, // Higher maximum zoom
           duration: 800, // Smooth animation duration
         });
@@ -278,30 +276,12 @@ function WorkflowFlowComponent({
   return (
     <>
       <Controls />
-      <MiniMap
-        className="bg-white border border-gray-300"
-        nodeColor={(node) => {
-          switch (node.type) {
-            case 'cronjob-trigger':
-            case 'trigger':
-              return '#10b981';
-            case 'tool':
-              return '#3b82f6';
-            case 'condition':
-              return '#f59e0b';
-            case 'converter':
-              return '#8b5cf6';
-            default:
-              return '#6b7280';
-          }
-        }}
-      />
       <Background />
     </>
   );
 }
 
-export function WorkflowView({ workflow, className }: WorkflowViewProps) {
+export function PureWorkflowView({ workflow, className }: WorkflowViewProps) {
   // Build nodes and edges from workflow structure
   const { nodes: initialNodes, edges: initialEdges } = useMemo(() => {
     const nodes: Node[] = [];
@@ -406,14 +386,17 @@ export function WorkflowView({ workflow, className }: WorkflowViewProps) {
           edges={initialEdges}
           nodeTypes={nodeTypes}
           connectionMode={ConnectionMode.Strict}
+          elementsSelectable={true}
+          nodesConnectable={false}
+          nodesDraggable={false}
           fitView
           fitViewOptions={{
             padding: 20,
             includeHiddenNodes: false,
+            minZoom: 0.8,
+            maxZoom: 2,
+            duration: 800,
           }}
-          elementsSelectable={true}
-          nodesConnectable={false}
-          nodesDraggable={false}
         >
           <WorkflowFlowComponent nodes={initialNodes} edges={initialEdges} />
         </ReactFlow>
@@ -422,4 +405,6 @@ export function WorkflowView({ workflow, className }: WorkflowViewProps) {
   );
 }
 
-export default WorkflowView;
+export default memo(PureWorkflowView, (prev, next) => {
+  return prev.workflow !== next.workflow;
+});
