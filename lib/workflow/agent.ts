@@ -14,6 +14,10 @@ import type { WorkflowSchema } from './types';
 import { createMCPClient } from '../ai/mcp';
 import { createOpenRouter } from '@openrouter/ai-sdk-provider';
 import { v4 } from 'uuid';
+import {
+  WorkflowInputOutputMismatchError,
+  WorkflowToolMissingError,
+} from './errors';
 
 const modelProviders = () => {
   const openRouter = createOpenRouter({
@@ -106,18 +110,44 @@ const WorkflowBuilderSystemPrompt = (
   `;
 
 const SuggestionSystemPrompt = (
-  workflow: z.infer<typeof WorkflowSchema> | null,
+  workflow: Workflow,
+  inputOutputMismatchError: WorkflowInputOutputMismatchError | null,
+  missingToolsError: WorkflowToolMissingError | null,
   toolDiscoveryResult: z.infer<typeof DiscoverySchema> | null,
-) => `
+) => {
+  const generalPrompt = `
     You are a team leader that will guide the workflow builder and the suggestion agent.
     You are responsible to judge the workflow builder's work and the suggestion agent's work.
     You are also responsible to exit the workflow if you think the workflow is complete.
     You don't need to worry about the trigger, it is assigned by the system.
+  `;
+
+  if (inputOutputMismatchError) {
+    return `
+      ${generalPrompt}
+      Workflow: ${JSON.stringify(workflow.getWorkflow())}
+      Input node doesn't match output node: ${inputOutputMismatchError.errors.join(', ')}. Suggestions: ${inputOutputMismatchError.suggestions.join(', ')}
+    `;
+  }
+
+  if (missingToolsError) {
+    return `
+      ${generalPrompt}
+      Workflow: ${JSON.stringify(workflow.getWorkflow())}
+      Tools not exist: ${missingToolsError.getMissingTools().join(', ')}
+      You should give suggestion modify the workflow to replace tools that not exist.
+    `;
+  }
+
+  return `
+    ${generalPrompt}
   
-    Workflow: ${JSON.stringify(workflow)}
+    Workflow: ${JSON.stringify(workflow.getWorkflow())}
+    Compiling Result: ${JSON.stringify(workflow.compile())}
     Tools: ${JSON.stringify(toolDiscoveryResult?.selectedTools)}
     User Query: ${toolDiscoveryResult?.reasoning}
   `;
+};
 
 /**
  * Agent 1: Tool Discovery Agent
@@ -207,14 +237,46 @@ async function workflowBuilderAgent(
 async function suggestionAgent(
   query: string,
   mcpClient: any,
-  workflow: z.infer<typeof WorkflowSchema> | null,
+  workflow: Workflow,
   toolDiscoveryResult: z.infer<typeof DiscoverySchema> | null,
 ): Promise<z.infer<typeof SuggestionSchema>> {
   const model = modelProviders().suggestion;
+  try {
+    workflow.compile();
+  } catch (error) {
+    if (error instanceof WorkflowInputOutputMismatchError) {
+      const suggestion = await generateObject({
+        model,
+        schema: SuggestionSchema,
+        system: SuggestionSystemPrompt(
+          workflow,
+          error,
+          null,
+          toolDiscoveryResult,
+        ),
+        prompt: `User Query: "${query}"`,
+      });
+      return suggestion.object;
+    }
+
+    if (error instanceof WorkflowToolMissingError) {
+      const suggestion = await generateObject({
+        model,
+        schema: SuggestionSchema,
+        system: SuggestionSystemPrompt(
+          workflow,
+          null,
+          error,
+          toolDiscoveryResult,
+        ),
+      });
+    }
+  }
+
   const object = await generateObject({
     model,
     schema: SuggestionSchema,
-    system: SuggestionSystemPrompt(workflow, toolDiscoveryResult),
+    system: SuggestionSystemPrompt(workflow, null, null, toolDiscoveryResult),
     prompt: `User Query: "${query}"`,
   });
   return object.object;
@@ -255,7 +317,7 @@ export async function agent(query: string) {
         suggestion = await suggestionAgent(
           query,
           mcpClient,
-          workflowResult.workflow.getWorkflow(),
+          workflowResult.workflow,
           toolDiscovery,
         );
         console.log('suggestion', suggestion);
@@ -267,7 +329,7 @@ export async function agent(query: string) {
         suggestion = await suggestionAgent(
           `Error occurred during workflow generation. Error: ${error}. User Query: ${query}`,
           mcpClient,
-          workflowResult?.workflow.getWorkflow() ?? null,
+          workflowResult?.workflow,
           toolDiscovery ?? null,
         );
         if (suggestion.nextStep === 'stop') {
@@ -283,6 +345,8 @@ export async function agent(query: string) {
   } catch (error) {
     console.error('Error occurred during workflow generation:', error);
   } finally {
-    await mcpClient.close();
+    if (mcpClient) {
+      await mcpClient.close();
+    }
   }
 }

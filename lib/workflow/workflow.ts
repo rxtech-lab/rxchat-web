@@ -9,6 +9,12 @@ import type {
   Workflow as WorkflowType,
 } from './types';
 import { WorkflowSchema } from './types';
+import {
+  WorkflowInputOutputMismatchError,
+  WorkflowToolMissingError,
+} from './errors';
+import type { McpRouter } from '../router/mcpRouter';
+import { createMcpRouter } from '../router';
 
 export interface WorkflowInterface {
   // Add a child node to the workflow as child of the node with the identifier.
@@ -18,7 +24,7 @@ export interface WorkflowInterface {
   // Modify a existing child node from the workflow. Throw an error if the node is not found.
   modifyChild(identifier: string, child: RegularNode): void;
   // Check if the workflow is valid using zod
-  compile(): WorkflowType;
+  compile(): Promise<WorkflowType>;
   // Construct a workflow from a JSON object
   readFrom(workflow: WorkflowType): void;
 }
@@ -138,12 +144,18 @@ export const viewWorkflow = (workflow: Workflow) =>
 
 export class Workflow implements WorkflowInterface {
   private workflow: WorkflowType;
+  private mcpRouter: McpRouter;
 
-  constructor(title: string, trigger: CronjobTriggerNode) {
+  constructor(
+    title: string,
+    trigger: CronjobTriggerNode,
+    mcpRouter: McpRouter = createMcpRouter(),
+  ) {
     this.workflow = {
       title,
       trigger,
     };
+    this.mcpRouter = mcpRouter;
   }
 
   /**
@@ -272,32 +284,72 @@ export class Workflow implements WorkflowInterface {
   /**
    * Check if the workflow is valid using zod and verify input/output compatibility
    */
-  compile(): WorkflowType {
+  async compile(): Promise<WorkflowType> {
     const result = WorkflowSchema.safeParse(this.workflow);
     if (!result.success) {
       throw new Error(`Workflow validation failed: ${result.error.message}`);
+    }
+    const tools = this.getTools();
+    const missingTools = await this.mcpRouter.checkToolsExist(tools);
+    if (missingTools.missingTools.length > 0) {
+      throw new WorkflowToolMissingError(missingTools.missingTools);
     }
 
     // Check input/output compatibility between connected nodes
     const compatibilityIssues = this.validateNodeCompatibility();
     if (compatibilityIssues.length > 0) {
-      const errorMessage = compatibilityIssues
-        .map((issue) => `${issue.parentId} -> ${issue.childId}: ${issue.error}`)
-        .join('\n');
+      const errorMessage = compatibilityIssues.map(
+        (issue) => `${issue.parentId} -> ${issue.childId}: ${issue.error}`,
+      );
+
       const suggestionMessage = compatibilityIssues
         .filter((issue) => issue.suggestion)
         .map(
           (issue) =>
             `${issue.parentId} -> ${issue.childId}: ${issue.suggestion}`,
-        )
-        .join('\n');
+        );
 
-      throw new Error(
-        `Workflow compilation failed due to input/output compatibility issues:\n${errorMessage}${suggestionMessage ? `\n\nSuggestions:\n${suggestionMessage}` : ''}`,
+      throw new WorkflowInputOutputMismatchError(
+        errorMessage,
+        suggestionMessage,
       );
     }
 
     return result.data;
+  }
+
+  private getTools(): string[] {
+    const tools: string[] = [];
+    const queue: BaseNode[] = [this.workflow.trigger];
+
+    while (queue.length > 0) {
+      const current = queue.shift();
+      if (!current) continue;
+
+      // If current node is a tool node, add its identifier to the list
+      if (this.isToolNode(current)) {
+        tools.push(current.toolIdentifier);
+      }
+
+      // Add children to queue for traversal
+      if (
+        'child' in current &&
+        current.child &&
+        this.isBaseNode(current.child)
+      ) {
+        queue.push(current.child);
+      }
+      if ('children' in current && Array.isArray((current as any).children)) {
+        const children = (current as any).children as BaseNode[];
+        children.forEach((child) => {
+          if (this.isBaseNode(child)) {
+            queue.push(child);
+          }
+        });
+      }
+    }
+
+    return tools;
   }
 
   /**

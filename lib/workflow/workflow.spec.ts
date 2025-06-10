@@ -1,5 +1,21 @@
 import type { CronjobTriggerNode, ToolNode } from './types';
 import { Workflow } from './workflow';
+import { McpRouter } from '../router/mcpRouter';
+import { WorkflowToolMissingError } from './errors';
+import nock from 'nock';
+
+// Mock mcpRouter for testing
+class MockMcpRouter extends McpRouter {
+  constructor() {
+    super('http://localhost:3000', 'test-api-key');
+  }
+
+  async checkToolsExist(_tools: string[]): Promise<{ missingTools: string[] }> {
+    return { missingTools: [] };
+  }
+}
+
+const mockMcpRouter = new MockMcpRouter();
 
 describe('Workflow', () => {
   let workflow: Workflow;
@@ -11,7 +27,9 @@ describe('Workflow', () => {
   };
 
   beforeEach(() => {
-    workflow = new Workflow('Test Workflow', mockTrigger);
+    workflow = new Workflow('Test Workflow', mockTrigger, mockMcpRouter);
+    // Reset mock before each test
+    jest.clearAllMocks();
   });
 
   describe('Constructor', () => {
@@ -191,7 +209,7 @@ describe('Workflow', () => {
   });
 
   describe('compile', () => {
-    it('should validate and return workflow when valid', () => {
+    it('should validate and return workflow when valid', async () => {
       // Test with a fresh workflow that has no children added
       const freshTrigger: CronjobTriggerNode = {
         identifier: '550e8400-e29b-41d4-a716-446655440100',
@@ -199,15 +217,19 @@ describe('Workflow', () => {
         cron: '0 2 * * *',
         child: null,
       };
-      const freshWorkflow = new Workflow('Test Workflow', freshTrigger);
-      const result = freshWorkflow.compile();
+      const freshWorkflow = new Workflow(
+        'Test Workflow',
+        freshTrigger,
+        mockMcpRouter,
+      );
+      const result = await freshWorkflow.compile();
       expect(result).toEqual({
         title: 'Test Workflow',
         trigger: freshTrigger,
       });
     });
 
-    it('should throw error when workflow is invalid', () => {
+    it('should throw error when workflow is invalid', async () => {
       // Create workflow with invalid trigger (empty title)
       const freshTrigger: CronjobTriggerNode = {
         identifier: '550e8400-e29b-41d4-a716-446655440101',
@@ -215,14 +237,14 @@ describe('Workflow', () => {
         cron: '0 2 * * *',
         child: null,
       };
-      const invalidWorkflow = new Workflow('', freshTrigger);
+      const invalidWorkflow = new Workflow('', freshTrigger, mockMcpRouter);
 
-      expect(() => {
-        invalidWorkflow.compile();
-      }).toThrow('Workflow validation failed:');
+      await expect(invalidWorkflow.compile()).rejects.toThrow(
+        'Workflow validation failed:',
+      );
     });
 
-    it('should pass compilation with compatible tool nodes', () => {
+    it('should pass compilation with compatible tool nodes', async () => {
       const parent: ToolNode = {
         identifier: '550e8400-e29b-41d4-a716-446655440200',
         type: 'tool',
@@ -254,12 +276,10 @@ describe('Workflow', () => {
       workflow.addChild(undefined, parent);
       workflow.addChild('550e8400-e29b-41d4-a716-446655440200', child);
 
-      expect(() => {
-        workflow.compile();
-      }).not.toThrow();
+      await expect(workflow.compile()).resolves.toBeDefined();
     });
 
-    it('should fail compilation with incompatible tool nodes (property mismatch)', () => {
+    it('should fail compilation with incompatible tool nodes (property mismatch)', async () => {
       const parent: ToolNode = {
         identifier: '550e8400-e29b-41d4-a716-446655440202',
         type: 'tool',
@@ -291,14 +311,12 @@ describe('Workflow', () => {
       workflow.addChild(undefined, parent);
       workflow.addChild('550e8400-e29b-41d4-a716-446655440202', child);
 
-      expect(() => {
-        workflow.compile();
-      }).toThrow(
-        /Workflow compilation failed due to input\/output compatibility issues/,
+      await expect(workflow.compile()).rejects.toThrow(
+        /Input and output mismatch:/,
       );
     });
 
-    it('should fail compilation with incompatible tool nodes (type mismatch)', () => {
+    it('should fail compilation with incompatible tool nodes (type mismatch)', async () => {
       const parent: ToolNode = {
         identifier: '550e8400-e29b-41d4-a716-446655440204',
         type: 'tool',
@@ -328,14 +346,12 @@ describe('Workflow', () => {
       workflow.addChild(undefined, parent);
       workflow.addChild('550e8400-e29b-41d4-a716-446655440204', child);
 
-      expect(() => {
-        const result = workflow.compile();
-      }).toThrow(
+      await expect(workflow.compile()).rejects.toThrow(
         /Property '550e8400-e29b-41d4-a716-446655440205\.age' expects type 'string' but parent outputs type 'number'/,
       );
     });
 
-    it('should fail compilation with multiple compatibility issues', () => {
+    it('should fail compilation with multiple compatibility issues', async () => {
       const parent: ToolNode = {
         identifier: '550e8400-e29b-41d4-a716-446655440206',
         type: 'tool',
@@ -368,14 +384,12 @@ describe('Workflow', () => {
       workflow.addChild(undefined, parent);
       workflow.addChild('550e8400-e29b-41d4-a716-446655440206', child);
 
-      expect(() => {
-        workflow.compile();
-      }).toThrow(
-        /Workflow compilation failed due to input\/output compatibility issues/,
+      await expect(workflow.compile()).rejects.toThrow(
+        /Input and output mismatch:/,
       );
     });
 
-    it('should pass compilation when parent outputs extra properties', () => {
+    it('should pass compilation when parent outputs extra properties', async () => {
       const parent: ToolNode = {
         identifier: '550e8400-e29b-41d4-a716-446655440208',
         type: 'tool',
@@ -409,12 +423,10 @@ describe('Workflow', () => {
       workflow.addChild(undefined, parent);
       workflow.addChild('550e8400-e29b-41d4-a716-446655440208', child);
 
-      expect(() => {
-        workflow.compile();
-      }).not.toThrow();
+      await expect(workflow.compile()).resolves.toBeDefined();
     });
 
-    it('should fail compilation when parent has no output but child expects input', () => {
+    it('should fail compilation when parent has no output but child expects input', async () => {
       const parent: ToolNode = {
         identifier: '550e8400-e29b-41d4-a716-446655440210',
         type: 'tool',
@@ -442,14 +454,12 @@ describe('Workflow', () => {
       workflow.addChild(undefined, parent);
       workflow.addChild('550e8400-e29b-41d4-a716-446655440210', child);
 
-      expect(() => {
-        workflow.compile();
-      }).toThrow(
+      await expect(workflow.compile()).rejects.toThrow(
         /Child node 550e8400-e29b-41d4-a716-446655440211 expects input properties but parent node 550e8400-e29b-41d4-a716-446655440210 has no output properties/,
       );
     });
 
-    it('should pass compilation with nodes that have no schemas', () => {
+    it('should pass compilation with nodes that have no schemas', async () => {
       const parent: ToolNode = {
         identifier: '550e8400-e29b-41d4-a716-446655440212',
         type: 'tool',
@@ -471,12 +481,10 @@ describe('Workflow', () => {
       workflow.addChild(undefined, parent);
       workflow.addChild('550e8400-e29b-41d4-a716-446655440212', child);
 
-      expect(() => {
-        workflow.compile();
-      }).not.toThrow();
+      await expect(workflow.compile()).resolves.toBeDefined();
     });
 
-    it('should pass compilation when child has no input requirements', () => {
+    it('should pass compilation when child has no input requirements', async () => {
       const parent: ToolNode = {
         identifier: '550e8400-e29b-41d4-a716-446655440214',
         type: 'tool',
@@ -504,12 +512,10 @@ describe('Workflow', () => {
       workflow.addChild(undefined, parent);
       workflow.addChild('550e8400-e29b-41d4-a716-446655440214', child);
 
-      expect(() => {
-        workflow.compile();
-      }).not.toThrow();
+      await expect(workflow.compile()).resolves.toBeDefined();
     });
 
-    it('should pass compilation with complex nested object compatibility', () => {
+    it('should pass compilation with complex nested object compatibility', async () => {
       const parent: ToolNode = {
         identifier: '550e8400-e29b-41d4-a716-446655440216',
         type: 'tool',
@@ -566,12 +572,10 @@ describe('Workflow', () => {
       workflow.addChild(undefined, parent);
       workflow.addChild('550e8400-e29b-41d4-a716-446655440216', child);
 
-      expect(() => {
-        workflow.compile();
-      }).not.toThrow();
+      await expect(workflow.compile()).resolves.toBeDefined();
     });
 
-    it('should fail compilation with nested object incompatibility', () => {
+    it('should fail compilation with nested object incompatibility', async () => {
       const parent: ToolNode = {
         identifier: '550e8400-e29b-41d4-a716-446655440218',
         type: 'tool',
@@ -613,14 +617,12 @@ describe('Workflow', () => {
       workflow.addChild(undefined, parent);
       workflow.addChild('550e8400-e29b-41d4-a716-446655440218', child);
 
-      expect(() => {
-        workflow.compile();
-      }).toThrow(
+      await expect(workflow.compile()).rejects.toThrow(
         /Nested object '550e8400-e29b-41d4-a716-446655440219\.user' expects properties \[age, email\]/,
       );
     });
 
-    it('should pass compilation with array schemas', () => {
+    it('should pass compilation with array schemas', async () => {
       const parent: ToolNode = {
         identifier: '550e8400-e29b-41d4-a716-446655440220',
         type: 'tool',
@@ -656,12 +658,10 @@ describe('Workflow', () => {
       workflow.addChild(undefined, parent);
       workflow.addChild('550e8400-e29b-41d4-a716-446655440220', child);
 
-      expect(() => {
-        workflow.compile();
-      }).not.toThrow();
+      await expect(workflow.compile()).resolves.toBeDefined();
     });
 
-    it('should fail compilation with array item type mismatch', () => {
+    it('should fail compilation with array item type mismatch', async () => {
       const parent: ToolNode = {
         identifier: '550e8400-e29b-41d4-a716-446655440222',
         type: 'tool',
@@ -697,14 +697,12 @@ describe('Workflow', () => {
       workflow.addChild(undefined, parent);
       workflow.addChild('550e8400-e29b-41d4-a716-446655440222', child);
 
-      expect(() => {
-        workflow.compile();
-      }).toThrow(
+      await expect(workflow.compile()).rejects.toThrow(
         /Property '550e8400-e29b-41d4-a716-446655440223\.numbers\[items\]' expects type 'number' but parent outputs type 'string'/,
       );
     });
 
-    it('should handle workflow with chained tool nodes', () => {
+    it('should handle workflow with chained tool nodes', async () => {
       const first: ToolNode = {
         identifier: '550e8400-e29b-41d4-a716-446655440224',
         type: 'tool',
@@ -752,12 +750,10 @@ describe('Workflow', () => {
       workflow.addChild('550e8400-e29b-41d4-a716-446655440224', second);
       workflow.addChild('550e8400-e29b-41d4-a716-446655440225', third);
 
-      expect(() => {
-        workflow.compile();
-      }).not.toThrow();
+      await expect(workflow.compile()).resolves.toBeDefined();
     });
 
-    it('should detect incompatibility in a chain of tool nodes', () => {
+    it('should detect incompatibility in a chain of tool nodes', async () => {
       const first: ToolNode = {
         identifier: '550e8400-e29b-41d4-a716-446655440227',
         type: 'tool',
@@ -805,11 +801,359 @@ describe('Workflow', () => {
       workflow.addChild('550e8400-e29b-41d4-a716-446655440227', second);
       workflow.addChild('550e8400-e29b-41d4-a716-446655440228', third);
 
-      expect(() => {
-        workflow.compile();
-      }).toThrow(
+      await expect(workflow.compile()).rejects.toThrow(
         /Property '550e8400-e29b-41d4-a716-446655440229\.result' expects type 'string' but parent outputs type 'number'/,
       );
+    });
+
+    describe('Tool existence checking', () => {
+      const baseUrl = 'http://localhost:3000';
+      let realMcpRouter: McpRouter;
+      let workflowWithRealRouter: Workflow;
+
+      beforeEach(() => {
+        // Clear all nock interceptors before each test
+        nock.cleanAll();
+
+        // Create workflow with real McpRouter for testing HTTP calls
+        realMcpRouter = new McpRouter(
+          'http://localhost:3000/sse',
+          'test-api-key',
+        );
+        const freshTrigger: CronjobTriggerNode = {
+          identifier: '550e8400-e29b-41d4-a716-446655440300',
+          type: 'cronjob-trigger',
+          cron: '0 2 * * *',
+          child: null,
+        };
+        workflowWithRealRouter = new Workflow(
+          'Test Workflow with Real Router',
+          freshTrigger,
+          realMcpRouter,
+        );
+      });
+
+      afterEach(() => {
+        // Clean up any remaining interceptors
+        nock.cleanAll();
+      });
+
+      it('should pass compilation when all tools exist', async () => {
+        const toolNode: ToolNode = {
+          identifier: '550e8400-e29b-41d4-a716-446655440301',
+          type: 'tool',
+          toolIdentifier: 'existing-tool',
+          child: null,
+        };
+
+        workflowWithRealRouter.addChild(undefined, toolNode);
+
+        nock(baseUrl)
+          .get('/tools/check')
+          .query({ ids: 'existing-tool' })
+          .matchHeader('Authorization', 'Bearer test-api-key')
+          .matchHeader('Content-Type', 'application/json')
+          .reply(200, { exists: true });
+
+        await expect(workflowWithRealRouter.compile()).resolves.toBeDefined();
+      });
+
+      it('should throw WorkflowToolMissingError when tools do not exist', async () => {
+        const toolNode: ToolNode = {
+          identifier: '550e8400-e29b-41d4-a716-446655440302',
+          type: 'tool',
+          toolIdentifier: 'missing-tool',
+          child: null,
+        };
+
+        workflowWithRealRouter.addChild(undefined, toolNode);
+
+        nock(baseUrl)
+          .get('/tools/check')
+          .query({ ids: 'missing-tool' })
+          .matchHeader('Authorization', 'Bearer test-api-key')
+          .reply(200, { exists: false });
+
+        await expect(workflowWithRealRouter.compile()).rejects.toThrow(
+          WorkflowToolMissingError,
+        );
+
+        try {
+          await workflowWithRealRouter.compile();
+        } catch (error) {
+          expect(error).toBeInstanceOf(WorkflowToolMissingError);
+          expect((error as WorkflowToolMissingError).getMissingTools()).toEqual(
+            ['missing-tool'],
+          );
+        }
+      });
+
+      it('should throw WorkflowToolMissingError with multiple missing tools', async () => {
+        const firstTool: ToolNode = {
+          identifier: '550e8400-e29b-41d4-a716-446655440303',
+          type: 'tool',
+          toolIdentifier: 'missing-tool-1',
+          child: null,
+        };
+
+        const secondTool: ToolNode = {
+          identifier: '550e8400-e29b-41d4-a716-446655440304',
+          type: 'tool',
+          toolIdentifier: 'missing-tool-2',
+          child: null,
+        };
+
+        workflowWithRealRouter.addChild(undefined, firstTool);
+        workflowWithRealRouter.addChild(
+          '550e8400-e29b-41d4-a716-446655440303',
+          secondTool,
+        );
+
+        nock(baseUrl)
+          .get('/tools/check')
+          .query({ ids: ['missing-tool-1', 'missing-tool-2'] })
+          .matchHeader('Authorization', 'Bearer test-api-key')
+          .reply(200, { exists: false });
+
+        await expect(workflowWithRealRouter.compile()).rejects.toThrow(
+          WorkflowToolMissingError,
+        );
+
+        try {
+          await workflowWithRealRouter.compile();
+        } catch (error) {
+          expect(error).toBeInstanceOf(WorkflowToolMissingError);
+          expect((error as WorkflowToolMissingError).getMissingTools()).toEqual(
+            ['missing-tool-1', 'missing-tool-2'],
+          );
+        }
+      });
+
+      it('should handle mixed existing and missing tools in complex workflow', async () => {
+        const firstTool: ToolNode = {
+          identifier: '550e8400-e29b-41d4-a716-446655440311',
+          type: 'tool',
+          toolIdentifier: 'existing-tool-1',
+          child: null,
+        };
+
+        const secondTool: ToolNode = {
+          identifier: '550e8400-e29b-41d4-a716-446655440312',
+          type: 'tool',
+          toolIdentifier: 'missing-tool-1',
+          child: null,
+        };
+
+        const thirdTool: ToolNode = {
+          identifier: '550e8400-e29b-41d4-a716-446655440313',
+          type: 'tool',
+          toolIdentifier: 'existing-tool-2',
+          child: null,
+        };
+
+        const fourthTool: ToolNode = {
+          identifier: '550e8400-e29b-41d4-a716-446655440314',
+          type: 'tool',
+          toolIdentifier: 'missing-tool-2',
+          child: null,
+        };
+
+        workflowWithRealRouter.addChild(undefined, firstTool);
+        workflowWithRealRouter.addChild(
+          '550e8400-e29b-41d4-a716-446655440311',
+          secondTool,
+        );
+        workflowWithRealRouter.addChild(
+          '550e8400-e29b-41d4-a716-446655440312',
+          thirdTool,
+        );
+        workflowWithRealRouter.addChild(
+          '550e8400-e29b-41d4-a716-446655440313',
+          fourthTool,
+        );
+
+        nock(baseUrl)
+          .get('/tools/check')
+          .query(true) // Match any query parameters
+          .matchHeader('Authorization', 'Bearer test-api-key')
+          .reply(400, {
+            error: 'Some tools not found',
+            missingIds: ['missing-tool-1', 'missing-tool-2'],
+          });
+
+        await expect(workflowWithRealRouter.compile()).rejects.toThrow(
+          WorkflowToolMissingError,
+        );
+      });
+
+      it('should handle partial missing tools from 400 error response', async () => {
+        const firstTool: ToolNode = {
+          identifier: '550e8400-e29b-41d4-a716-446655440305',
+          type: 'tool',
+          toolIdentifier: 'existing-tool',
+          child: null,
+        };
+
+        const secondTool: ToolNode = {
+          identifier: '550e8400-e29b-41d4-a716-446655440306',
+          type: 'tool',
+          toolIdentifier: 'missing-tool',
+          child: null,
+        };
+
+        workflowWithRealRouter.addChild(undefined, firstTool);
+        workflowWithRealRouter.addChild(
+          '550e8400-e29b-41d4-a716-446655440305',
+          secondTool,
+        );
+
+        nock(baseUrl)
+          .get('/tools/check')
+          .query(true) // Match any query parameters
+          .matchHeader('Authorization', 'Bearer test-api-key')
+          .reply(400, {
+            error: 'Some tools not found',
+            missingIds: ['missing-tool'],
+          });
+
+        await expect(workflowWithRealRouter.compile()).rejects.toThrow(
+          WorkflowToolMissingError,
+        );
+      });
+
+      it('should treat all tools as missing when 400 error has no missingIds', async () => {
+        const toolNode: ToolNode = {
+          identifier: '550e8400-e29b-41d4-a716-446655440307',
+          type: 'tool',
+          toolIdentifier: 'problematic-tool',
+          child: null,
+        };
+
+        workflowWithRealRouter.addChild(undefined, toolNode);
+
+        nock(baseUrl)
+          .get('/tools/check')
+          .query(true)
+          .matchHeader('Authorization', 'Bearer test-api-key')
+          .reply(400, {
+            error: 'Invalid input',
+          });
+
+        await expect(workflowWithRealRouter.compile()).rejects.toThrow(
+          WorkflowToolMissingError,
+        );
+
+        try {
+          await workflowWithRealRouter.compile();
+        } catch (error) {
+          expect(error).toBeInstanceOf(WorkflowToolMissingError);
+          expect((error as WorkflowToolMissingError).getMissingTools()).toEqual(
+            ['problematic-tool'],
+          );
+        }
+      });
+
+      it('should treat all tools as missing when server error occurs', async () => {
+        const toolNode: ToolNode = {
+          identifier: '550e8400-e29b-41d4-a716-446655440308',
+          type: 'tool',
+          toolIdentifier: 'server-error-tool',
+          child: null,
+        };
+
+        workflowWithRealRouter.addChild(undefined, toolNode);
+
+        nock(baseUrl)
+          .get('/tools/check')
+          .query(true)
+          .matchHeader('Authorization', 'Bearer test-api-key')
+          .reply(500, {
+            error: 'Internal server error',
+          });
+
+        await expect(workflowWithRealRouter.compile()).rejects.toThrow(
+          WorkflowToolMissingError,
+        );
+
+        try {
+          await workflowWithRealRouter.compile();
+        } catch (error) {
+          expect(error).toBeInstanceOf(WorkflowToolMissingError);
+          expect((error as WorkflowToolMissingError).getMissingTools()).toEqual(
+            ['server-error-tool'],
+          );
+        }
+      });
+
+      it('should treat all tools as missing when network error occurs', async () => {
+        const toolNode: ToolNode = {
+          identifier: '550e8400-e29b-41d4-a716-446655440309',
+          type: 'tool',
+          toolIdentifier: 'network-error-tool',
+          child: null,
+        };
+
+        workflowWithRealRouter.addChild(undefined, toolNode);
+
+        nock(baseUrl)
+          .get('/tools/check')
+          .query(true)
+          .matchHeader('Authorization', 'Bearer test-api-key')
+          .replyWithError('Network connection failed');
+
+        await expect(workflowWithRealRouter.compile()).rejects.toThrow(
+          WorkflowToolMissingError,
+        );
+
+        try {
+          await workflowWithRealRouter.compile();
+        } catch (error) {
+          expect(error).toBeInstanceOf(WorkflowToolMissingError);
+          expect((error as WorkflowToolMissingError).getMissingTools()).toEqual(
+            ['network-error-tool'],
+          );
+        }
+      });
+
+      it('should handle malformed JSON response', async () => {
+        const toolNode: ToolNode = {
+          identifier: '550e8400-e29b-41d4-a716-446655440310',
+          type: 'tool',
+          toolIdentifier: 'malformed-response-tool',
+          child: null,
+        };
+
+        workflowWithRealRouter.addChild(undefined, toolNode);
+
+        nock(baseUrl)
+          .get('/tools/check')
+          .query(true)
+          .matchHeader('Authorization', 'Bearer test-api-key')
+          .reply(200, 'invalid json response');
+
+        await expect(workflowWithRealRouter.compile()).rejects.toThrow(
+          WorkflowToolMissingError,
+        );
+
+        try {
+          await workflowWithRealRouter.compile();
+        } catch (error) {
+          expect(error).toBeInstanceOf(WorkflowToolMissingError);
+          expect((error as WorkflowToolMissingError).getMissingTools()).toEqual(
+            ['malformed-response-tool'],
+          );
+        }
+      });
+
+      it('should pass compilation with workflow containing no tool nodes', async () => {
+        // Workflow with only trigger, no tool nodes
+        nock(baseUrl)
+          .get('/tools/check')
+          .matchHeader('Authorization', 'Bearer test-api-key')
+          .reply(200, { exists: true });
+
+        await expect(workflowWithRealRouter.compile()).resolves.toBeDefined();
+      });
     });
   });
 
