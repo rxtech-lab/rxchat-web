@@ -35,6 +35,8 @@ describe('agent should handle the compilation errors', () => {
   beforeEach(() => {
     // Reset all mocks
     jest.clearAllMocks();
+    process.env.MCP_ROUTER_SERVER_API_KEY = 'test-api';
+    process.env.MCP_ROUTER_SERVER_URL = 'http://localhost:3000/sse';
 
     // Mock MCP client
     mockMcpClient = {

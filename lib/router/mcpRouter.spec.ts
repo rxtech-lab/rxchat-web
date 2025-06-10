@@ -20,6 +20,7 @@ describe('McpRouter', () => {
 
   describe('constructor', () => {
     it('should extract base URL from full URL', () => {
+      process.env.MCP_ROUTER_SERVER_API_KEY = 'test-api';
       const router1 = new McpRouter('http://localhost:3000/sse');
       const router2 = new McpRouter('https://api.example.com:8080/v1/endpoint');
 
@@ -34,7 +35,7 @@ describe('McpRouter', () => {
       nock(baseUrl)
         .get('/tools/check')
         .query({ ids: ['tool1', 'tool2'] })
-        .matchHeader('Authorization', 'Bearer test-api-key')
+        .matchHeader('x-api-key', 'test-api-key')
         .matchHeader('Content-Type', 'application/json')
         .reply(200, { exists: true });
 
@@ -48,7 +49,7 @@ describe('McpRouter', () => {
       nock(baseUrl)
         .get('/tools/check')
         .query({ ids: tools })
-        .matchHeader('Authorization', 'Bearer test-api-key')
+        .matchHeader('x-api-key', 'test-api-key')
         .reply(200, { exists: false });
 
       const result = await mcpRouter.checkToolsExist(tools);
@@ -60,7 +61,7 @@ describe('McpRouter', () => {
       nock(baseUrl)
         .get('/tools/check')
         .query({ ids: ['tool1', 'tool2', 'tool3'] })
-        .matchHeader('Authorization', 'Bearer test-api-key')
+        .matchHeader('x-api-key', 'test-api-key')
         .reply(400, {
           error: 'Invalid input',
           missingIds: ['tool2', 'tool3'],
@@ -80,7 +81,7 @@ describe('McpRouter', () => {
       nock(baseUrl)
         .get('/tools/check')
         .query({ ids: tools })
-        .matchHeader('Authorization', 'Bearer test-api-key')
+        .matchHeader('x-api-key', 'test-api-key')
         .reply(400, {
           error: 'Invalid input',
         });
@@ -95,7 +96,7 @@ describe('McpRouter', () => {
       nock(baseUrl)
         .get('/tools/check')
         .query({ ids: tools })
-        .matchHeader('Authorization', 'Bearer test-api-key')
+        .matchHeader('x-api-key', 'test-api-key')
         .reply(500, {
           error: 'Server error',
         });
@@ -110,7 +111,7 @@ describe('McpRouter', () => {
       nock(baseUrl)
         .get('/tools/check')
         .query({ ids: tools })
-        .matchHeader('Authorization', 'Bearer test-api-key')
+        .matchHeader('x-api-key', 'test-api-key')
         .replyWithError('Network error');
 
       const result = await mcpRouter.checkToolsExist(tools);
@@ -119,14 +120,12 @@ describe('McpRouter', () => {
     });
 
     it('should handle empty tools array', async () => {
-      nock(baseUrl)
-        .get('/tools/check')
-        .matchHeader('Authorization', 'Bearer test-api-key')
-        .reply(200, { exists: true });
-
+      // Don't set up any nock interceptor since no HTTP request should be made
       const result = await mcpRouter.checkToolsExist([]);
 
       expect(result).toEqual({ missingTools: [] });
+      // Verify that no HTTP request was made by checking there are no pending interceptors
+      expect(nock.pendingMocks()).toHaveLength(0);
     });
 
     it('should handle malformed JSON response', async () => {
@@ -134,7 +133,7 @@ describe('McpRouter', () => {
       nock(baseUrl)
         .get('/tools/check')
         .query({ ids: tools })
-        .matchHeader('Authorization', 'Bearer test-api-key')
+        .matchHeader('x-api-key', 'test-api-key')
         .reply(200, 'invalid json');
 
       const result = await mcpRouter.checkToolsExist(tools);

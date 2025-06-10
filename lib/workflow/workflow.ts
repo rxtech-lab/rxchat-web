@@ -1,24 +1,32 @@
 import { tool } from 'ai';
 import { v4 } from 'uuid';
 import { z } from 'zod';
+import { compileCode } from '../agent/runtime/runner-environment';
+import { createMcpRouter } from '../router';
+import type { McpRouter } from '../router/mcpRouter';
+import {
+  WorkflowInputOutputMismatchError,
+  WorkflowToolMissingError,
+} from './errors';
 import type {
   BaseNode,
+  ConditionNode,
+  ConverterNode,
   CronjobTriggerNode,
   RegularNode,
   ToolNode,
   Workflow as WorkflowType,
 } from './types';
 import { WorkflowSchema } from './types';
-import {
-  WorkflowInputOutputMismatchError,
-  WorkflowToolMissingError,
-} from './errors';
-import type { McpRouter } from '../router/mcpRouter';
-import { createMcpRouter } from '../router';
 
 export interface WorkflowInterface {
   // Add a child node to the workflow as child of the node with the identifier.
   addChild(identifier: string | undefined, child: RegularNode): void;
+  // Add a child node to the workflow after the node with the identifier.
+  // If the node with the identifier has a child, then the new child will be added between the nodes.
+  // If the node with the identifier has no child, then the new child will be added as child of the node with the identifier.
+  // If the node has children, error will be thrown.
+  addAfter(identifier: string, child: RegularNode): void;
   // Remove a existing child node from the workflow. Throw an error if the node is not found.
   removeChild(identifier: string): void;
   // Modify a existing child node from the workflow. Throw an error if the node is not found.
@@ -44,11 +52,15 @@ export const addNodeTool = (workflow: Workflow) =>
     }),
     execute: async ({ id, toolIdentifier }) => {
       try {
+        const toolInfo = await workflow.mcpRouter.getToolInfo(toolIdentifier);
         const node: ToolNode = {
           identifier: v4(),
           type: 'tool',
           toolIdentifier,
           child: null,
+          description: toolInfo.description,
+          inputSchema: toolInfo.inputSchema,
+          outputSchema: toolInfo.outputSchema,
         };
         if (id === null || (typeof id === 'string' && id.trim() === '')) {
           workflow.addChild(undefined, node);
@@ -70,19 +82,75 @@ export const addConditionTool = (workflow: Workflow) =>
   tool({
     description: 'Add a new condition node to the workflow',
     parameters: z.object({
-      identifier: z
+      toolIdentifier: z
         .string()
         .nullable()
         .describe(
-          'The identifier for the condition node to be added as child of the node with the identifier. Empty if it added as root.',
+          `The identifier for the condition node to be added as child of the node with the identifier. Empty if it added as root.
+           Note: this node contains multiple children, and this tool will determine which child to use.
+          `,
         ),
       code: z
         .string()
-        .optional()
         .describe(
           `The code for the condition. Should be in the format export async function handle(input: Record<string, any>): Promise<string>. The return is the next tool identifier to use`,
         ),
     }),
+    execute: async ({ toolIdentifier, code }) => {
+      const node: ConditionNode = {
+        identifier: v4(),
+        type: 'condition',
+        code: code,
+        runtime: 'js',
+        children: [],
+      };
+      if (toolIdentifier) {
+        workflow.addChild(toolIdentifier, node);
+      } else {
+        workflow.addChild(undefined, node);
+      }
+      return `Added condition node with identifier ${node.identifier}`;
+    },
+  });
+
+export const addConverterTool = (workflow: Workflow) =>
+  tool({
+    description: 'Add a new converter node to the workflow',
+    parameters: z.object({
+      toolIdentifier: z
+        .string()
+        .describe(
+          "The tool's unique identifier that this node will be added after. This is the UUID not the tool identifier.",
+        ),
+      code: z
+        .string()
+        .describe(`The code for the converter. Written in Typescript and follow the following format:
+          async function handle(input: any): Promise<any> {
+            return input;
+          }
+
+          The input is the output of the tool with the identifier 'toolIdentifier'.
+          The output should follow the targeted output schema.
+          `),
+    }),
+    execute: async ({ toolIdentifier, code }) => {
+      try {
+        await compileCode(code, 'typescript');
+      } catch (error) {
+        return {
+          error: error,
+        };
+      }
+      const node: ConverterNode = {
+        identifier: v4(),
+        type: 'converter',
+        code: code,
+        child: null,
+        runtime: 'js',
+      };
+      workflow.addAfter(toolIdentifier, node);
+      return `Added converter node with identifier ${node.identifier}`;
+    },
   });
 
 export const removeNodeTool = (workflow: Workflow) =>
@@ -144,7 +212,7 @@ export const viewWorkflow = (workflow: Workflow) =>
 
 export class Workflow implements WorkflowInterface {
   private workflow: WorkflowType;
-  private mcpRouter: McpRouter;
+  public mcpRouter: McpRouter;
 
   constructor(
     title: string,
@@ -175,6 +243,33 @@ export class Workflow implements WorkflowInterface {
       obj.type === 'tool' &&
       typeof obj.identifier === 'string'
     );
+  }
+
+  addAfter(identifier: string | undefined, child: RegularNode): void {
+    if (!identifier) {
+      this.addChild(undefined, child);
+      return;
+    }
+
+    const parentNode = this.findNode(identifier);
+    if (!parentNode) {
+      throw new Error(`Node with identifier ${identifier} not found`);
+    }
+
+    if ('child' in parentNode && parentNode.child === null) {
+      (parentNode as any).child = child;
+    } else if (
+      'children' in parentNode &&
+      Array.isArray((parentNode as any).children)
+    ) {
+      throw new Error(
+        `Node with identifier ${identifier} has children, please use addChild instead`,
+      );
+    } else if ('child' in parentNode && parentNode.child) {
+      const existingChild = parentNode.child;
+      parentNode.child = child;
+      child.child = existingChild;
+    }
   }
 
   /**

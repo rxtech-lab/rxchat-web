@@ -41,12 +41,14 @@ describe('WorkflowEngine', () => {
         identifier: 'node1',
         type: 'tool',
         toolIdentifier: 'tool1',
+        description: 'Test tool 1',
       };
 
       const node2: ToolNode = {
         identifier: 'node2',
         type: 'tool',
         toolIdentifier: 'tool2',
+        description: 'Test tool 2',
       };
 
       const conditionNode: ConditionNode = {
@@ -92,6 +94,7 @@ describe('WorkflowEngine', () => {
         identifier: 'node2',
         type: 'tool',
         toolIdentifier: 'tool2',
+        description: 'Test tool 2',
       };
 
       const conditionNode: ConditionNode = {
@@ -107,6 +110,7 @@ describe('WorkflowEngine', () => {
         type: 'tool',
         toolIdentifier: 'tool1',
         child: conditionNode,
+        description: 'Test tool 1',
       };
 
       const workflow: Workflow = {
@@ -147,7 +151,6 @@ describe('WorkflowEngine', () => {
         identifier: 'converter',
         type: 'converter',
         code: 'return "tool1";',
-        converter: 'converter1',
         runtime: 'js',
       };
 
@@ -155,12 +158,14 @@ describe('WorkflowEngine', () => {
         identifier: 'node1',
         type: 'tool',
         toolIdentifier: 'tool1',
+        description: 'Test tool 1',
       };
 
       const node2: ToolNode = {
         identifier: 'node2',
         type: 'tool',
         toolIdentifier: 'tool2',
+        description: 'Test tool 2',
       };
 
       node1.child = converterNode;
@@ -194,7 +199,7 @@ describe('WorkflowEngine', () => {
         'return "tool1";',
         {
           input: 'tools',
-          converter: 'converter1',
+          code: 'return "tool1";',
           nodeId: 'converter',
         },
       );

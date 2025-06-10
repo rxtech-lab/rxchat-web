@@ -3,6 +3,7 @@ import { Workflow } from './workflow';
 import { McpRouter } from '../router/mcpRouter';
 import { WorkflowToolMissingError } from './errors';
 import nock from 'nock';
+import { v4 } from 'uuid';
 
 // Mock mcpRouter for testing
 class MockMcpRouter extends McpRouter {
@@ -49,6 +50,7 @@ describe('Workflow', () => {
         identifier: '550e8400-e29b-41d4-a716-446655440001',
         type: 'tool',
         toolIdentifier: 'test-tool',
+        description: 'Test Workflow',
         child: null,
       };
 
@@ -62,12 +64,14 @@ describe('Workflow', () => {
         type: 'tool',
         toolIdentifier: 'parent-tool',
         child: null,
+        description: 'Test Workflow',
       };
 
       const childNode: ToolNode = {
         identifier: '550e8400-e29b-41d4-a716-446655440003',
         type: 'tool',
         toolIdentifier: 'child-tool',
+        description: 'Test Workflow',
         child: null,
       };
 
@@ -84,6 +88,7 @@ describe('Workflow', () => {
         type: 'tool',
         toolIdentifier: 'test-tool',
         child: null,
+        description: 'Test Workflow',
       };
 
       expect(() => {
@@ -104,6 +109,7 @@ describe('Workflow', () => {
           toolIdentifier: 'existing-tool',
           child: null,
         } as ToolNode,
+        description: 'Test Workflow',
       };
 
       const newChildNode: ToolNode = {
@@ -111,6 +117,7 @@ describe('Workflow', () => {
         type: 'tool',
         toolIdentifier: 'new-tool',
         child: null,
+        description: 'Test Workflow',
       };
 
       workflow.addChild(undefined, parentNode);
@@ -130,6 +137,7 @@ describe('Workflow', () => {
         type: 'tool',
         toolIdentifier: 'test-tool',
         child: null,
+        description: 'Test Workflow',
       };
 
       workflow.addChild(undefined, childNode);
@@ -159,6 +167,7 @@ describe('Workflow', () => {
       const originalChild: ToolNode = {
         identifier: '550e8400-e29b-41d4-a716-446655440009',
         type: 'tool',
+        description: 'Test Workflow',
         toolIdentifier: 'original-tool',
         child: null,
       };
@@ -166,6 +175,7 @@ describe('Workflow', () => {
       const modifiedChild: ToolNode = {
         identifier: '550e8400-e29b-41d4-a716-446655440009',
         type: 'tool',
+        description: 'Test Workflow',
         toolIdentifier: 'modified-tool',
         child: null,
       };
@@ -184,6 +194,7 @@ describe('Workflow', () => {
         identifier: '550e8400-e29b-41d4-a716-446655440010',
         type: 'tool',
         toolIdentifier: 'test-tool',
+        description: 'Test Workflow',
         child: null,
       };
 
@@ -199,6 +210,7 @@ describe('Workflow', () => {
         identifier: '550e8400-e29b-41d4-a716-446655440000',
         type: 'tool',
         toolIdentifier: 'test-tool',
+        description: 'Test Workflow',
         child: null,
       };
 
@@ -249,6 +261,7 @@ describe('Workflow', () => {
         identifier: '550e8400-e29b-41d4-a716-446655440200',
         type: 'tool',
         toolIdentifier: 'parent-tool',
+        description: 'Test Workflow',
         child: null,
         inputSchema: {},
         outputSchema: {
@@ -261,6 +274,7 @@ describe('Workflow', () => {
 
       const child: ToolNode = {
         identifier: '550e8400-e29b-41d4-a716-446655440201',
+        description: 'Test Workflow',
         type: 'tool',
         toolIdentifier: 'child-tool',
         child: null,
@@ -284,6 +298,7 @@ describe('Workflow', () => {
         identifier: '550e8400-e29b-41d4-a716-446655440202',
         type: 'tool',
         toolIdentifier: 'parent-tool',
+        description: 'Test Workflow',
         child: null,
         inputSchema: {},
         outputSchema: {
@@ -298,6 +313,7 @@ describe('Workflow', () => {
         identifier: '550e8400-e29b-41d4-a716-446655440203',
         type: 'tool',
         toolIdentifier: 'child-tool',
+        description: 'Test Workflow',
         child: null,
         inputSchema: {
           properties: {
@@ -321,6 +337,7 @@ describe('Workflow', () => {
         identifier: '550e8400-e29b-41d4-a716-446655440204',
         type: 'tool',
         toolIdentifier: 'parent-tool',
+        description: 'Test Workflow',
         child: null,
         inputSchema: {},
         outputSchema: {
@@ -334,6 +351,7 @@ describe('Workflow', () => {
         identifier: '550e8400-e29b-41d4-a716-446655440205',
         type: 'tool',
         toolIdentifier: 'child-tool',
+        description: 'Test Workflow',
         child: null,
         inputSchema: {
           properties: {
@@ -356,6 +374,7 @@ describe('Workflow', () => {
         identifier: '550e8400-e29b-41d4-a716-446655440206',
         type: 'tool',
         toolIdentifier: 'parent-tool',
+        description: 'Test Workflow',
         child: null,
         inputSchema: {},
         outputSchema: {
@@ -370,6 +389,7 @@ describe('Workflow', () => {
         identifier: '550e8400-e29b-41d4-a716-446655440207',
         type: 'tool',
         toolIdentifier: 'child-tool',
+        description: 'Test Workflow',
         child: null,
         inputSchema: {
           properties: {
@@ -395,6 +415,7 @@ describe('Workflow', () => {
         type: 'tool',
         toolIdentifier: 'parent-tool',
         child: null,
+        description: 'Test Workflow',
         inputSchema: {},
         outputSchema: {
           properties: {
@@ -411,6 +432,7 @@ describe('Workflow', () => {
         type: 'tool',
         toolIdentifier: 'child-tool',
         child: null,
+        description: 'Test Workflow',
         inputSchema: {
           properties: {
             name: { type: 'string' },
@@ -432,6 +454,7 @@ describe('Workflow', () => {
         type: 'tool',
         toolIdentifier: 'parent-tool',
         child: null,
+        description: 'Test Workflow',
         inputSchema: {},
         outputSchema: {
           properties: {},
@@ -443,6 +466,7 @@ describe('Workflow', () => {
         type: 'tool',
         toolIdentifier: 'child-tool',
         child: null,
+        description: 'Test Workflow',
         inputSchema: {
           properties: {
             name: { type: 'string' },
@@ -463,6 +487,7 @@ describe('Workflow', () => {
       const parent: ToolNode = {
         identifier: '550e8400-e29b-41d4-a716-446655440212',
         type: 'tool',
+        description: 'Test Workflow',
         toolIdentifier: 'parent-tool',
         child: null,
         inputSchema: undefined,
@@ -472,6 +497,7 @@ describe('Workflow', () => {
       const child: ToolNode = {
         identifier: '550e8400-e29b-41d4-a716-446655440213',
         type: 'tool',
+        description: 'Test Workflow',
         toolIdentifier: 'child-tool',
         child: null,
         inputSchema: undefined,
@@ -488,6 +514,7 @@ describe('Workflow', () => {
       const parent: ToolNode = {
         identifier: '550e8400-e29b-41d4-a716-446655440214',
         type: 'tool',
+        description: 'Test Workflow',
         toolIdentifier: 'parent-tool',
         child: null,
         inputSchema: {},
@@ -503,6 +530,7 @@ describe('Workflow', () => {
         type: 'tool',
         toolIdentifier: 'child-tool',
         child: null,
+        description: 'Test Workflow',
         inputSchema: {
           properties: {},
         },
@@ -519,6 +547,7 @@ describe('Workflow', () => {
       const parent: ToolNode = {
         identifier: '550e8400-e29b-41d4-a716-446655440216',
         type: 'tool',
+        description: 'Test Workflow',
         toolIdentifier: 'parent-tool',
         child: null,
         inputSchema: {},
@@ -548,6 +577,7 @@ describe('Workflow', () => {
         type: 'tool',
         toolIdentifier: 'child-tool',
         child: null,
+        description: 'Test Workflow',
         inputSchema: {
           properties: {
             user: {
@@ -581,6 +611,7 @@ describe('Workflow', () => {
         type: 'tool',
         toolIdentifier: 'parent-tool',
         child: null,
+        description: 'Test Workflow',
         inputSchema: {},
         outputSchema: {
           properties: {
@@ -599,6 +630,7 @@ describe('Workflow', () => {
         type: 'tool',
         toolIdentifier: 'child-tool',
         child: null,
+        description: 'Test Workflow',
         inputSchema: {
           properties: {
             user: {
@@ -628,6 +660,7 @@ describe('Workflow', () => {
         type: 'tool',
         toolIdentifier: 'parent-tool',
         child: null,
+        description: 'Test Workflow',
         inputSchema: {},
         outputSchema: {
           properties: {
@@ -644,6 +677,7 @@ describe('Workflow', () => {
         type: 'tool',
         toolIdentifier: 'child-tool',
         child: null,
+        description: 'Test Workflow',
         inputSchema: {
           properties: {
             tags: {
@@ -667,6 +701,7 @@ describe('Workflow', () => {
         type: 'tool',
         toolIdentifier: 'parent-tool',
         child: null,
+        description: 'Test Workflow',
         inputSchema: {},
         outputSchema: {
           properties: {
@@ -683,6 +718,7 @@ describe('Workflow', () => {
         type: 'tool',
         toolIdentifier: 'child-tool',
         child: null,
+        description: 'Test Workflow',
         inputSchema: {
           properties: {
             numbers: {
@@ -708,6 +744,7 @@ describe('Workflow', () => {
         type: 'tool',
         toolIdentifier: 'first-tool',
         child: null,
+        description: 'Test Workflow',
         inputSchema: {},
         outputSchema: {
           properties: {
@@ -721,6 +758,7 @@ describe('Workflow', () => {
         type: 'tool',
         toolIdentifier: 'second-tool',
         child: null,
+        description: 'Test Workflow',
         inputSchema: {
           properties: {
             data: { type: 'string' },
@@ -736,6 +774,7 @@ describe('Workflow', () => {
       const third: ToolNode = {
         identifier: '550e8400-e29b-41d4-a716-446655440226',
         type: 'tool',
+        description: 'Test Workflow',
         toolIdentifier: 'third-tool',
         child: null,
         inputSchema: {
@@ -757,6 +796,7 @@ describe('Workflow', () => {
       const first: ToolNode = {
         identifier: '550e8400-e29b-41d4-a716-446655440227',
         type: 'tool',
+        description: 'Test Workflow',
         toolIdentifier: 'first-tool',
         child: null,
         inputSchema: {},
@@ -772,6 +812,7 @@ describe('Workflow', () => {
         type: 'tool',
         toolIdentifier: 'second-tool',
         child: null,
+        description: 'Test Workflow',
         inputSchema: {
           properties: {
             data: { type: 'string' },
@@ -789,6 +830,7 @@ describe('Workflow', () => {
         type: 'tool',
         toolIdentifier: 'third-tool',
         child: null,
+        description: 'Test Workflow',
         inputSchema: {
           properties: {
             result: { type: 'string' }, // Type mismatch - expects string but gets number
@@ -842,6 +884,7 @@ describe('Workflow', () => {
         const toolNode: ToolNode = {
           identifier: '550e8400-e29b-41d4-a716-446655440301',
           type: 'tool',
+          description: 'Test Workflow',
           toolIdentifier: 'existing-tool',
           child: null,
         };
@@ -851,7 +894,7 @@ describe('Workflow', () => {
         nock(baseUrl)
           .get('/tools/check')
           .query({ ids: 'existing-tool' })
-          .matchHeader('Authorization', 'Bearer test-api-key')
+          .matchHeader('x-api-key', 'test-api-key')
           .matchHeader('Content-Type', 'application/json')
           .reply(200, { exists: true });
 
@@ -863,6 +906,7 @@ describe('Workflow', () => {
           identifier: '550e8400-e29b-41d4-a716-446655440302',
           type: 'tool',
           toolIdentifier: 'missing-tool',
+          description: 'Test Workflow',
           child: null,
         };
 
@@ -893,6 +937,7 @@ describe('Workflow', () => {
           identifier: '550e8400-e29b-41d4-a716-446655440303',
           type: 'tool',
           toolIdentifier: 'missing-tool-1',
+          description: 'Test Workflow',
           child: null,
         };
 
@@ -900,6 +945,7 @@ describe('Workflow', () => {
           identifier: '550e8400-e29b-41d4-a716-446655440304',
           type: 'tool',
           toolIdentifier: 'missing-tool-2',
+          description: 'Test Workflow',
           child: null,
         };
 
@@ -934,6 +980,7 @@ describe('Workflow', () => {
           identifier: '550e8400-e29b-41d4-a716-446655440311',
           type: 'tool',
           toolIdentifier: 'existing-tool-1',
+          description: 'Test Workflow',
           child: null,
         };
 
@@ -941,6 +988,7 @@ describe('Workflow', () => {
           identifier: '550e8400-e29b-41d4-a716-446655440312',
           type: 'tool',
           toolIdentifier: 'missing-tool-1',
+          description: 'Test Workflow',
           child: null,
         };
 
@@ -948,6 +996,7 @@ describe('Workflow', () => {
           identifier: '550e8400-e29b-41d4-a716-446655440313',
           type: 'tool',
           toolIdentifier: 'existing-tool-2',
+          description: 'Test Workflow',
           child: null,
         };
 
@@ -955,6 +1004,7 @@ describe('Workflow', () => {
           identifier: '550e8400-e29b-41d4-a716-446655440314',
           type: 'tool',
           toolIdentifier: 'missing-tool-2',
+          description: 'Test Workflow',
           child: null,
         };
 
@@ -991,6 +1041,7 @@ describe('Workflow', () => {
           identifier: '550e8400-e29b-41d4-a716-446655440305',
           type: 'tool',
           toolIdentifier: 'existing-tool',
+          description: 'Test Workflow',
           child: null,
         };
 
@@ -999,6 +1050,7 @@ describe('Workflow', () => {
           type: 'tool',
           toolIdentifier: 'missing-tool',
           child: null,
+          description: 'Test Workflow',
         };
 
         workflowWithRealRouter.addChild(undefined, firstTool);
@@ -1026,6 +1078,7 @@ describe('Workflow', () => {
           identifier: '550e8400-e29b-41d4-a716-446655440307',
           type: 'tool',
           toolIdentifier: 'problematic-tool',
+          description: 'Test Workflow',
           child: null,
         };
 
@@ -1059,6 +1112,7 @@ describe('Workflow', () => {
           type: 'tool',
           toolIdentifier: 'server-error-tool',
           child: null,
+          description: 'Test Workflow',
         };
 
         workflowWithRealRouter.addChild(undefined, toolNode);
@@ -1091,6 +1145,7 @@ describe('Workflow', () => {
           type: 'tool',
           toolIdentifier: 'network-error-tool',
           child: null,
+          description: 'Test Workflow',
         };
 
         workflowWithRealRouter.addChild(undefined, toolNode);
@@ -1121,6 +1176,7 @@ describe('Workflow', () => {
           type: 'tool',
           toolIdentifier: 'malformed-response-tool',
           child: null,
+          description: 'Test Workflow',
         };
 
         workflowWithRealRouter.addChild(undefined, toolNode);
@@ -1207,6 +1263,7 @@ describe('Workflow', () => {
         identifier: 'parent-1',
         type: 'tool',
         toolIdentifier: 'parent-tool',
+        description: 'Test Workflow',
         child: null,
         inputSchema: {},
         outputSchema: {
@@ -1220,6 +1277,7 @@ describe('Workflow', () => {
         identifier: 'child-1',
         type: 'tool',
         toolIdentifier: 'child-tool',
+        description: 'Test Workflow',
         child: null,
         inputSchema: {
           properties: {
@@ -1245,6 +1303,7 @@ describe('Workflow', () => {
         identifier: 'parent-1',
         type: 'tool',
         toolIdentifier: 'parent-tool',
+        description: 'Test Workflow',
         child: null,
         inputSchema: {},
         outputSchema: {
@@ -1258,6 +1317,7 @@ describe('Workflow', () => {
         identifier: 'child-1',
         type: 'tool',
         toolIdentifier: 'child-tool',
+        description: 'Test Workflow',
         child: null,
         inputSchema: {
           properties: {
@@ -1283,6 +1343,7 @@ describe('Workflow', () => {
         identifier: 'parent-1',
         type: 'tool',
         toolIdentifier: 'parent-tool',
+        description: 'Test Workflow',
         child: null,
         inputSchema: {},
         outputSchema: {
@@ -1298,6 +1359,7 @@ describe('Workflow', () => {
         identifier: 'child-1',
         type: 'tool',
         toolIdentifier: 'child-tool',
+        description: 'Test Workflow',
         child: null,
         inputSchema: {
           properties: {
@@ -1323,6 +1385,7 @@ describe('Workflow', () => {
         identifier: 'parent-1',
         type: 'tool',
         toolIdentifier: 'parent-tool',
+        description: 'Test Workflow',
         child: null,
         inputSchema: {},
         outputSchema: {
@@ -1337,6 +1400,7 @@ describe('Workflow', () => {
         identifier: 'child-1',
         type: 'tool',
         toolIdentifier: 'child-tool',
+        description: 'Test Workflow',
         child: null,
         inputSchema: {
           properties: {
@@ -1359,6 +1423,7 @@ describe('Workflow', () => {
         identifier: 'parent-1',
         type: 'tool',
         toolIdentifier: 'parent-tool',
+        description: 'Test Workflow',
         child: null,
         inputSchema: {},
         outputSchema: {
@@ -1374,6 +1439,7 @@ describe('Workflow', () => {
         identifier: 'child-1',
         type: 'tool',
         toolIdentifier: 'child-tool',
+        description: 'Test Workflow',
         child: null,
         inputSchema: {
           properties: {
@@ -1398,6 +1464,7 @@ describe('Workflow', () => {
         identifier: 'parent-1',
         type: 'tool',
         toolIdentifier: 'parent-tool',
+        description: 'Test Workflow',
         child: null,
         inputSchema: {},
         outputSchema: {
@@ -1409,6 +1476,7 @@ describe('Workflow', () => {
         identifier: 'child-1',
         type: 'tool',
         toolIdentifier: 'child-tool',
+        description: 'Test Workflow',
         child: null,
         inputSchema: {
           properties: {
@@ -1433,6 +1501,7 @@ describe('Workflow', () => {
       const parent: ToolNode = {
         identifier: 'parent-1',
         type: 'tool',
+        description: 'Test Workflow',
         toolIdentifier: 'parent-tool',
         child: null,
         inputSchema: {},
@@ -1441,6 +1510,7 @@ describe('Workflow', () => {
 
       const child: ToolNode = {
         identifier: 'child-1',
+        description: 'Test Workflow',
         type: 'tool',
         toolIdentifier: 'child-tool',
         child: null,
@@ -1459,6 +1529,7 @@ describe('Workflow', () => {
         identifier: 'parent-1',
         type: 'tool',
         toolIdentifier: 'parent-tool',
+        description: 'Test Workflow',
         child: null,
         inputSchema: {},
         outputSchema: {
@@ -1471,6 +1542,7 @@ describe('Workflow', () => {
       const child: ToolNode = {
         identifier: 'child-1',
         type: 'tool',
+        description: 'Test Workflow',
         toolIdentifier: 'child-tool',
         child: null,
         inputSchema: {
@@ -1491,6 +1563,7 @@ describe('Workflow', () => {
       const parent: ToolNode = {
         identifier: 'parent-1',
         type: 'tool',
+        description: 'Test Workflow',
         toolIdentifier: 'parent-tool',
         child: null,
         inputSchema: {},
@@ -1511,6 +1584,7 @@ describe('Workflow', () => {
         identifier: 'child-1',
         type: 'tool',
         toolIdentifier: 'child-tool',
+        description: 'Test Workflow',
         child: null,
         inputSchema: {
           properties: {
@@ -1539,6 +1613,7 @@ describe('Workflow', () => {
         toolIdentifier: 'parent-tool',
         child: null,
         inputSchema: {},
+        description: 'Test Workflow',
         outputSchema: {
           properties: {
             user: {
@@ -1555,6 +1630,7 @@ describe('Workflow', () => {
         identifier: 'child-1',
         type: 'tool',
         toolIdentifier: 'child-tool',
+        description: 'Test Workflow',
         child: null,
         inputSchema: {
           properties: {
@@ -1587,6 +1663,7 @@ describe('Workflow', () => {
         identifier: 'parent-1',
         type: 'tool',
         toolIdentifier: 'parent-tool',
+        description: 'Test Workflow',
         child: null,
         inputSchema: {},
         outputSchema: {
@@ -1606,6 +1683,7 @@ describe('Workflow', () => {
         identifier: 'child-1',
         type: 'tool',
         toolIdentifier: 'child-tool',
+        description: 'Test Workflow',
         child: null,
         inputSchema: {
           properties: {
@@ -1637,6 +1715,7 @@ describe('Workflow', () => {
         identifier: 'parent-1',
         type: 'tool',
         toolIdentifier: 'parent-tool',
+        description: 'Test Workflow',
         child: null,
         inputSchema: {},
         outputSchema: {
@@ -1653,6 +1732,7 @@ describe('Workflow', () => {
         identifier: 'child-1',
         type: 'tool',
         toolIdentifier: 'child-tool',
+        description: 'Test Workflow',
         child: null,
         inputSchema: {
           properties: {
@@ -1676,6 +1756,7 @@ describe('Workflow', () => {
         identifier: 'parent-1',
         type: 'tool',
         toolIdentifier: 'parent-tool',
+        description: 'Test Workflow',
         child: null,
         inputSchema: {},
         outputSchema: {
@@ -1692,6 +1773,7 @@ describe('Workflow', () => {
         identifier: 'child-1',
         type: 'tool',
         toolIdentifier: 'child-tool',
+        description: 'Test Workflow',
         child: null,
         inputSchema: {
           properties: {
@@ -1721,6 +1803,7 @@ describe('Workflow', () => {
         type: 'tool',
         toolIdentifier: 'parent-tool',
         child: null,
+        description: 'Test Workflow',
         inputSchema: {},
         outputSchema: {
           properties: {
@@ -1743,6 +1826,7 @@ describe('Workflow', () => {
         type: 'tool',
         toolIdentifier: 'child-tool',
         child: null,
+        description: 'Test Workflow',
         inputSchema: {
           properties: {
             users: {
@@ -1770,6 +1854,7 @@ describe('Workflow', () => {
       const parent: ToolNode = {
         identifier: 'parent-1',
         type: 'tool',
+        description: 'Test Workflow',
         toolIdentifier: 'parent-tool',
         child: null,
         inputSchema: {},
@@ -1792,6 +1877,7 @@ describe('Workflow', () => {
         identifier: 'child-1',
         type: 'tool',
         toolIdentifier: 'child-tool',
+        description: 'Test Workflow',
         child: null,
         inputSchema: {
           properties: {
@@ -1827,6 +1913,7 @@ describe('Workflow', () => {
         identifier: 'parent-1',
         type: 'tool',
         toolIdentifier: 'parent-tool',
+        description: 'Test Workflow',
         child: null,
         inputSchema: {},
         outputSchema: {
@@ -1852,6 +1939,7 @@ describe('Workflow', () => {
         identifier: 'child-1',
         type: 'tool',
         toolIdentifier: 'child-tool',
+        description: 'Test Workflow',
         child: null,
         inputSchema: {
           properties: {
@@ -1883,6 +1971,93 @@ describe('Workflow', () => {
       expect(result.suggestion).toContain(
         "Add missing properties to 'parent-1.company.address': zipCode",
       );
+    });
+  });
+
+  describe('addAfter', () => {
+    it('should add a child node after the node with the identifier', () => {
+      const id1 = v4();
+      const id2 = v4();
+
+      const workflow = new Workflow(
+        'Test Workflow',
+        {
+          type: 'cronjob-trigger',
+          cron: '0 0 * * *',
+          identifier: id1,
+        },
+        mockMcpRouter,
+      );
+
+      const child: ToolNode = {
+        identifier: id2,
+        type: 'tool',
+        toolIdentifier: 'child-tool',
+        description: 'Test Workflow',
+        child: null,
+        inputSchema: {},
+        outputSchema: {},
+      };
+
+      workflow.addAfter(undefined, child);
+
+      expect(workflow.getWorkflow().trigger.child).toEqual(child);
+    });
+
+    it('should add a child node between the node with the identifier and its child', () => {
+      const id1 = v4();
+      const id2 = v4();
+      const id3 = v4();
+      const id4 = v4();
+
+      const workflow = new Workflow(
+        'Test Workflow',
+        {
+          type: 'cronjob-trigger',
+          cron: '0 0 * * *',
+          identifier: id1,
+        },
+        mockMcpRouter,
+      );
+
+      const child: ToolNode = {
+        identifier: id2,
+        type: 'tool',
+        toolIdentifier: 'child-tool',
+        description: 'Test Workflow',
+        child: null,
+        inputSchema: {},
+        outputSchema: {},
+      };
+
+      const child2: ToolNode = {
+        identifier: id3,
+        type: 'tool',
+        toolIdentifier: 'child-tool-2',
+        description: 'Test Workflow',
+        child: null,
+      };
+
+      const child3: ToolNode = {
+        identifier: id4,
+        type: 'tool',
+        toolIdentifier: 'child-tool-3',
+        description: 'Test Workflow',
+        child: null,
+      };
+
+      workflow.addChild(undefined, child);
+      workflow.addChild(id2, child2);
+
+      workflow.addAfter(id2, child3);
+
+      expect(workflow.getWorkflow().trigger.child.child.toolIdentifier).toEqual(
+        'child-tool-3',
+      );
+
+      expect(
+        workflow.getWorkflow().trigger.child.child.child.toolIdentifier,
+      ).toEqual('child-tool-2');
     });
   });
 });

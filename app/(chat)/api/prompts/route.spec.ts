@@ -15,7 +15,11 @@ jest.mock('@/app/(auth)/auth', () => ({
 
 import { PATCH } from './route';
 import { auth } from '@/app/(auth)/auth';
-import { createUser, deleteUserAccount, createPrompt } from '@/lib/db/queries/queries';
+import {
+  createUser,
+  deleteUserAccount,
+  createPrompt,
+} from '@/lib/db/queries/queries';
 import { generateRandomTestUser } from '@/tests/helpers';
 import type { Prompt } from '@/lib/db/schema';
 
@@ -58,8 +62,10 @@ describe('PATCH /api/prompts', () => {
     testPromptId = mockPrompt.id;
 
     // Mock auth to return test user
+    // @ts-ignore
     mockAuth.mockResolvedValue({
       user: { id: testUserId, email: user.email },
+      session: { user: { id: testUserId, email: user.email } },
     } as any);
   });
 
@@ -89,7 +95,7 @@ describe('PATCH /api/prompts', () => {
     expect(response.status).toBe(200);
 
     const responseData = await response.json();
-    
+
     // Should return the updated prompt object, not just { success: true }
     expect(responseData).toHaveProperty('id', testPromptId);
     expect(responseData).toHaveProperty('title', updateData.title);
@@ -98,7 +104,7 @@ describe('PATCH /api/prompts', () => {
     expect(responseData).toHaveProperty('visibility', updateData.visibility);
     expect(responseData).toHaveProperty('authorId', testUserId);
     expect(responseData).toHaveProperty('updatedAt');
-    
+
     // Should NOT be the old format
     expect(responseData).not.toEqual({ success: true });
   });
@@ -119,10 +125,13 @@ describe('PATCH /api/prompts', () => {
     expect(response.status).toBe(200);
 
     const responseData = await response.json();
-    
+
     expect(responseData).toHaveProperty('id', testPromptId);
     expect(responseData).toHaveProperty('title', partialUpdate.title);
-    expect(responseData).toHaveProperty('description', 'A test prompt for API integration testing'); // Should remain unchanged
+    expect(responseData).toHaveProperty(
+      'description',
+      'A test prompt for API integration testing',
+    ); // Should remain unchanged
     expect(responseData).toHaveProperty('code', 'console.log("Test API");'); // Should remain unchanged
     expect(responseData).toHaveProperty('visibility', 'private'); // Should remain unchanged
   });
@@ -142,11 +151,14 @@ describe('PATCH /api/prompts', () => {
     expect(response.status).toBe(400);
 
     const errorData = await response.json();
-    expect(errorData.message).toBe('The request couldn\'t be processed. Please check your input and try again.');
+    expect(errorData.message).toBe(
+      "The request couldn't be processed. Please check your input and try again.",
+    );
   });
 
   test('should require authentication', async () => {
     // Mock auth to return null (unauthenticated)
+    // @ts-ignore
     mockAuth.mockResolvedValue(null);
 
     const updateData = {
