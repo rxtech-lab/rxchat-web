@@ -26,12 +26,12 @@ describe('Mem0AIClient', () => {
   });
 
   afterEach(() => {
-    delete process.env.MEM_ZERO_AI_API_KEY;
+    process.env.MEM_ZERO_AI_API_KEY = undefined;
   });
 
   describe('constructor', () => {
     it('should throw error when MEM_ZERO_AI_API_KEY is not provided', () => {
-      delete process.env.MEM_ZERO_AI_API_KEY;
+      process.env.MEM_ZERO_AI_API_KEY = undefined;
       expect(() => new Mem0AIClient()).toThrow(
         'MEM_ZERO_AI_API_KEY environment variable is required',
       );
@@ -127,8 +127,6 @@ describe('Mem0AIClient', () => {
       );
     });
   });
-
-
 
   describe('delete', () => {
     it('should delete a memory successfully', async () => {

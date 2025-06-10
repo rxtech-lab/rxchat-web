@@ -6,7 +6,11 @@ import {
   getFilteredProviders,
   providerSupportsDocuments,
 } from '@/lib/ai/models';
-import { systemPrompt, type RequestHints, getMemoryContext } from '@/lib/ai/prompts';
+import {
+  systemPrompt,
+  type RequestHints,
+  getMemoryContext,
+} from '@/lib/ai/prompts';
 import { getModelProvider } from '@/lib/ai/providers';
 import { createDocument } from '@/lib/ai/tools/create-document';
 import { getWeather } from '@/lib/ai/tools/get-weather';
@@ -35,7 +39,11 @@ import {
 } from '@/lib/db/queries/queries';
 import type { Chat } from '@/lib/db/schema';
 import { ChatSDKError } from '@/lib/errors';
-import { generateUUID, getTrailingMessageId } from '@/lib/utils';
+import {
+  generateUUID,
+  getTrailingMessageId,
+  estimateTokenCount,
+} from '@/lib/utils';
 import { geolocation } from '@vercel/functions';
 import {
   appendClientMessage,
@@ -271,8 +279,22 @@ export async function POST(request: Request) {
       `;
     }
 
+    // Determine if memory should be loaded based on optimization conditions:
+    // 1. First conversation (no previous messages), OR
+    // 2. Current chat has more than 10k tokens
+    const isFirstConversation = previousMessages.length === 0;
+    const estimatedTokens = estimateTokenCount([
+      ...previousMessages.map((msg) => ({ parts: msg.parts as any[] })),
+      { parts: message.parts as any[] },
+    ]);
+    const shouldLoadMemory = isFirstConversation || estimatedTokens > 10000;
+
     // Search memory for relevant context to enhance the system prompt
-    const memoryContext = await getMemoryContext(message.content, session.user.id);
+    const memoryContext = await getMemoryContext(
+      message.content,
+      session.user.id,
+      shouldLoadMemory,
+    );
 
     // Add memory context to system prompt if available
     if (memoryContext) {

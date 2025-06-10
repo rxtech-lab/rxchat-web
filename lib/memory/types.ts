@@ -76,8 +76,6 @@ export interface MemoryClient {
     options: SearchMemoryOptions,
   ): Promise<SearchMemoryResponse>;
 
-
-
   /**
    * Delete a specific memory
    */

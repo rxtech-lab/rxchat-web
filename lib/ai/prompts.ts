@@ -171,12 +171,21 @@ ${currentContent}
  * Generate memory context from user's previous conversations
  * @param userMessage - The current user message to search for relevant memories
  * @param userId - The user ID to search memories for
+ * @param shouldLoadMemory - Whether memory should be loaded (for optimization)
  * @returns Memory context string to append to system prompt
  */
-export async function getMemoryContext(userMessage: string, userId: string): Promise<string> {
+export async function getMemoryContext(
+  userMessage: string,
+  userId: string,
+  shouldLoadMemory = true,
+): Promise<string> {
+  // Skip memory loading if optimization conditions are not met
+  if (!shouldLoadMemory) {
+    return '';
+  }
   try {
     const memoryClient = createMemoryClient();
-    
+
     const memoryResults = await memoryClient.search(userMessage, {
       user_id: userId,
       limit: 5,

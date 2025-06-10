@@ -16,7 +16,7 @@ jest.mock('mem0ai', () => {
 
 describe('Memory Client Factory', () => {
   afterEach(() => {
-    delete process.env.MEM_ZERO_AI_API_KEY;
+    process.env.MEM_ZERO_AI_API_KEY = undefined;
   });
 
   it('should create memory client when API key is provided', () => {
@@ -32,7 +32,7 @@ describe('Memory Client Factory', () => {
   });
 
   it('should throw error when API key is missing', () => {
-    delete process.env.MEM_ZERO_AI_API_KEY;
+    process.env.MEM_ZERO_AI_API_KEY = undefined;
 
     expect(() => createMemoryClient()).toThrow(
       'MEM_ZERO_AI_API_KEY environment variable is required',

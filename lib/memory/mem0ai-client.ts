@@ -4,7 +4,6 @@ import type {
   AddMemoryResponse,
   MemoryClient as IMemoryClient,
   MemoryMessage,
-  MemorySearchResult,
   SearchMemoryOptions,
   SearchMemoryResponse,
 } from './types';
@@ -101,8 +100,6 @@ export class Mem0AIClient implements IMemoryClient {
       );
     }
   }
-
-
 
   /**
    * Delete a specific memory

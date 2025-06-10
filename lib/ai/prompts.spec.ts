@@ -283,6 +283,79 @@ describe('getMemoryContext', () => {
     jest.clearAllMocks();
   });
 
+  it('should return empty string when shouldLoadMemory is false', async () => {
+    const mockMemoryClient = {
+      search: jest.fn().mockResolvedValue({
+        results: [
+          {
+            id: '1',
+            text: 'User prefers Italian food',
+            score: 0.9,
+            metadata: { type: 'preference' },
+          },
+        ],
+      }),
+    };
+
+    mockCreateMemoryClient.mockReturnValue(mockMemoryClient as any);
+
+    const result = await getMemoryContext(
+      'What should I eat for dinner?',
+      'user123',
+      false,
+    );
+
+    // Should not call search when shouldLoadMemory is false
+    expect(mockMemoryClient.search).not.toHaveBeenCalled();
+    expect(result).toBe('');
+  });
+
+  it('should load memory when shouldLoadMemory is true (default behavior)', async () => {
+    const mockMemoryClient = {
+      search: jest.fn().mockResolvedValue({
+        results: [
+          {
+            id: '1',
+            text: 'User prefers Italian food',
+            score: 0.9,
+            metadata: { type: 'preference' },
+          },
+        ],
+      }),
+    };
+
+    mockCreateMemoryClient.mockReturnValue(mockMemoryClient as any);
+
+    const result = await getMemoryContext(
+      'What should I eat for dinner?',
+      'user123',
+      true,
+    );
+
+    expect(mockMemoryClient.search).toHaveBeenCalledWith(
+      'What should I eat for dinner?',
+      {
+        user_id: 'user123',
+        limit: 5,
+        version: 'v2',
+        filters: {
+          AND: [
+            {
+              user_id: 'user123',
+            },
+          ],
+        },
+      },
+    );
+
+    expect(result).toBe(`
+
+Based on your previous conversations, here are some relevant memories:
+User prefers Italian food
+
+Please consider this context when responding to the user.`);
+  });
+
   it('should return formatted memory context when memories are found', async () => {
     const mockMemoryClient = {
       search: jest.fn().mockResolvedValue({
@@ -305,20 +378,26 @@ describe('getMemoryContext', () => {
 
     mockCreateMemoryClient.mockReturnValue(mockMemoryClient as any);
 
-    const result = await getMemoryContext('What should I eat for dinner?', 'user123');
+    const result = await getMemoryContext(
+      'What should I eat for dinner?',
+      'user123',
+    );
 
-    expect(mockMemoryClient.search).toHaveBeenCalledWith('What should I eat for dinner?', {
-      user_id: 'user123',
-      limit: 5,
-      version: 'v2',
-      filters: {
-        AND: [
-          {
-            user_id: 'user123',
-          },
-        ],
+    expect(mockMemoryClient.search).toHaveBeenCalledWith(
+      'What should I eat for dinner?',
+      {
+        user_id: 'user123',
+        limit: 5,
+        version: 'v2',
+        filters: {
+          AND: [
+            {
+              user_id: 'user123',
+            },
+          ],
+        },
       },
-    });
+    );
 
     expect(result).toBe(`
 
@@ -358,13 +437,17 @@ Please consider this context when responding to the user.`);
 
   it('should return empty string when memory client throws an error', async () => {
     const mockMemoryClient = {
-      search: jest.fn().mockRejectedValue(new Error('Memory service unavailable')),
+      search: jest
+        .fn()
+        .mockRejectedValue(new Error('Memory service unavailable')),
     };
 
     mockCreateMemoryClient.mockReturnValue(mockMemoryClient as any);
 
     // Spy on console.error to check if error is logged
-    const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const consoleSpy = jest
+      .spyOn(console, 'error')
+      .mockImplementation(() => {});
 
     const result = await getMemoryContext('Any query', 'user123');
 
@@ -383,7 +466,9 @@ Please consider this context when responding to the user.`);
     });
 
     // Spy on console.error to check if error is logged
-    const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const consoleSpy = jest
+      .spyOn(console, 'error')
+      .mockImplementation(() => {});
 
     const result = await getMemoryContext('Any query', 'user123');
 

@@ -26,12 +26,12 @@ describe('Memory Integration', () => {
     if (originalEnv) {
       process.env.MEM_ZERO_AI_API_KEY = originalEnv;
     } else {
-      delete process.env.MEM_ZERO_AI_API_KEY;
+      process.env.MEM_ZERO_AI_API_KEY = undefined;
     }
   });
 
   it('should fail gracefully when MEM_ZERO_AI_API_KEY is not set', () => {
-    delete process.env.MEM_ZERO_AI_API_KEY;
+    process.env.MEM_ZERO_AI_API_KEY = undefined;
 
     expect(() => {
       createMemoryClient();
