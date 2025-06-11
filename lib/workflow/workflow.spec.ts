@@ -1214,6 +1214,11 @@ describe('Workflow', () => {
   });
 
   describe('readFrom', () => {
+    beforeEach(() => {
+      process.env.MCP_ROUTER_SERVER_URL = 'http://localhost:3000';
+      process.env.MCP_ROUTER_SERVER_API_KEY = 'test-api-key';
+    });
+
     it('should construct workflow from valid JSON object', () => {
       const workflowData = {
         title: 'Imported Workflow',

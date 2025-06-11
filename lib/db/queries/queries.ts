@@ -339,6 +339,7 @@ export async function saveDocument({
       })
       .returning();
   } catch (error) {
+    console.error(error);
     throw new ChatSDKError('bad_request:database', 'Failed to save document');
   }
 }
