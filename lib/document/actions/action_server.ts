@@ -4,6 +4,7 @@ import { auth } from '@/app/(auth)/auth';
 import { DEFAULT_CHAT_MODEL } from '@/lib/ai/models';
 import { getModelProvider } from '@/lib/ai/providers';
 import { CHUNK_SIZE } from '@/lib/constants';
+import { getDocumentById } from '@/lib/db/queries';
 import { db } from '@/lib/db/queries/client';
 import {
   createVectorStoreDocument,
@@ -21,6 +22,7 @@ import { ChatSDKError } from '@/lib/errors';
 import { createS3Client } from '@/lib/s3/index';
 import { S3Client } from '@/lib/s3/s3';
 import { calculateSha256FromUrl } from '@/lib/utils.server';
+import { OnStepSchema, type OnStep } from '@/lib/workflow/types';
 import { RecursiveCharacterTextSplitter } from '@langchain/textsplitters';
 import { generateText } from 'ai';
 import path from 'node:path';
@@ -643,5 +645,48 @@ export async function getPresignedDownloadUrl({
   } catch (error) {
     console.error('Error getting presigned download URL:', error);
     return { error: 'Failed to get download URL' };
+  }
+}
+
+/**
+ * Server action to get document content by ID for viewing
+ */
+export async function getDocumentContent({
+  id,
+}: {
+  id: string;
+}): Promise<OnStep | { error: string }> {
+  const session = await auth();
+
+  if (!session?.user) {
+    return {
+      error: 'Unauthorized: You must be logged in to view documents.',
+    };
+  }
+
+  try {
+    const document = await getDocumentById({ id });
+
+    if (!document) {
+      return { error: 'Not Found: Document does not exist' };
+    }
+
+    if (document.userId !== session.user.id) {
+      return {
+        error: 'Forbidden: You do not have permission to view this document',
+      };
+    }
+
+    // Return the content if available
+    if (document.content) {
+      const parsed = JSON.parse(document.content);
+      const content = OnStepSchema.parse(parsed);
+      return content;
+    }
+
+    return { error: 'Document content is not available' };
+  } catch (error) {
+    console.error('Error getting document content:', error);
+    return { error: 'Failed to get document content' };
   }
 }

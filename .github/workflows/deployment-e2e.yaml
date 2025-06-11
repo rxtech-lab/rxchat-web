@@ -10,7 +10,7 @@ jobs:
   test:
     timeout-minutes: 60
     runs-on: ubuntu-latest
-    if: github.event.deployment_status.state == 'success' && github.event.deployment_status.environment != 'Production'
+    if: github.event.deployment_status.state == 'success' && !contains(github.event.deployment_status.environment, 'Production')
     container:
       image: mcr.microsoft.com/playwright:v1.52.0-noble
       options: --user 1001
@@ -21,6 +21,11 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: lts/*
+      # echo current environment
+      - name: Echo environment
+        run: |
+          echo "Current environment: ${{ github.event.deployment_status.environment }}"
+          echo "Current commit URL: ${{ github.event.deployment_status.target_url }}"
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
       - name: Install dependencies

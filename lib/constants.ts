@@ -10,6 +10,8 @@ export const isTestEnvironment = Boolean(
     process.env.NODE_ENV === 'test',
 );
 
+export const AUTO_REFRESH_INTERVAL = 30_000;
+
 export const guestRegex = /^guest-\d+$/;
 
 export const DUMMY_PASSWORD = generateDummyPassword();
@@ -111,6 +113,8 @@ export const DEBOUNCE_TIME = 1000;
 export const MAX_K = 10;
 
 export const CHUNK_SIZE = 1000;
+
+export const MAX_WORKFLOW_RETRIES = 0;
 
 /**
  * Array of image MIME types for easy filtering

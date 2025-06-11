@@ -82,6 +82,15 @@ export function SidebarUserNav({ user }: { user: User }) {
               <DropdownMenuItem
                 data-testid="user-nav-item-profile"
                 className="cursor-pointer"
+                onSelect={() => router.push('/jobs')}
+              >
+                Jobs
+              </DropdownMenuItem>
+            )}
+            {!isGuest && (
+              <DropdownMenuItem
+                data-testid="user-nav-item-profile"
+                className="cursor-pointer"
                 onSelect={() => router.push('/profile')}
               >
                 Manage Account

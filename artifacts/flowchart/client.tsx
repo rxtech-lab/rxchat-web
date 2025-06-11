@@ -14,10 +14,13 @@ import {
   CopyIcon,
   EyeIcon,
   PenIcon,
+  PlayIcon,
   RedoIcon,
   UndoIcon,
   ZapIcon,
 } from 'lucide-react';
+import { createWorkflowJob } from '@/app/(chat)/actions';
+import Link from 'next/link';
 
 /**
  * Interface for flowchart metadata containing suggestions and workflow steps
@@ -97,6 +100,23 @@ export const flowchartArtifact = new Artifact<
     return <div />;
   },
   actions: [
+    {
+      description: 'Run workflow',
+      icon: <PlayIcon size={18} />,
+      onClick: async ({ documentId }) => {
+        const job = await createWorkflowJob(documentId);
+        toast.success(
+          <div>
+            Workflow job created successfully.
+            <br />
+            <Link href={`/jobs`} className="text-blue-500 underline">
+              View jobs
+            </Link>
+          </div>,
+        );
+        return job;
+      },
+    },
     {
       icon: <EyeIcon size={18} />,
       description: 'Show main info',
