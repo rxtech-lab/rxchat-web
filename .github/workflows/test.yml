@@ -32,6 +32,8 @@ jobs:
     env:
       MCP_ROUTER_SERVER_URL: https://router.mcprouter.app/sse
       MCP_ROUTER_SERVER_API_KEY: ${{ secrets.MCP_ROUTER_SERVER_API_KEY }}
+      QSTASH_TOKEN: eyJVc2VySUQiOiJkZWZhdWx0VXNlciIsIlBhc3N3b3JkIjoiZGVmYXVsdFBhc3N3b3JkIn0
+      QSTASH_URL: http://localhost:8080
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -53,6 +55,13 @@ jobs:
           POSTGRES_URL: postgresql://postgres:postgres@localhost:5432/postgres
       - name: Install Playwright Browsers
         run: npx playwright install --with-deps
+      - name: Run QStash
+        run: |
+          npx @upstash/qstash-cli dev &
+          until nc -z localhost 8080; do
+            echo 'Waiting for QStash...'
+            sleep 1
+          done
       - name: Run unit tests
         run: pnpm test:unit
       - name: Run e2e tests

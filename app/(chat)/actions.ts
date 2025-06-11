@@ -6,6 +6,7 @@ import { createMCPClient } from '@/lib/ai/mcp';
 import type { ProviderType } from '@/lib/ai/models';
 import {
   deleteMessagesByChatIdAfterTimestamp,
+  getDocumentById,
   getMessageById,
   selectPromptById,
   updateChatVisiblityById,
@@ -13,7 +14,16 @@ import {
 import { generateText, type LanguageModel, type UIMessage } from 'ai';
 import { cookies } from 'next/headers';
 import { auth } from '../(auth)/auth';
-import { isTestEnvironment } from '@/lib/constants';
+import { isTestEnvironment, MAX_WORKFLOW_RETRIES } from '@/lib/constants';
+import { db } from '@/lib/db/queries/client';
+import {
+  createJob,
+  getJobByDocumentId,
+  updateJobRunningStatus,
+} from '@/lib/db/queries/job';
+import { Client } from '@upstash/qstash';
+import { getWorkflowWebhookUrl } from '@/lib/workflow/utils';
+import { OnStepSchema } from '@/lib/workflow/types';
 
 export async function saveChatModelAsCookie(
   model: string,
@@ -117,4 +127,79 @@ export async function selectPrompt({
 
   const userId = session.user.id;
   await selectPromptById({ id: promptId, userId });
+}
+
+export async function createWorkflowJob(documentId: string) {
+  const session = await auth();
+  const workflowClient = new Client({
+    token: process.env.QSTASH_TOKEN,
+    baseUrl: process.env.QSTASH_URL,
+  });
+
+  const url = getWorkflowWebhookUrl();
+  if (!session?.user) {
+    throw new Error('Unauthorized');
+  }
+
+  const userId = session.user.id;
+  await db.transaction(async (tx) => {
+    const document = await getDocumentById({
+      id: documentId,
+    });
+
+    if (!document) {
+      throw new Error('Document not found');
+    }
+
+    const parsedContent = OnStepSchema.parse(
+      JSON.parse(document.content ?? '{}'),
+    );
+
+    // get job by documentId
+    const previousJob = await getJobByDocumentId({
+      documentId,
+    });
+
+    if (previousJob) {
+      await workflowClient.schedules.delete(previousJob.id);
+      await updateJobRunningStatus({
+        id: previousJob.id,
+        runningStatus: previousJob.runningStatus,
+        dbConnection: tx,
+      });
+      await workflowClient.schedules.create({
+        destination: url.toString(),
+        scheduleId: previousJob.id,
+        body: JSON.stringify({
+          jobId: previousJob.id,
+        }),
+        cron: parsedContent.workflow.trigger.cron ?? '0 0 * * *',
+        retries: MAX_WORKFLOW_RETRIES,
+      });
+      return previousJob;
+    }
+
+    const job = await createJob(
+      {
+        documentId,
+        userId,
+        status: 'pending',
+        documentCreatedAt: document.createdAt,
+        runningStatus: 'running',
+      },
+      tx,
+    );
+
+    await workflowClient.schedules.create({
+      destination: url.toString(),
+      scheduleId: job.id,
+      body: JSON.stringify({
+        jobId: job.id,
+      }),
+      // run every day
+      cron: '0 0 * * *',
+    });
+
+    return job;
+  });
 }

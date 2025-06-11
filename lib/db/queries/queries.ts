@@ -1,5 +1,3 @@
-import 'server-only';
-
 import {
   and,
   asc,
@@ -46,6 +44,14 @@ export async function getUser(email: string): Promise<Array<User>> {
       'bad_request:database',
       'Failed to get user by email',
     );
+  }
+}
+
+export async function getUsers(limit: number, offset: number) {
+  try {
+    return await db.select().from(user).limit(limit).offset(offset);
+  } catch (error) {
+    throw new ChatSDKError('bad_request:database', 'Failed to get users');
   }
 }
 

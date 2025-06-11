@@ -121,6 +121,11 @@ export default defineConfig({
       AUTH_SECRET: 'secret',
       REDIS_URL: 'redis://localhost:6379',
       MARKITDOWN_ADMIN_API_KEY: '1234567890',
+      QSTASH_TOKEN:
+        'eyJVc2VySUQiOiJkZWZhdWx0VXNlciIsIlBhc3N3b3JkIjoiZGVmYXVsdFBhc3N3b3JkIn0=',
+      QSTASH_URL: 'http://localhost:8080',
+      UPSTASH_WORKFLOW_URL: 'http://localhost:3000',
+      VERCEL_URL: 'http://localhost:3000',
     },
   },
 });

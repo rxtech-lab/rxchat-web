@@ -45,6 +45,29 @@ export async function createJob(
   }
 }
 
+export async function getJobByDocumentId({
+  documentId,
+  dbConnection = db,
+}: {
+  documentId: string;
+  dbConnection?: DatabaseConnection;
+}): Promise<JobType | null> {
+  try {
+    const [job] = await dbConnection
+      .select()
+      .from(Job)
+      .where(eq(Job.documentId, documentId))
+      .limit(1);
+
+    return job || null;
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to get job by document id',
+    );
+  }
+}
+
 /**
  * Get job by ID
  */
@@ -241,6 +264,44 @@ export async function updateJobRunningStatus({
 }
 
 /**
+ * Update job running status specifically
+ */
+export async function updateJobStatus({
+  id,
+  status,
+  dbConnection = db,
+}: {
+  id: string;
+  status: 'pending' | 'completed' | 'failed';
+  dbConnection?: DatabaseConnection;
+}): Promise<JobType> {
+  try {
+    const updatedJob = await dbConnection
+      .update(Job)
+      .set({
+        status,
+        updatedAt: new Date(),
+      })
+      .where(eq(Job.id, id))
+      .returning();
+
+    if (!updatedJob[0]) {
+      throw new ChatSDKError('not_found:database', 'Job not found.');
+    }
+
+    return updatedJob[0];
+  } catch (error) {
+    if (error instanceof ChatSDKError) {
+      throw error;
+    }
+    throw new ChatSDKError(
+      'bad_request:database',
+      'An error occurred while updating job running status.',
+    );
+  }
+}
+
+/**
  * Delete job by ID
  */
 export async function deleteJob({
@@ -348,6 +409,7 @@ export async function getJobResultById({
 export async function getJobResultsByJobId({
   jobId,
   limit,
+  offset = 0,
   startingAfter,
   endingBefore,
   status,
@@ -355,12 +417,46 @@ export async function getJobResultsByJobId({
 }: {
   jobId: string;
   limit: number;
+  offset?: number;
   startingAfter?: string | null;
   endingBefore?: string | null;
   status?: 'pending' | 'completed' | 'failed';
   dbConnection?: DatabaseConnection;
 }) {
   try {
+    // Use offset-based pagination if offset is provided, otherwise fall back to cursor-based
+    if (offset !== undefined && offset >= 0) {
+      const extendedLimit = limit + 1;
+
+      const buildWhereCondition = () => {
+        const conditions = [eq(JobResult.jobId, jobId)];
+
+        if (status) {
+          conditions.push(eq(JobResult.status, status));
+        }
+
+        return and(...conditions);
+      };
+
+      const filteredJobResults = await dbConnection
+        .select()
+        .from(JobResult)
+        .where(buildWhereCondition())
+        .orderBy(desc(JobResult.createdAt))
+        .limit(extendedLimit)
+        .offset(offset);
+
+      const hasMore = filteredJobResults.length > limit;
+
+      return {
+        jobResults: hasMore
+          ? filteredJobResults.slice(0, limit)
+          : filteredJobResults,
+        hasMore,
+      };
+    }
+
+    // Original cursor-based pagination logic for backward compatibility
     const extendedLimit = limit + 1;
 
     const buildWhereCondition = (timeCondition?: SQL<any>) => {
