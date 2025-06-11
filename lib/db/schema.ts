@@ -270,3 +270,53 @@ export const vectorStoreDocument = pgTable('VectorStoreDocument', {
 });
 
 export type VectorStoreDocument = InferSelectModel<typeof vectorStoreDocument>;
+
+export const Job = pgTable(
+  'Job',
+  {
+    id: uuid('id').primaryKey().notNull().defaultRandom(),
+    createdAt: timestamp('createdAt').notNull(),
+    updatedAt: timestamp('updatedAt').notNull(),
+    userId: uuid('userId')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    documentId: uuid('documentId').notNull(),
+    documentCreatedAt: timestamp('documentCreatedAt').notNull(),
+    runningStatus: varchar('runningStatus', {
+      enum: ['stopped', 'running'],
+    })
+      .notNull()
+      .default('stopped'),
+    status: varchar('status', {
+      enum: ['pending', 'completed', 'failed'],
+    })
+      .notNull()
+      .default('pending'),
+  },
+  (table) => ({
+    documentRef: foreignKey({
+      columns: [table.documentId, table.documentCreatedAt],
+      foreignColumns: [document.id, document.createdAt],
+    }).onDelete('cascade'),
+  }),
+);
+
+export type Job = InferSelectModel<typeof Job>;
+
+export const JobResult = pgTable('JobResult', {
+  id: uuid('id').primaryKey().notNull().defaultRandom(),
+  jobId: uuid('jobId')
+    .notNull()
+    .references(() => Job.id, { onDelete: 'cascade' }),
+  createdAt: timestamp('createdAt').notNull(),
+  updatedAt: timestamp('updatedAt').notNull(),
+  reason: text('reason'),
+  status: varchar('status', {
+    enum: ['pending', 'completed', 'failed'],
+  })
+    .notNull()
+    .default('pending'),
+  result: json('result'),
+});
+
+export type JobResult = InferSelectModel<typeof JobResult>;
