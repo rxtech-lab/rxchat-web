@@ -6,6 +6,10 @@
   --foreground-rgb: 0, 0, 0;
   --background-start-rgb: 214, 219, 220;
   --background-end-rgb: 255, 255, 255;
+  
+  /* Fallback font families for build environments */
+  --font-geist: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  --font-geist-mono: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
 }
 
 @media (prefers-color-scheme: dark) {

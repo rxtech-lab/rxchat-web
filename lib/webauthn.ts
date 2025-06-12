@@ -267,7 +267,7 @@ export async function verifyPasskeyRegistration({
     userId: actualUserId,
     deviceType: registrationInfo.credentialDeviceType,
     backedUp: registrationInfo.credentialBackedUp,
-    transports: registrationInfo.credential.transports,
+    transports: registrationInfo.credential.transports?.join(',') || '',
     isNewUser: challengeRecord.userId.startsWith('temp_'),
   });
 
@@ -404,7 +404,7 @@ export async function verifyPasskeyAuthentication({
     userId: authenticator.userId,
     deviceType: authenticator.credentialDeviceType,
     backedUp: authenticator.credentialBackedUp,
-    transports: authenticator.transports,
+    transports: authenticator.transports?.join(',') || '',
   });
 
   return {
