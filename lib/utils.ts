@@ -1,7 +1,21 @@
-import type { CoreAssistantMessage, CoreToolMessage, UIMessage } from 'ai';
-import { type ClassValue, clsx } from 'clsx';
-import { twMerge } from 'tailwind-merge';
 import type { DBMessage, Document } from '@/lib/db/schema';
+import { createOpenRouter } from '@openrouter/ai-sdk-provider';
+import {
+  generateText,
+  type CoreAssistantMessage,
+  type CoreToolMessage,
+  type TextPart,
+  type ToolCallPart,
+  type ToolResultPart,
+  type UIMessage,
+} from 'ai';
+import { clsx, type ClassValue } from 'clsx';
+import { twMerge } from 'tailwind-merge';
+import { estimateTokenCount } from 'tokenx';
+import {
+  MAX_CONTEXT_TOKEN_COUNT,
+  MESSAGE_COMPRESSION_MODEL,
+} from './constants';
 import { ChatSDKError, type ErrorCode } from './errors';
 
 export function cn(...inputs: ClassValue[]) {
@@ -93,22 +107,4 @@ export function getTrailingMessageId({
 
 export function sanitizeText(text: string) {
   return text.replace('<has_function_call>', '');
-}
-
-/**
- * Estimate token count from messages based on text content
- * Uses rough approximation: 1 token ≈ 4 characters
- * @param messages - Array of messages to count tokens for
- * @returns Estimated token count
- */
-export function estimateTokenCount(messages: Array<DBMessage>): number {
-  let totalTokens = 0;
-
-  for (const message of messages) {
-    if (message.usage) {
-      totalTokens = Math.max(totalTokens, (message.usage as any).totalTokens);
-    }
-  }
-
-  return Number.isNaN(totalTokens) ? 0 : totalTokens;
 }

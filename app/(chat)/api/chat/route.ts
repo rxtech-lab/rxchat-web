@@ -7,9 +7,9 @@ import {
   providerSupportsDocuments,
 } from '@/lib/ai/models';
 import {
+  getMemoryContext,
   systemPrompt,
   type RequestHints,
-  getMemoryContext,
 } from '@/lib/ai/prompts';
 import { getModelProvider } from '@/lib/ai/providers';
 import { createDocument } from '@/lib/ai/tools/create-document';
@@ -28,7 +28,6 @@ import {
   isTestEnvironment,
   MAX_CONTEXT_TOKEN_COUNT,
 } from '@/lib/constants';
-import { createMemoryClient } from '@/lib/memory';
 import {
   createStreamId,
   deleteChatById,
@@ -43,11 +42,8 @@ import {
 } from '@/lib/db/queries/queries';
 import type { Chat } from '@/lib/db/schema';
 import { ChatSDKError } from '@/lib/errors';
-import {
-  generateUUID,
-  getTrailingMessageId,
-  estimateTokenCount,
-} from '@/lib/utils';
+import { createMemoryClient } from '@/lib/memory';
+import { generateUUID, getTrailingMessageId } from '@/lib/utils';
 import { geolocation } from '@vercel/functions';
 import {
   appendClientMessage,
@@ -56,6 +52,7 @@ import {
   NoSuchToolError,
   smoothStream,
   streamText,
+  type UIMessage,
 } from 'ai';
 import { differenceInSeconds } from 'date-fns';
 import { after } from 'next/server';
@@ -65,6 +62,8 @@ import {
 } from 'resumable-stream';
 import { generateTitleFromUserMessage } from '../../actions';
 import { postRequestBodySchema, type PostRequestBody } from './schema';
+import { track } from '@vercel/analytics/server';
+import { compressMessage } from '@/lib/utils.server';
 
 export const maxDuration = 800;
 
@@ -287,7 +286,16 @@ export async function POST(request: Request) {
     // Determine if memory should be loaded based on optimization conditions:
     // 1. First conversation (no previous messages), OR
     // 2. Current chat has more than 10k tokens
-    const estimatedTokens = estimateTokenCount(messages as any);
+    const compressedMessages: Array<UIMessage> = (await compressMessage(
+      messages as any,
+      MAX_CONTEXT_TOKEN_COUNT,
+      (tokenCountBefore, tokenCountAfter) => {
+        track('compress_message', {
+          tokenCountBefore,
+          tokenCountAfter,
+        });
+      },
+    )) as any as UIMessage[];
 
     // Search memory for relevant context to enhance the system prompt
     const memoryContext = await getMemoryContext(
@@ -301,20 +309,6 @@ export async function POST(request: Request) {
       defaultSystemPrompt = `${defaultSystemPrompt}${memoryContext}`;
     }
 
-    // Compress context if tokens exceed MAX_CONTEXT_TOKEN_COUNT by only using memory context and current message
-    let finalMessages = messages;
-    if (estimatedTokens > MAX_CONTEXT_TOKEN_COUNT) {
-      // Only include the current user message, not the full conversation history
-      finalMessages = [
-        {
-          id: message.id,
-          role: 'user' as const,
-          content: message.content,
-          experimental_attachments: message.experimental_attachments,
-        },
-      ];
-    }
-
     const model = provider.languageModel(selectedChatModel);
     const testingTools: Record<string, any> = {};
     if (isTestEnvironment) {
@@ -326,7 +320,7 @@ export async function POST(request: Request) {
         const result = streamText({
           model,
           system: defaultSystemPrompt,
-          messages: finalMessages,
+          messages: compressedMessages,
           maxSteps: 30,
           experimental_transform: smoothStream({ chunking: 'word' }),
           experimental_repairToolCall: async ({

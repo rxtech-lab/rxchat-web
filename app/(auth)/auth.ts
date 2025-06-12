@@ -3,10 +3,12 @@ import NextAuth, { type DefaultSession } from 'next-auth';
 import Credentials from 'next-auth/providers/credentials';
 import { getUser, getUserById } from '@/lib/db/queries/queries';
 import { authConfig } from './auth.config';
-import { DUMMY_PASSWORD } from '@/lib/constants';
 import type { DefaultJWT } from 'next-auth/jwt';
+import { generateDummyPassword } from '@/lib/db/utils';
 
 export type UserType = 'free' | 'regular' | 'premium' | 'admin';
+
+const DUMMY_PASSWORD = generateDummyPassword();
 
 declare module 'next-auth' {
   interface Session extends DefaultSession {
