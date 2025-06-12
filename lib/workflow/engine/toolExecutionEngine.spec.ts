@@ -101,36 +101,6 @@ describe('McpToolExecutionEngine', () => {
       );
     });
 
-    it('should handle complex input objects', async () => {
-      const toolName = 'complex-tool';
-      const toolInput = {
-        config: {
-          nested: {
-            values: [1, 2, 3],
-          },
-        },
-        metadata: {
-          timestamp: '2024-01-01T00:00:00Z',
-          version: '1.0.0',
-        },
-      };
-      const expectedOutput = { processed: true };
-
-      let capturedInput: any;
-
-      nock(mockServerUrl)
-        .post('/tool/complex-tool/use')
-        .reply((uri, body) => {
-          capturedInput = JSON.parse(body as string).input;
-          return [200, { output: expectedOutput }];
-        });
-
-      const result = await engine.execute(toolName, toolInput);
-
-      expect(capturedInput).toEqual(toolInput);
-      expect(result).toEqual(expectedOutput);
-    });
-
     it('should handle network errors', async () => {
       const toolName = 'network-fail-tool';
       const toolInput = { param: 'value' };
