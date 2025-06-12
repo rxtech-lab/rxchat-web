@@ -24,7 +24,6 @@ import {
 import { Client } from '@upstash/qstash';
 import { getWorkflowWebhookUrl } from '@/lib/workflow/utils';
 import { OnStepSchema } from '@/lib/workflow/types';
-import { track } from '@vercel/analytics/server';
 
 export async function saveChatModelAsCookie(
   model: string,
@@ -33,12 +32,6 @@ export async function saveChatModelAsCookie(
   const cookieStore = await cookies();
   cookieStore.set('chat-model', model);
   cookieStore.set('chat-model-provider', provider);
-
-  // Track model selection event
-  track('user_select_model', {
-    model,
-    provider,
-  });
 }
 
 export async function generateTitleFromUserMessage({
