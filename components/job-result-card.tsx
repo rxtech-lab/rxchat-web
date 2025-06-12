@@ -4,6 +4,13 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -30,6 +37,7 @@ import { OnStepView } from '@/lib/workflow/onstep-view';
 import { OnStepSchema } from '@/lib/workflow/types';
 import dayjs from 'dayjs';
 import { useRouter } from 'next/navigation';
+import Editor from '@monaco-editor/react';
 
 interface JobResultCardProps {
   jobResult: JobResultType;
@@ -47,7 +55,7 @@ export function JobResultCard({
 }: JobResultCardProps) {
   const router = useRouter();
   const [isDeleting, setIsDeleting] = useState(false);
-  const [showDetails, setShowDetails] = useState(false);
+  const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
   const [workflowExpanded, setWorkflowExpanded] = useState(false);
 
   const getStatusColor = () => {
@@ -124,6 +132,11 @@ export function JobResultCard({
     }
   }
 
+  // Format JSON for Monaco editor
+  const formattedResultData = jobResult.result
+    ? JSON.stringify(jobResult.result, null, 2)
+    : 'No result data available';
+
   return (
     <Card
       className={`relative transition-all duration-200 hover:shadow-md ${isDeleting ? 'pointer-events-none opacity-75' : ''}`}
@@ -177,15 +190,11 @@ export function JobResultCard({
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem
-                onClick={() => setShowDetails(!showDetails)}
+                onClick={() => setIsDetailsDialogOpen(true)}
                 className="flex items-center gap-2"
               >
-                {showDetails ? (
-                  <EyeOff className="size-4" />
-                ) : (
-                  <Eye className="size-4" />
-                )}
-                {showDetails ? 'Hide Details' : 'Show Details'}
+                <Eye className="size-4" />
+                Show Details
               </DropdownMenuItem>
               {workflowData && (
                 <DropdownMenuItem
@@ -247,18 +256,6 @@ export function JobResultCard({
             </div>
           )}
 
-          {/* Result Details */}
-          {showDetails && jobResult.result && (
-            <div className="p-3 bg-gray-50 rounded-md">
-              <h4 className="text-sm font-medium text-gray-700 mb-2">
-                Result Data:
-              </h4>
-              <pre className="text-xs bg-white p-2 rounded border overflow-auto max-h-40">
-                {JSON.stringify(jobResult.result, null, 2)}
-              </pre>
-            </div>
-          )}
-
           {/* Workflow View */}
           {workflowData && workflowExpanded && (
             <div className="border rounded-lg p-4 bg-white">
@@ -277,20 +274,47 @@ export function JobResultCard({
 
           {/* Quick Actions */}
           <div className="flex gap-2 pt-3 border-t border-gray-200">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowDetails(!showDetails)}
-              className="flex-1"
-              disabled={isDeleting}
+            <Dialog
+              open={isDetailsDialogOpen}
+              onOpenChange={setIsDetailsDialogOpen}
             >
-              {showDetails ? (
-                <EyeOff className="size-4 mr-1" />
-              ) : (
-                <Eye className="size-4 mr-1" />
-              )}
-              {showDetails ? 'Hide' : 'Show'} Details
-            </Button>
+              <DialogTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex-1"
+                  disabled={isDeleting}
+                >
+                  <Eye className="size-4 mr-1" />
+                  Show Details
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-4xl max-h-[80vh]">
+                <DialogHeader>
+                  <DialogTitle>
+                    Job Result Details - #{jobResult.id.slice(0, 8)}
+                  </DialogTitle>
+                </DialogHeader>
+                <div className="flex-1 min-h-0">
+                  <div className="h-[60vh] border rounded-md overflow-hidden">
+                    <Editor
+                      height="100%"
+                      defaultLanguage="json"
+                      value={formattedResultData}
+                      options={{
+                        readOnly: true,
+                        minimap: { enabled: false },
+                        scrollBeyondLastLine: false,
+                        fontSize: 14,
+                        wordWrap: 'on',
+                        automaticLayout: true,
+                      }}
+                      theme="vs-light"
+                    />
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
             {workflowData && (
               <Button
                 variant="outline"

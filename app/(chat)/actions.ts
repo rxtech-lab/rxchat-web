@@ -186,6 +186,8 @@ export async function createWorkflowJob(documentId: string) {
         status: 'pending',
         documentCreatedAt: document.createdAt,
         runningStatus: 'running',
+        jobTriggerType: 'cronjob',
+        cron: parsedContent.workflow.trigger.cron ?? '0 0 * * *',
       },
       tx,
     );

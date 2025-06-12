@@ -292,6 +292,12 @@ export const Job = pgTable(
     })
       .notNull()
       .default('pending'),
+    jobTriggerType: varchar('jobTriggerType', {
+      enum: ['cronjob'],
+    })
+      .notNull()
+      .default('cronjob'),
+    cron: text('cron'),
   },
   (table) => ({
     documentRef: foreignKey({
