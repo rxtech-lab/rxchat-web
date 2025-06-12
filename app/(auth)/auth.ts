@@ -1,4 +1,3 @@
-import { compare } from 'bcrypt-ts';
 import NextAuth, { type DefaultSession } from 'next-auth';
 import Credentials from 'next-auth/providers/credentials';
 import { getUser, getUserById } from '@/lib/db/queries/queries';
@@ -43,6 +42,7 @@ export const {
     Credentials({
       credentials: {},
       async authorize({ email, password }: any) {
+        const { compare } = await import('bcrypt-ts');
         const users = await getUser(email);
 
         if (users.length === 0) {

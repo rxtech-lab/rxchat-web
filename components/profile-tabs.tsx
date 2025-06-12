@@ -7,6 +7,7 @@ interface ProfileTabsProps {
 
 const tabs = [
   { id: 'account', label: 'Account', href: '/profile?tab=account' },
+  { id: 'linking', label: 'Linking', href: '/profile?tab=linking' },
   {
     id: 'security',
     label: 'Security',

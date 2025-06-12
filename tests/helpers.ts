@@ -99,7 +99,8 @@ export async function createAuthenticatedContext({
   const newPage = await newContext.newPage();
 
   const user = await newPage.request.get('/api/user');
-  const userData = await user.json();
+  const content = await user.text();
+  const userData = JSON.parse(content);
 
   return {
     context: newContext,

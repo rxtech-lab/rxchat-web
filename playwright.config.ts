@@ -133,6 +133,8 @@ export default defineConfig({
       QSTASH_URL: 'http://localhost:8080',
       UPSTASH_WORKFLOW_URL: 'http://localhost:3000',
       VERCEL_URL: 'http://localhost:3000',
+      KV_REST_API_URL: 'http://localhost:8079',
+      KV_REST_API_TOKEN: 'example_token',
     },
   },
 });

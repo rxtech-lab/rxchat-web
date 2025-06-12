@@ -1,6 +1,7 @@
 import type { InferSelectModel } from 'drizzle-orm';
 import { sql } from 'drizzle-orm';
 import {
+  bigint,
   boolean,
   foreignKey,
   json,
@@ -53,6 +54,19 @@ export const passkeyAuthenticator = pgTable('PasskeyAuthenticator', {
   createdAt: timestamp('createdAt').notNull().defaultNow(),
   lastUsed: timestamp('lastUsed'),
 });
+
+// add support to telegram id
+export const telegramUser = pgTable('TelegramUser', {
+  tgId: bigint('tgId', { mode: 'number' }).primaryKey().notNull(),
+  username: varchar('username', { length: 255 }),
+  createdAt: timestamp('createdAt').notNull().defaultNow(),
+  lastUsed: timestamp('lastUsed'),
+  userId: uuid('userId')
+    .notNull()
+    .references(() => user.id, { onDelete: 'cascade' }),
+});
+
+export type TelegramUser = InferSelectModel<typeof telegramUser>;
 
 export type PasskeyAuthenticator = InferSelectModel<
   typeof passkeyAuthenticator
