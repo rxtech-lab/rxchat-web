@@ -210,3 +210,22 @@ export const OnStepSchema = z.object({
 });
 
 export type OnStep = z.infer<typeof OnStepSchema>;
+
+export const FixedInputSchema = z
+  .object({
+    type: z.literal('fixed-input'),
+    identifier: z.string().describe('The identifier of the fixed input node'),
+    input: z
+      .record(z.string(), z.any())
+      .describe('The fixed input to the workflow')
+      .nullable(),
+    output: z
+      .record(z.string(), z.any())
+      .describe('The output of the workflow'),
+    child: RegularNodeSchema.nullable(),
+  })
+  .describe(
+    'This is a fixed input node that can be used to provide a fixed input to the workflow. It accepts jinja2 syntax so that your output can use {{input.name}} or {{context.name}} to access the input or context',
+  );
+
+export type FixedInput = z.infer<typeof FixedInputSchema>;

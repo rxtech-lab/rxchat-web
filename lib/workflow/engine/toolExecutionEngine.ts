@@ -27,9 +27,12 @@ export class McpToolExecutionEngine implements ToolExecutionEngine {
       body: JSON.stringify({ input }),
       headers: {
         'x-api-key': this.mcpRouterApiKey,
+        'Content-Type': 'application/json',
       },
     });
     if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`Error executing tool ${tool}: ${errorText}`);
       throw new Error('Failed to execute tool');
     }
 

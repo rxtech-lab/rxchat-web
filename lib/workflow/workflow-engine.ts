@@ -8,28 +8,32 @@ import {
   type ConverterNodeExecutionResult,
   ConverterNodeExecutionResultSchema,
   type CronjobTriggerNode,
+  type FixedInput,
   type ToolNode,
   type Workflow,
 } from './types';
+import { Environment } from 'nunjucks';
 
 // Union type for all actual node types that have a 'type' property
 type WorkflowNode =
   | ToolNode
   | ConverterNode
   | CronjobTriggerNode
-  | ConditionNode;
+  | ConditionNode
+  | FixedInput;
 
 interface WorkflowEngineInterface {
   /**
    * Execute the workflow follow the order using BFS.
    * @throws `WorkflowEngineError` if the workflow failed to execute
+   * @returns The output from the tail node
    */
-  execute(workflow: Workflow, input?: any): Promise<void>;
+  execute(workflow: Workflow, input?: any): Promise<any>;
 }
 
 interface ExecutionContext {
   nodeId: string;
-  input?: any;
+  context?: Record<string, any>;
 }
 
 export interface ToolExecutionEngine {
@@ -46,6 +50,7 @@ export class WorkflowEngine implements WorkflowEngineInterface {
   private nodeOutputs: Map<string, any> = new Map();
   private conditionalNodeParentTracker: Map<string, Set<string>> = new Map();
   private workflow!: Workflow; // Using definite assignment assertion since it's set in execute()
+  private lastExecutedOutput: any = null; // Track the output from the last executed node
 
   private jsCodeExecutionEngine: JSCodeExecutionEngine;
   private toolExecutionEngine: ToolExecutionEngine;
@@ -58,7 +63,10 @@ export class WorkflowEngine implements WorkflowEngineInterface {
     this.toolExecutionEngine = toolExecutionEngine;
   }
 
-  async execute(workflow: Workflow, input?: any): Promise<void> {
+  async execute(
+    workflow: Workflow,
+    context: Record<string, any> = {},
+  ): Promise<any> {
     try {
       this.reset();
       this.workflow = workflow;
@@ -66,7 +74,7 @@ export class WorkflowEngine implements WorkflowEngineInterface {
       if (workflow.trigger.child) {
         this.executionQueue.push({
           nodeId: workflow.trigger.child.identifier,
-          input: input,
+          context: context,
         });
       } else {
         throw new WorkflowEngineError('Trigger node has no child to execute');
@@ -81,6 +89,9 @@ export class WorkflowEngine implements WorkflowEngineInterface {
 
         await this.executeNode(context, workflow);
       }
+
+      // Return the output from the last executed node
+      return this.lastExecutedOutput;
     } catch (error) {
       if (error instanceof WorkflowEngineError) {
         throw error;
@@ -96,6 +107,7 @@ export class WorkflowEngine implements WorkflowEngineInterface {
     this.executedNodes.clear();
     this.nodeOutputs.clear();
     this.conditionalNodeParentTracker.clear();
+    this.lastExecutedOutput = null;
   }
 
   private async executeNode(
@@ -128,22 +140,28 @@ export class WorkflowEngine implements WorkflowEngineInterface {
       case 'cronjob-trigger':
         output = await this.executeTriggerNode(
           node as CronjobTriggerNode,
-          context.input,
+          context.context,
         );
         break;
       case 'tool':
-        output = await this.executeToolNode(node as ToolNode, context.input);
+        output = await this.executeToolNode(node as ToolNode, context.context);
         break;
       case 'condition':
         output = await this.executeConditionNode(
           node as ConditionNode,
-          context.input,
+          context.context,
         );
         break;
       case 'converter':
         output = await this.executeConverterNode(
           node as ConverterNode,
-          context.input,
+          context.context,
+        );
+        break;
+      case 'fixed-input':
+        output = await this.executeFixedInputNode(
+          node as FixedInput,
+          context.context || {},
         );
         break;
       default:
@@ -155,6 +173,7 @@ export class WorkflowEngine implements WorkflowEngineInterface {
     // Mark node as executed and store output
     this.executedNodes.add(node.identifier);
     this.nodeOutputs.set(node.identifier, output);
+    this.lastExecutedOutput = output; // Track the last executed node's output
 
     // Queue next nodes for execution
     this.queueNextNodes(node, output, workflow);
@@ -251,6 +270,55 @@ export class WorkflowEngine implements WorkflowEngineInterface {
     }
 
     return executedParents.size < totalParents;
+  }
+
+  private async executeFixedInputNode(
+    node: FixedInput,
+    context: Record<string, any>,
+  ): Promise<any> {
+    console.log(`Fixed input node executed: ${node.identifier}`);
+
+    const env = new Environment();
+    // recursively render each value using input and context
+    // If the node has no input but receives context from previous node, use context as input
+    const renderContext = {
+      input: node.input || context,
+      context: context,
+    };
+
+    /**
+     * Recursively renders all string templates in an object, array, or primitive value
+     * @param value - The value to render (can be object, array, string, or primitive)
+     * @returns The rendered value with all templates processed
+     */
+    const renderRecursively = (value: any): any => {
+      if (typeof value === 'string') {
+        // Render string templates using nunjucks
+        try {
+          return env.renderString(value, renderContext);
+        } catch (error) {
+          console.warn(`Failed to render template "${value}":`, error);
+          return value; // Return original value if rendering fails
+        }
+      } else if (Array.isArray(value)) {
+        // Recursively render each item in the array
+        return value.map((item) => renderRecursively(item));
+      } else if (value !== null && typeof value === 'object') {
+        // Recursively render each property in the object
+        const renderedObject: Record<string, any> = {};
+        for (const [key, val] of Object.entries(value)) {
+          renderedObject[key] = renderRecursively(val);
+        }
+        return renderedObject;
+      } else {
+        // Return primitive values (number, boolean, null, undefined) as-is
+        return value;
+      }
+    };
+
+    const renderedOutput = renderRecursively(node.output);
+
+    return renderedOutput;
   }
 
   private async executeTriggerNode(
@@ -363,7 +431,7 @@ export class WorkflowEngine implements WorkflowEngineInterface {
       if (regularNode.child) {
         this.executionQueue.push({
           nodeId: regularNode.child.identifier,
-          input: output,
+          context: output,
         });
       }
     } else if (this.isConditionalNode(node)) {
@@ -377,7 +445,7 @@ export class WorkflowEngine implements WorkflowEngineInterface {
       // Result is a string - execute the node with that identifier
       this.executionQueue.push({
         nodeId: output,
-        input: null, // No specific input for string result
+        context: undefined, // No specific input for string result
       });
     }
   }
