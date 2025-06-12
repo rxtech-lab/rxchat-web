@@ -228,6 +228,16 @@ export async function POST(request: Request) {
           },
         ],
       });
+      
+      // Track user message sending event
+      track('user_send_message', {
+        chatId: id,
+        messageId: message.id,
+        hasAttachments: (message.experimental_attachments ?? []).length > 0,
+        attachmentCount: (message.experimental_attachments ?? []).length,
+        selectedModel: selectedChatModel,
+        selectedProvider: selectedChatModelProvider,
+      });
     });
 
     const previousMessages = await getMessagesByChatId({ id });
