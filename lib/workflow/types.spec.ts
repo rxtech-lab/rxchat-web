@@ -1189,4 +1189,91 @@ describe('Schema validation', () => {
     const parsed = WorkflowSchema.safeParse(workflow);
     expect(parsed.error).toBeUndefined();
   });
+
+  it('should validate with fixed input', () => {
+    const workflow = {
+      title: 'New Workflow',
+      trigger: {
+        identifier: 'fb92a7f2-e692-446f-8a9c-cf03436bd6fd',
+        type: 'cronjob-trigger',
+        cron: '0 2 * * *',
+        child: {
+          identifier: '7c93f3d9-d181-4815-8d4b-572592dd53c2',
+          type: 'fixed-input',
+          output: {
+            endpoint: 'PRICE',
+            price: {
+              symbol: 'BTCUSDT',
+            },
+          },
+          child: {
+            identifier: 'a1bfba2c-073e-4ab8-aaca-39abf3a533aa',
+            type: 'tool',
+            toolIdentifier: 'binance',
+            child: null,
+            description: 'Access cryptocurrency price data via Binance API',
+            inputSchema: {
+              $schema: 'https://json-schema.org/draft/2020-12/schema',
+              additionalProperties: false,
+              properties: {
+                endpoint: {
+                  enum: ['TICKER_24HR', 'PRICE'],
+                  type: 'string',
+                },
+                headers: {
+                  additionalProperties: {
+                    type: 'string',
+                  },
+                  description: 'Custom headers for the HTTP request',
+                  type: 'object',
+                },
+                price: {
+                  additionalProperties: false,
+                  description: 'Input for PRICE endpoint',
+                  properties: {
+                    symbol: {
+                      description: 'Trading pair symbol (e.g.',
+                      type: 'string',
+                    },
+                  },
+                  type: 'object',
+                },
+                ticker_24hr: {
+                  additionalProperties: false,
+                  description: 'Input for TICKER_24HR endpoint',
+                  properties: {
+                    symbol: {
+                      description: 'Trading pair symbol (e.g.',
+                      type: 'string',
+                    },
+                  },
+                  type: 'object',
+                },
+              },
+              required: ['endpoint'],
+              type: 'object',
+            },
+            outputSchema: {
+              $schema: 'https://json-schema.org/draft/2020-12/schema',
+              additionalProperties: false,
+              properties: {
+                data: {
+                  description: 'Response data from Binance API',
+                },
+                error: {
+                  description: 'Error message if the request failed',
+                  type: 'string',
+                },
+              },
+              required: ['data'],
+              type: 'object',
+            },
+          },
+        },
+      },
+    };
+
+    const parsed = WorkflowSchema.safeParse(workflow);
+    expect(parsed.error).toBeUndefined();
+  });
 });

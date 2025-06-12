@@ -1,21 +1,7 @@
-import type { DBMessage, Document } from '@/lib/db/schema';
-import { createOpenRouter } from '@openrouter/ai-sdk-provider';
-import {
-  generateText,
-  type CoreAssistantMessage,
-  type CoreToolMessage,
-  type TextPart,
-  type ToolCallPart,
-  type ToolResultPart,
-  type UIMessage,
-} from 'ai';
+import type { Document } from '@/lib/db/schema';
+import type { CoreAssistantMessage, CoreToolMessage, UIMessage } from 'ai';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
-import { estimateTokenCount } from 'tokenx';
-import {
-  MAX_CONTEXT_TOKEN_COUNT,
-  MESSAGE_COMPRESSION_MODEL,
-} from './constants';
 import { ChatSDKError, type ErrorCode } from './errors';
 
 export function cn(...inputs: ClassValue[]) {

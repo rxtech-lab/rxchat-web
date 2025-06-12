@@ -13,13 +13,16 @@ import { DiscoverySchema, type OnStep, SuggestionSchema } from './types';
 import {
   addConditionTool,
   addConverterTool,
+  addInputTool,
   addNodeTool,
   compileTool,
   modifyToolNode,
+  modifyTriggerTool,
   removeNodeTool,
   viewWorkflow,
   Workflow,
 } from './workflow';
+import { MAX_WORKFLOW_STEPS } from '../constants';
 
 const modelProviders = () => {
   const openRouter = createOpenRouter({
@@ -28,7 +31,7 @@ const modelProviders = () => {
   return {
     workflow: openRouter('openai/gpt-4.1'),
     discovery: openRouter('openai/gpt-4.1'),
-    suggestion: openRouter('google/gemini-2.5-flash-preview-05-20'),
+    suggestion: openRouter('google/gemini-2.5-pro-preview'),
   };
 };
 
@@ -45,52 +48,107 @@ const WorkflowBuilderSystemPrompt = (
   toolDiscoveryResult: z.infer<typeof DiscoverySchema>,
   suggestion: z.infer<typeof SuggestionSchema> | null,
 ) => `
-   You are a workflow builder that will generate a workflow (nested json)
-   base on the user query and the selected tools. You need to use schema tool to get
-   the input and output schema (json schema) of the tools.
-   If you need more tools, you can return a request in the generated object to get more tools.
-   Don't try to search for tools, your teammate will do that for you.
-  
-   Selected tools: ${JSON.stringify(toolDiscoveryResult.selectedTools)}
-   User Query: ${toolDiscoveryResult.reasoning}
-   Suggestion: ${JSON.stringify(suggestion)}
+You are a workflow builder that creates structured workflows based on user queries and available MCP tools.
 
-   If tool'input doesn't match its parent's output, 
-   you need to add a converter node to convert the input to the parent's output.
+## WORKFLOW STRUCTURE
+A workflow consists of:
+- **Title**: Descriptive name for the workflow
+- **Trigger**: Entry point (cronjob-trigger with cron schedule)
+- **Nodes**: Connected execution units forming a directed graph
 
-   For example:
+## AVAILABLE NODE TYPES
 
-   Tool a:
-   Input: {
-    query: string
-   }
-   Output: {
-    firstName: string
-    lastName: string
-   }
+### 1. CronjobTriggerNode (Entry Point)
+- **Type**: "cronjob-trigger"
+- **Properties**: cron (e.g., "0 2 * * *"), identifier, child
+- **Purpose**: Starts workflow execution on schedule
+- **Connections**: Has one child, no parents
 
-   Tool b:
-   Input: {
-    name: string
-   }
-   Output: {
-    name: string
-   }
+### 2. ToolNode (Execute MCP Tools)
+- **Type**: "tool" 
+- **Properties**: toolIdentifier, inputSchema, outputSchema, description, identifier, child
+- **Purpose**: Executes MCP tools with specified inputs
+- **Connections**: Has one parent, one child
+- **Note**: Must match parent's output to this node's inputSchema
 
-   Then you need to add a converter node to convert the input to the parent's output.
-   Converter node:
-    ts:
-    async function handle(input: any): Promise<any> {
-      return input.firstName + ' ' + input.lastName;
-    }
+### 3. ConverterNode (Data Transformation)
+- **Type**: "converter"
+- **Properties**: runtime ("js"), code, identifier, child  
+- **Purpose**: Transforms data between incompatible node schemas
+- **Connections**: Has one parent, one child
+- **Code Format**: JavaScript function that takes input and returns transformed output
 
+### 4. ConditionNode (Conditional Logic)
+- **Type**: "condition"
+- **Properties**: runtime ("js"), code, identifier, children (array)
+- **Purpose**: Conditional branching based on input data
+- **Connections**: Has one parent, multiple children
+- **Code Format**: JavaScript function returning child node identifier or null
 
-   If you got suggestion, you need to follow the suggestion to build the workflow.
-   When calling schema tool, you should provide the input identifier to search for the tool.
-   When adding new node, use viewWorkflow tool to check the existing schema and its ids,
-   and this id is different from the tool's identifier. This id is used to connect the nodes.
-   Don't generate this id, look up the workflow and find the id in the workflow tree!
-  `;
+### 5. FixedInput (Static Data Provider)
+- **Type**: "fixed-input"
+- **Properties**: identifier, output (object), child
+- **Purpose**: Provides static or templated data to child nodes
+- **Connections**: Has one parent, one child
+- **Template Support**: Use Jinja2 syntax for dynamic values:
+  - Use {{input.fieldName}} to access parent node output
+  - Use {{context.fieldName}} to access global workflow context
+
+## CURRENT CONTEXT
+- **Selected Tools**: ${JSON.stringify(toolDiscoveryResult.selectedTools)}
+- **User Query**: ${toolDiscoveryResult.reasoning}
+- **Suggestions**: ${JSON.stringify(suggestion)}
+
+## WORKFLOW BUILDING RULES
+
+### Schema Compatibility
+1. **Always check tool schemas** using available schema tools before adding ToolNodes
+2. **Parent-Child Matching**: Each node's input must match its parent's output schema
+3. **Add ConverterNodes** when schemas don't match to transform data appropriately
+
+### Node Connection Strategy
+1. **Start with trigger**: Every workflow begins with a cronjob-trigger
+2. **Linear flow**: Use regular nodes (tool, converter, fixed-input) for sequential execution
+3. **Branching**: Use condition nodes when workflow needs conditional logic
+4. **Data flow**: Ensure each node receives correctly formatted input from its parent
+
+### Tool Integration
+1. **Get tool schema first**: Use schema tools to understand input/output requirements
+2. **Provide proper inputs**: Use FixedInput nodes when tools need specific parameters
+3. **Handle mismatches**: Add ConverterNodes between incompatible schemas
+
+## EXAMPLE WORKFLOWS
+
+### Simple Tool Execution Pattern
+1. User query: "Create a workflow to fetch BTCUSDT price"
+- Start with cronjob-trigger (cron schedule)
+- Add fixed-input node with tool parameters (through addInputTool tool not addNodeTool)
+- Add tool node with proper toolIdentifier
+- Ensure schemas match between nodes
+
+### Data Conversion Pattern  
+- Tool node outputs data
+- Converter node transforms the data format
+- Next tool node receives transformed input
+- Use "async function handle(input) { return transformed; }" pattern
+
+### Conditional Branching Pattern
+- Condition node evaluates input
+- Returns child node identifier to execute next
+- Multiple children possible for different paths
+- Use "async function handle(input) { return childId; }" pattern
+
+## INSTRUCTIONS
+1. **Follow suggestions** if provided to modify the workflow appropriately
+2. **Use viewWorkflow tool** to check existing workflow structure and node IDs
+3. **Never generate node IDs manually** - always check existing workflow for proper IDs
+4. **Build incrementally** - add nodes one at a time and verify schema compatibility
+5. **Prioritize schema tools** to understand tool requirements before adding ToolNodes
+6. **Use available workflow modification tools** (addNodeTool, addConverterTool, etc.)
+7. **Condition node** Don't need to add this node without multiple parents.
+
+Remember: Node identifiers in the workflow are different from tool identifiers. Always use viewWorkflow to find the correct node IDs for connections.
+`;
 
 const SuggestionSystemPrompt = async (
   workflow: Workflow,
@@ -99,10 +157,24 @@ const SuggestionSystemPrompt = async (
   toolDiscoveryResult: z.infer<typeof DiscoverySchema> | null,
 ) => {
   const generalPrompt = `
-    You are a team leader that will guide the workflow builder and the suggestion agent.
-    You are responsible to judge the workflow builder's work and the suggestion agent's work.
-    You are also responsible to exit the workflow if you think the workflow is complete.
-    You don't need to worry about the trigger, it is assigned by the system.
+    You are a team leader that guides the workflow builder and suggestion agent.
+    
+    Your primary responsibilities:
+    1. Evaluate the workflow builder's implementation
+    2. Review suggestion agent recommendations
+    3. Determine when the workflow is complete and should exit the building process
+    
+    Important guidelines:
+    - The trigger is automatically assigned by the system - no modifications needed
+    - Only add condition nodes when multiple execution paths are required
+    - Only add converter nodes when tools have schema incompatibilities
+    - Focus on creating a workflow that delivers results directly to the user
+    - Keep the workflow simple - no need for error handling or retry logic
+    
+    Make decisions based on whether the workflow accomplishes the user's request efficiently.
+    If you think the workflow is complete, you should return the nextStep: "stop".
+
+    A workflow should contain at least one tool node and one input node. A workflow only contains trigger is invalid.
   `;
 
   if (inputOutputMismatchError) {
@@ -219,6 +291,8 @@ async function workflowBuilderAgent(
       modifyNodeTool: modifyToolNode(workflow),
       compileTool: compileTool(workflow),
       addConverterTool: addConverterTool(workflow),
+      addInputTool: addInputTool(workflow),
+      modifyTriggerTool: modifyTriggerTool(workflow),
     },
     toolChoice: 'required',
     system: WorkflowBuilderSystemPrompt(toolDiscoveryResult, suggestion),
@@ -331,7 +405,7 @@ export async function agent(
         };
   let toolDiscovery: z.infer<typeof DiscoverySchema> | null = null;
   let suggestion: z.infer<typeof SuggestionSchema> | null = null;
-  const maxSteps = 4;
+
   let status: 'success' | 'error' | 'continue' = 'success';
   let error: Error | null = null;
 
@@ -347,10 +421,21 @@ export async function agent(
     });
     while (true) {
       try {
-        if (step >= maxSteps) {
+        if (step >= MAX_WORKFLOW_STEPS) {
           break;
         }
-        toolDiscovery = await toolDiscoveryAgent(query, suggestion, mcpClient);
+        if (suggestion?.skipToolDiscovery) {
+          toolDiscovery = {
+            selectedTools: [],
+            reasoning: 'Tool discovery skipped',
+          };
+        } else {
+          toolDiscovery = await toolDiscoveryAgent(
+            query,
+            suggestion,
+            mcpClient,
+          );
+        }
         onStep?.({
           title: 'Tool Discovery',
           type: 'info',

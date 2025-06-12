@@ -87,14 +87,16 @@ export const { POST } = serve(
         createJSExecutionEngine(),
         createToolExecutionEngine(),
       );
-      await workflowEngine.execute(result.workflow.workflow);
+      const executionResult = await workflowEngine.execute(
+        result.workflow.workflow,
+      );
 
       await db.transaction(async (tx) => {
         await updateJobResult({
           id: result.jobResult.id,
           updates: {
             status: 'completed',
-            result: null,
+            result: JSON.stringify(executionResult),
             reason: null,
           },
           dbConnection: tx,

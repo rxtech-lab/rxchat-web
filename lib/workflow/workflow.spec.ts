@@ -220,6 +220,74 @@ describe('Workflow', () => {
     });
   });
 
+  describe('modifyTrigger', () => {
+    it('should preserve child when modifying trigger', () => {
+      // Add a child to the trigger
+      const childNode: ToolNode = {
+        identifier: '550e8400-e29b-41d4-a716-446655440900',
+        type: 'tool',
+        toolIdentifier: 'test-child-tool',
+        description: 'Test Child Tool',
+        child: null,
+      };
+
+      workflow.addChild(undefined, childNode);
+
+      // Verify child is added
+      expect(workflow.getWorkflow().trigger.child).toEqual(childNode);
+
+      // Create new trigger with different cron schedule
+      const newTrigger: CronjobTriggerNode = {
+        identifier: '550e8400-e29b-41d4-a716-446655440901',
+        type: 'cronjob-trigger',
+        cron: '0 3 * * *', // Different cron from original
+      };
+
+      // Modify the trigger
+      workflow.modifyTrigger(newTrigger);
+
+      // Verify the trigger has been updated but child is preserved
+      const updatedWorkflow = workflow.getWorkflow();
+      expect(updatedWorkflow.trigger.identifier).toBe(newTrigger.identifier);
+      expect(updatedWorkflow.trigger.cron).toBe('0 3 * * *');
+      expect(updatedWorkflow.trigger.child).toEqual(childNode);
+    });
+
+    it('should work correctly when trigger has no child', () => {
+      // Create a fresh workflow for this test to ensure no child exists
+      const freshTrigger: CronjobTriggerNode = {
+        identifier: '550e8400-e29b-41d4-a716-446655440903',
+        type: 'cronjob-trigger',
+        cron: '0 1 * * *',
+        child: null,
+      };
+      const freshWorkflow = new Workflow(
+        'Fresh Test Workflow',
+        freshTrigger,
+        mockMcpRouter,
+      );
+
+      // Create new trigger with different cron schedule
+      const newTrigger: CronjobTriggerNode = {
+        identifier: '550e8400-e29b-41d4-a716-446655440902',
+        type: 'cronjob-trigger',
+        cron: '0 4 * * *',
+      };
+
+      // Verify original trigger has no child
+      expect(freshWorkflow.getWorkflow().trigger.child).toBeNull();
+
+      // Modify the trigger
+      freshWorkflow.modifyTrigger(newTrigger);
+
+      // Verify the trigger has been updated and child remains null
+      const updatedWorkflow = freshWorkflow.getWorkflow();
+      expect(updatedWorkflow.trigger.identifier).toBe(newTrigger.identifier);
+      expect(updatedWorkflow.trigger.cron).toBe('0 4 * * *');
+      expect(updatedWorkflow.trigger.child).toBeNull();
+    });
+  });
+
   describe('compile', () => {
     it('should validate and return workflow when valid', async () => {
       // Test with a fresh workflow that has no children added

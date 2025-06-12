@@ -67,6 +67,13 @@ export default defineConfig({
       },
     },
     {
+      name: 'workflow',
+      testMatch: /workflow\/.*.test.ts/,
+      use: {
+        ...devices['Desktop Chrome'],
+      },
+    },
+    {
       name: 'realworld',
       testDir: './deployment-e2e',
       testMatch: /.*.test.ts/,

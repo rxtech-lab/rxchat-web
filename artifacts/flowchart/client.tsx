@@ -5,10 +5,10 @@ import { toast } from 'sonner';
 import { getSuggestions } from '../actions';
 
 // React Flow imports
+import { createWorkflowJob } from '@/app/(chat)/actions';
 import { ClockRewind } from '@/components/icons';
 import type { Suggestion } from '@/lib/db/schema';
 import OnStepView from '@/lib/workflow/onstep-view';
-import { OnStepSchema } from '@/lib/workflow/types';
 import '@xyflow/react/dist/style.css';
 import {
   CopyIcon,
@@ -19,7 +19,6 @@ import {
   UndoIcon,
   ZapIcon,
 } from 'lucide-react';
-import { createWorkflowJob } from '@/app/(chat)/actions';
 import Link from 'next/link';
 
 /**
@@ -84,15 +83,10 @@ export const flowchartArtifact = new Artifact<
 
     try {
       const jsonObject = JSON.parse(content);
-      const parsed = OnStepSchema.safeParse(jsonObject);
-      if (parsed.success) {
-        return (
-          <OnStepView
-            onStep={parsed.data}
-            showMainInfo={metadata.showMainInfo}
-          />
-        );
-      }
+      // const parsed = OnStepSchema.safeParse(jsonObject);
+      return (
+        <OnStepView onStep={jsonObject} showMainInfo={metadata.showMainInfo} />
+      );
     } catch (error) {
       console.error('Error parsing OnStep:', error);
     }

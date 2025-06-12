@@ -15,8 +15,11 @@ export const flowchartDocumentHandler = (
     kind: 'flowchart',
     selectedChatModel,
     selectedChatModelProvider,
-    onCreateDocument: async ({ title, dataStream }) => {
-      const workflow = await agent(title, null, (step) => {
+    onCreateDocument: async ({ title, context, dataStream }) => {
+      // Use context (original user query) if available, fallback to title
+      const query = context && context.trim() !== '' ? context : title;
+
+      const workflow = await agent(query, null, (step) => {
         dataStream.writeData({
           type: 'flowchart-step-delta',
           content: JSON.stringify(step, null, 2),

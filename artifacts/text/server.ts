@@ -12,19 +12,21 @@ export const textDocumentHandler = (
     kind: 'text',
     selectedChatModel,
     selectedChatModelProvider,
-    onCreateDocument: async ({ title, dataStream }) => {
+    onCreateDocument: async ({ title, context, dataStream }) => {
       let draftContent = '';
       const provider = getModelProvider(
         selectedChatModel,
         selectedChatModelProvider,
       );
 
+      const prompt = context && context.trim() !== '' ? context : title;
+
       const { fullStream } = streamText({
         model: provider.languageModel('artifact-model'),
         system:
           'Write about the given topic. Markdown is supported. Use headings wherever appropriate.',
         experimental_transform: smoothStream({ chunking: 'word' }),
-        prompt: title,
+        prompt,
       });
 
       for await (const delta of fullStream) {

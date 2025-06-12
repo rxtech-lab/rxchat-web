@@ -24,12 +24,20 @@ export const createDocument = ({
   tool({
     description: `Create a document for a writing or content creation activities. 
     This tool will call other functions that will generate the contents of the document based on the title and kind. 
-    When user asking about build a workflow, use the flowchart kind.`,
+    When user asking about build a workflow, use the flowchart kind.
+    
+    IMPORTANT: For flowcharts/workflows, always provide the original user query in the 'context' parameter to give the workflow agent full context about what the user wants to build. The title should be short and descriptive, while the context should contain the complete user request with all details, requirements, and specifications.`,
     parameters: z.object({
-      title: z.string(),
+      title: z.string().describe('A short, descriptive title for the document'),
       kind: z.enum(artifactKinds),
+      context: z
+        .string()
+        .optional()
+        .describe(
+          'The complete original user query/request with all details and context. For flowcharts, this should contain the full user message describing what workflow they want to build, including specific requirements, tools, triggers, conditions, and expected outcomes.',
+        ),
     }),
-    execute: async ({ title, kind }) => {
+    execute: async ({ title, kind, context }) => {
       const id = generateUUID();
 
       dataStream.writeData({
@@ -70,6 +78,7 @@ export const createDocument = ({
       ).onCreateDocument({
         id,
         title,
+        context: context || '',
         dataStream,
         session,
       });

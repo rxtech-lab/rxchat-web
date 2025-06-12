@@ -279,10 +279,9 @@ export class WorkflowEngine implements WorkflowEngineInterface {
     console.log(`Fixed input node executed: ${node.identifier}`);
 
     const env = new Environment();
-    // recursively render each value using input and context
-    // If the node has no input but receives context from previous node, use context as input
+    // Use context (from parent node's output) as input, and context as context
     const renderContext = {
-      input: node.input || context,
+      input: context,
       context: context,
     };
 
