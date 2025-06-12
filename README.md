@@ -1,5 +1,7 @@
 <h1 align="center">RxChat</h1>
 
+[![codecov](https://codecov.io/gh/rxtech-lab/rxchat-web/graph/badge.svg?token=hDxyAFu169)](https://codecov.io/gh/rxtech-lab/rxchat-web) [![Tests](https://github.com/rxtech-lab/rxchat-web/actions/workflows/test.yml/badge.svg)](https://github.com/rxtech-lab/rxchat-web/actions/workflows/test.yml)
+
 <p align="center">
     RxChat is a next-generation AI chatbot built with Next.js 15, featuring MCP (Model Context Protocol) router integration, advanced code execution, and artifact generation capabilities.
 </p>
@@ -17,6 +19,7 @@
 ## Features
 
 ### 🚀 Core Platform
+
 - **Next.js 15** with App Router and React Server Components
 - **TypeScript** for type-safe development
 - **Tailwind CSS** + **shadcn/ui** for modern UI components
@@ -24,6 +27,7 @@
 - **Drizzle ORM** with PostgreSQL for robust data persistence
 
 ### 🤖 Advanced AI Capabilities
+
 - **MCP Router Integration** - Model Context Protocol for enhanced tool connectivity
 - **Multi-Provider Support** - OpenAI, Anthropic, Google Gemini, OpenRouter, xAI, and more
 - **Streaming Conversations** - Real-time chat with AI models
@@ -31,12 +35,14 @@
 - **Code Execution** - Run Python code with matplotlib support directly in chat
 
 ### 🛠️ Development Tools
+
 - **Monaco Editor** - Full-featured code editor with TypeScript IntelliSense
 - **Syntax Highlighting** - Support for multiple programming languages
 - **Code Formatting** - Automatic code formatting with Cmd+S
 - **Axios LSP Support** - Enhanced autocompletion for HTTP requests
 
 ### 📄 Artifact System
+
 - **Code Artifacts** - Create, edit, and execute code snippets
 - **Text Documents** - Rich text editing and collaboration
 - **Image Generation** - AI-powered image creation and editing
@@ -44,12 +50,14 @@
 - **Version Control** - Track changes and revert to previous versions
 
 ### 🔐 Authentication & Security
+
 - **NextAuth.js** - Secure authentication system
 - **Passkey Support** - Modern passwordless authentication
 - **Role-based Access** - Admin, premium, regular, and free user tiers
 - **User Scoped Data** - Isolated user data and permissions
 
 ### 📊 Management Features
+
 - **Prompt Templates** - Create and manage reusable AI prompts
 - **Chat History** - Persistent conversation storage
 - **Document Search** - Full-text search across user documents
@@ -59,6 +67,7 @@
 ## Technology Stack
 
 ### Frontend
+
 - **Next.js 15** - React framework with App Router
 - **React 19** - Latest React with concurrent features
 - **TypeScript** - Type-safe JavaScript development
@@ -67,6 +76,7 @@
 - **Framer Motion** - Smooth animations and transitions
 
 ### Backend & Database
+
 - **Drizzle ORM** - Type-safe database toolkit
 - **PostgreSQL** - Robust relational database
 - **NextAuth.js** - Authentication solution
@@ -74,6 +84,7 @@
 - **Vercel Blob** - File storage solution
 
 ### AI & Tools
+
 - **AI SDK** - Unified interface for LLM providers
 - **MCP Router** - Model Context Protocol integration
 - **Monaco Editor** - Advanced code editing
@@ -81,6 +92,7 @@
 - **Multiple LLM Providers** - OpenAI, Anthropic, Google, etc.
 
 ### Development & Testing
+
 - **pnpm** - Fast, disk space efficient package manager
 - **ESLint** + **Biome** - Code linting and formatting
 - **Jest** - Unit testing framework
@@ -90,6 +102,7 @@
 ## AI Capabilities
 
 ### Supported AI Providers
+
 - **OpenAI** - GPT-4, GPT-3.5, DALL-E
 - **Anthropic** - Claude models
 - **Google** - Gemini 2.5 Flash (default)
@@ -98,7 +111,9 @@
 - **Azure OpenAI** - Enterprise AI services
 
 ### MCP Router Integration
+
 RxChat features advanced MCP (Model Context Protocol) integration that allows AI models to:
+
 - Connect to external tools and services
 - Execute code safely in sandboxed environments
 - Access real-time data sources
@@ -106,6 +121,7 @@ RxChat features advanced MCP (Model Context Protocol) integration that allows AI
 - Perform complex multi-step tasks
 
 ### Built-in AI Tools
+
 - **Weather Information** - Get current weather data
 - **Document Creation** - Generate and edit documents
 - **Search Documents** - Find information across user documents
@@ -115,12 +131,14 @@ RxChat features advanced MCP (Model Context Protocol) integration that allows AI
 ## Installation
 
 ### Prerequisites
-- **Node.js 18+** 
+
+- **Node.js 18+**
 - **pnpm** (recommended) or npm/yarn
 - **PostgreSQL** database
 - **Redis** instance (optional, for caching)
 
 ### Environment Variables
+
 Copy the environment variables from `.env.example` and configure them:
 
 ```bash
@@ -128,6 +146,7 @@ cp .env.example .env.local
 ```
 
 Required environment variables:
+
 ```env
 # Generate a random secret: https://generate-secret.vercel.app/32 or `openssl rand -base64 32`
 AUTH_SECRET=
@@ -155,21 +174,25 @@ UPSTASH_VECTOR_REST_TOKEN=
 ### Database Setup
 
 1. **Install dependencies:**
+
 ```bash
 pnpm install
 ```
 
 2. **Start PostgreSQL** (using Docker):
+
 ```bash
 docker compose up -d
 ```
 
 3. **Run database migrations:**
+
 ```bash
 pnpm db:migrate
 ```
 
 4. **Start the development server:**
+
 ```bash
 pnpm dev
 ```
@@ -179,6 +202,7 @@ The application will be available at [http://localhost:3000](http://localhost:30
 ## Development
 
 ### Available Scripts
+
 ```bash
 # Development
 pnpm dev              # Start development server with Turbo
@@ -203,6 +227,7 @@ pnpm test:unit:watch  # Run unit tests in watch mode
 ```
 
 ### Project Structure
+
 ```
 ├── app/                    # Next.js app directory
 │   ├── (auth)/            # Authentication pages
@@ -221,6 +246,7 @@ pnpm test:unit:watch  # Run unit tests in watch mode
 ```
 
 ### Database Schema
+
 The application uses Drizzle ORM with PostgreSQL. Key tables include:
 
 - **Users** - User accounts with roles and provider access
@@ -237,6 +263,7 @@ The application uses Drizzle ORM with PostgreSQL. Key tables include:
 1. **Fork this repository** to your GitHub account
 
 2. **Deploy to Vercel:**
+
    - Connect your GitHub repository to Vercel
    - Configure environment variables in Vercel dashboard
    - Deploy automatically on every push
@@ -249,11 +276,13 @@ The application uses Drizzle ORM with PostgreSQL. Key tables include:
 ### Manual Deployment
 
 1. **Build the application:**
+
 ```bash
 pnpm build
 ```
 
 2. **Start the production server:**
+
 ```bash
 pnpm start
 ```
@@ -261,13 +290,16 @@ pnpm start
 ## Usage
 
 ### Basic Chat
+
 1. Sign up or log in to your account
 2. Start a new conversation
 3. Select your preferred AI model
 4. Type your message and press Enter
 
 ### Authentication & User Roles
+
 Users have multiple roles and can have different permissions to different models and providers:
+
 - **Admin** - Full access to all models and system management
 - **Premium** - Access to premium models and advanced features
 - **Regular** - Standard model access with usage limits
@@ -276,12 +308,14 @@ Users have multiple roles and can have different permissions to different models
 We also support passkey login for secure, passwordless authentication that provides a modern and convenient login experience.
 
 ### Code Execution
+
 1. Ask the AI to write Python code
 2. The AI will create a code artifact
 3. Click the "Run" button to execute the code
 4. View output including matplotlib plots
 
 ### Document Creation
+
 1. Request document creation from the AI
 2. AI generates documents in various formats:
    - Text documents with rich formatting
@@ -290,12 +324,14 @@ We also support passkey login for secure, passwordless authentication that provi
    - Images generated by AI
 
 ### Prompt Templates
+
 1. Click the prompt button in the input area
 2. Create new templates or select existing ones
 3. Templates can include TypeScript code for dynamic prompts
 4. Share templates with other users (if permitted)
 
 ### MCP Tools
+
 1. Available MCP tools are shown in the tools dropdown
 2. AI can automatically use tools based on conversation context
 3. Tools include weather data, search, document management, etc.
@@ -303,20 +339,24 @@ We also support passkey login for secure, passwordless authentication that provi
 ## API Endpoints
 
 ### Chat API
+
 - `POST /api/chat` - Send messages and receive AI responses
 - `GET /api/chat` - Retrieve chat history
 - `DELETE /api/chat` - Delete chat conversations
 
 ### Document API
+
 - `GET /api/document` - Retrieve documents by ID
 - `POST /api/document` - Create or update documents
 - `DELETE /api/document` - Delete documents
 
 ### User API
+
 - `GET /api/user` - Get current user information
 - `PATCH /api/user` - Update user preferences
 
 ### Prompt API
+
 - `GET /api/prompts` - Get user prompt templates
 - `POST /api/prompts` - Create new prompt templates
 - `PATCH /api/prompts` - Update existing templates
@@ -325,6 +365,7 @@ We also support passkey login for secure, passwordless authentication that provi
 ## Testing
 
 ### Unit Tests
+
 ```bash
 pnpm test:unit          # Run all unit tests
 pnpm test:unit:watch    # Run tests in watch mode
@@ -332,11 +373,13 @@ pnpm test:unit:coverage # Generate coverage report
 ```
 
 ### End-to-End Tests
+
 ```bash
 pnpm test              # Run Playwright E2E tests
 ```
 
 Test files are located in:
+
 - `components/**/*.spec.tsx` - Component unit tests
 - `tests/` - Playwright E2E tests
 
@@ -351,6 +394,7 @@ Test files are located in:
 7. Submit a pull request
 
 ### Development Guidelines
+
 - Use TypeScript for all new code
 - Follow the existing code style (enforced by Biome)
 - Write unit tests for new components
@@ -362,6 +406,7 @@ Test files are located in:
 This project is licensed under the RxChat Non-Commercial License. See the [LICENSE](LICENSE) file for details.
 
 **Key License Terms:**
+
 - ✅ Free for personal and educational use
 - ✅ Modification and redistribution allowed with attribution
 - ❌ Commercial use prohibited

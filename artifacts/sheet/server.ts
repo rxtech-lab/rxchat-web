@@ -13,17 +13,19 @@ export const sheetDocumentHandler = (
     kind: 'sheet',
     selectedChatModel,
     selectedChatModelProvider,
-    onCreateDocument: async ({ title, dataStream }) => {
+    onCreateDocument: async ({ title, context, dataStream }) => {
       let draftContent = '';
       const provider = getModelProvider(
         selectedChatModel,
         selectedChatModelProvider,
       );
 
+      const prompt = context && context.trim() !== '' ? context : title;
+
       const { fullStream } = streamObject({
         model: provider.languageModel('artifact-model'),
         system: sheetPrompt,
-        prompt: title,
+        prompt,
         schema: z.object({
           csv: z.string().describe('CSV data'),
         }),

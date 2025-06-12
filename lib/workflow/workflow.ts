@@ -13,6 +13,7 @@ import type {
   ConditionNode,
   ConverterNode,
   CronjobTriggerNode,
+  FixedInput,
   RegularNode,
   ToolNode,
   Workflow as WorkflowType,
@@ -43,8 +44,8 @@ export const addNodeTool = (workflow: Workflow) =>
         .string()
         .nullable()
         .describe(
-          'The id this node would be added after. Null if it is added after the trigger node (root).' +
-            'This id is different from the tool identifier, which is used to find the tool in the tool registry.',
+          'The identifier of the node this new node will be added after. If null or empty, the node will be added directly after the trigger node (at the root level). ' +
+            "This is the node's unique ID in the workflow and is different from the toolIdentifier, which references a specific tool in the registry.",
         ),
       toolIdentifier: z.string().describe("The tool's unique identifier"),
     }),
@@ -61,9 +62,9 @@ export const addNodeTool = (workflow: Workflow) =>
           outputSchema: toolInfo.outputSchema,
         };
         if (id === null || (typeof id === 'string' && id.trim() === '')) {
-          workflow.addChild(undefined, node);
+          workflow.addAfter(undefined, node);
         } else {
-          workflow.addChild(id, node);
+          workflow.addAfter(id, node);
         }
 
         return `Added tool node with identifier ${toolIdentifier} as child of ${id ?? 'root'}`;
@@ -208,6 +209,58 @@ export const viewWorkflow = (workflow: Workflow) =>
     },
   });
 
+export const modifyTriggerTool = (workflow: Workflow) =>
+  tool({
+    description: 'Modify the trigger node of the workflow',
+    parameters: z.object({
+      cron: z.string().describe('The cron expression to schedule the workflow'),
+    }),
+    execute: async ({ cron }) => {
+      workflow.modifyTrigger({
+        type: 'cronjob-trigger',
+        identifier: v4(),
+        cron,
+      });
+      return workflow.getWorkflow();
+    },
+  });
+
+export const addInputTool = (workflow: Workflow) =>
+  tool({
+    description:
+      'Add a new input node to the workflow that provides static data. Use this when a tool requires input that should be fixed or derived from previous steps. The input node will be connected to the specified tool and provide data according to the required schema. Always call this tool if there is no parent node for the tool.',
+    parameters: z.object({
+      toolIdentifier: z
+        .string()
+        .describe(
+          'The identifier (UUID) of the node after which this input node will be added. Leave empty to add at the root level.',
+        ),
+      output: z
+        .any()
+        .describe(
+          "The data object containing key-value pairs that will be passed to the child node. Keys must match the child's input schema. You can use dynamic values with Jinja syntax: {{input.[property]}} to reference parent outputs or {{context.[property]}} to access global context variables.",
+        ),
+    }),
+    execute: async ({ toolIdentifier, output }) => {
+      const node: FixedInput = {
+        identifier: v4(),
+        type: 'fixed-input',
+        output: output,
+        child: null,
+      };
+
+      if (
+        toolIdentifier === null ||
+        (typeof toolIdentifier === 'string' && toolIdentifier.trim() === '')
+      ) {
+        workflow.addChild(undefined, node);
+      } else {
+        workflow.addChild(toolIdentifier, node);
+      }
+      return `Added fixed input node with identifier ${node.identifier}`;
+    },
+  });
+
 export class Workflow implements WorkflowInterface {
   private workflow: WorkflowType;
   public mcpRouter: McpRouter;
@@ -241,6 +294,12 @@ export class Workflow implements WorkflowInterface {
       obj.type === 'tool' &&
       typeof obj.identifier === 'string'
     );
+  }
+
+  modifyTrigger(newTriggerNode: CronjobTriggerNode): void {
+    const child = this.workflow.trigger.child;
+    this.workflow.trigger = newTriggerNode;
+    this.workflow.trigger.child = child;
   }
 
   addAfter(identifier: string | undefined, child: RegularNode): void {

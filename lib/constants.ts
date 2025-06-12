@@ -128,6 +128,9 @@ export const IMAGE_MIME_TYPES = [
   'image/x-icon',
 ];
 
+// Maximum number of ai generation refinements allowed
+export const MAX_WORKFLOW_STEPS = 10;
+
 /**
  * Check if a file type is an image
  * @param mimeType - The MIME type to check

@@ -13,8 +13,10 @@ export const codeDocumentHandler = (
     kind: 'code',
     selectedChatModelProvider,
     selectedChatModel,
-    onCreateDocument: async ({ title, dataStream }) => {
+    onCreateDocument: async ({ title, context, dataStream }) => {
       let draftContent = '';
+
+      const prompt = context && context.trim() !== '' ? context : title;
 
       const { fullStream } = streamObject({
         model: getModelProvider(
@@ -22,7 +24,7 @@ export const codeDocumentHandler = (
           selectedChatModelProvider,
         ).languageModel('artifact-model'),
         system: codePrompt,
-        prompt: title,
+        prompt,
         schema: z.object({
           code: z.string(),
         }),

@@ -13,7 +13,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node-version: [ 22.x ]
+        node-version: [22.x]
     services:
       postgres:
         image: postgres:17
@@ -79,6 +79,7 @@ jobs:
       MCP_ROUTER_SERVER_API_KEY: ${{ secrets.MCP_ROUTER_SERVER_API_KEY }}
       QSTASH_TOKEN: eyJVc2VySUQiOiJkZWZhdWx0VXNlciIsIlBhc3N3b3JkIjoiZGVmYXVsdFBhc3N3b3JkIn0
       QSTASH_URL: http://localhost:8080
+      OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4

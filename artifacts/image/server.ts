@@ -11,7 +11,7 @@ export const imageDocumentHandler = (
     kind: 'image',
     selectedChatModel,
     selectedChatModelProvider,
-    onCreateDocument: async ({ title, dataStream }) => {
+    onCreateDocument: async ({ title, context, dataStream }) => {
       let draftContent = '';
 
       const provider = getModelProvider(
@@ -19,9 +19,11 @@ export const imageDocumentHandler = (
         selectedChatModelProvider,
       );
 
+      const prompt = context && context.trim() !== '' ? context : title;
+
       const { image } = await experimental_generateImage({
         model: provider.imageModel('small-model'),
-        prompt: title,
+        prompt,
         n: 1,
       });
 

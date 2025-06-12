@@ -25,13 +25,14 @@ export const RegularNodeSchema = BaseNodeSchema.extend({
   /**
    * The child node of the current node.
    * Uses z.lazy to allow for forward references and avoid circular dependency issues.
-   * Can be a ToolNode, ConverterNode, or ConditionNode, or undefined.
+   * Can be a ToolNode, ConverterNode, ConditionNode, or FixedInputSchema, or undefined.
    */
   child: z
     .union([
       z.lazy((): any => ToolNodeSchema),
       z.lazy((): any => ConverterNodeSchema),
       z.lazy((): any => ConditionNodeSchema),
+      z.lazy((): any => FixedInputSchema),
     ])
     .nullable()
     .describe('child node of the current node'),
@@ -44,7 +45,12 @@ export const ConditionalNodeSchema = BaseNodeSchema.extend({
   children: z
     .array(
       z.lazy((): any =>
-        z.union([ToolNodeSchema, ConverterNodeSchema, ConditionNodeSchema]),
+        z.union([
+          ToolNodeSchema,
+          ConverterNodeSchema,
+          ConditionNodeSchema,
+          FixedInputSchema,
+        ]),
       ),
     )
     .describe('children nodes of the current node'),
@@ -71,7 +77,12 @@ export const ConditionNodeSchema = ConditionalNodeSchema.extend({
   children: z
     .array(
       z.lazy((): any =>
-        z.union([ToolNodeSchema, ConverterNodeSchema, ConditionNodeSchema]),
+        z.union([
+          ToolNodeSchema,
+          ConverterNodeSchema,
+          ConditionNodeSchema,
+          FixedInputSchema,
+        ]),
       ),
     )
     .describe('children nodes of the current node'),
@@ -111,7 +122,12 @@ export const TriggerNodeSchema = BaseNodeSchema.extend({
   type: z.literal('trigger'),
   child: z
     .lazy((): any =>
-      z.union([ToolNodeSchema, ConverterNodeSchema, ConditionNodeSchema]),
+      z.union([
+        ToolNodeSchema,
+        ConverterNodeSchema,
+        ConditionNodeSchema,
+        FixedInputSchema,
+      ]),
     )
     .nullable(),
 }).strict();
@@ -198,6 +214,9 @@ export const SuggestionSchema = z.object({
   nextStep: z
     .enum(['continue', 'stop'])
     .describe('The next step for the workflow'),
+  skipToolDiscovery: z
+    .boolean()
+    .describe('Whether to skip the tool discovery step'),
 });
 
 export const OnStepSchema = z.object({
@@ -211,21 +230,20 @@ export const OnStepSchema = z.object({
 
 export type OnStep = z.infer<typeof OnStepSchema>;
 
-export const FixedInputSchema = z
-  .object({
-    type: z.literal('fixed-input'),
-    identifier: z.string().describe('The identifier of the fixed input node'),
-    input: z
-      .record(z.string(), z.any())
-      .describe('The fixed input to the workflow')
-      .nullable(),
-    output: z
-      .record(z.string(), z.any())
-      .describe('The output of the workflow'),
-    child: RegularNodeSchema.nullable(),
-  })
-  .describe(
-    'This is a fixed input node that can be used to provide a fixed input to the workflow. It accepts jinja2 syntax so that your output can use {{input.name}} or {{context.name}} to access the input or context',
-  );
+export const FixedInputSchema = BaseNodeSchema.extend({
+  type: z.literal('fixed-input'),
+  output: z.record(z.string(), z.any()).describe('The output of the workflow'),
+  child: z
+    .union([
+      z.lazy((): any => ToolNodeSchema),
+      z.lazy((): any => ConverterNodeSchema),
+      z.lazy((): any => ConditionNodeSchema),
+      z.lazy((): any => FixedInputSchema),
+    ])
+    .nullable()
+    .describe('child node of the current node'),
+}).describe(
+  'This is a fixed input node that can be used to provide a fixed input to the workflow. It accepts jinja2 syntax so that your output can use {{input.name}} or {{context.name}} to access the input or context',
+);
 
 export type FixedInput = z.infer<typeof FixedInputSchema>;

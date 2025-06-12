@@ -4,6 +4,7 @@ import { agent } from './agent';
 import { createOpenRouter } from '@openrouter/ai-sdk-provider';
 import { generateObject, generateText } from 'ai';
 import { createMCPClient } from '../ai/mcp';
+import { MAX_WORKFLOW_STEPS } from '@/lib/constants';
 
 // Mock the external dependencies
 jest.mock('ai');
@@ -318,11 +319,8 @@ describe('agent should handle the compilation errors', () => {
     // Verify the result
     expect(result).toBeDefined();
 
-    // Verify that the loop was limited by maxSteps (4)
-    // Each step calls: tool discovery, workflow builder, suggestion agent
-    // So we expect 4 calls to generateText for tool discovery + 4 for workflow builder = 8 total
-    expect(mockGenerateText).toHaveBeenCalledTimes(8);
-    expect(mockGenerateObject).toHaveBeenCalledTimes(4);
+    expect(mockGenerateText).toHaveBeenCalledTimes(2 * MAX_WORKFLOW_STEPS);
+    expect(mockGenerateObject).toHaveBeenCalledTimes(MAX_WORKFLOW_STEPS);
 
     expect(mockMcpClient.close).toHaveBeenCalled();
   });

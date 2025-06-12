@@ -218,7 +218,6 @@ describe('WorkflowEngine', () => {
       const fixedInput: FixedInput = {
         type: 'fixed-input',
         identifier: v4(),
-        input: { firstName: 'John' },
         output: { fullName: '{{input.firstName}} {{context.lastName}}' },
         child: null,
       };
@@ -235,6 +234,7 @@ describe('WorkflowEngine', () => {
 
       await expect(
         engine.execute(workflow, {
+          firstName: 'John',
           lastName: 'Doe',
         }),
       ).resolves.toStrictEqual({
@@ -246,7 +246,6 @@ describe('WorkflowEngine', () => {
       const fixedInput: FixedInput = {
         type: 'fixed-input',
         identifier: v4(),
-        input: { firstName: 'John' },
         output: { name: { full: '{{input.firstName}} {{context.lastName}}' } },
         child: null,
       };
@@ -263,6 +262,7 @@ describe('WorkflowEngine', () => {
 
       await expect(
         engine.execute(workflow, {
+          firstName: 'John',
           lastName: 'Doe',
         }),
       ).resolves.toStrictEqual({
@@ -276,12 +276,10 @@ describe('WorkflowEngine', () => {
       const fixedInput: FixedInput = {
         type: 'fixed-input',
         identifier: v4(),
-        input: { firstName: 'John' },
         output: { fullName: '{{input.firstName}} {{context.lastName}}' },
         child: {
           identifier: v4(),
           type: 'fixed-input',
-          input: null,
           output: {
             fullName: '{{input.fullName}}',
           },
@@ -301,6 +299,7 @@ describe('WorkflowEngine', () => {
 
       await expect(
         engine.execute(workflow, {
+          firstName: 'John',
           lastName: 'Doe',
         }),
       ).resolves.toStrictEqual({
@@ -322,7 +321,6 @@ describe('WorkflowEngine', () => {
       const fixedInput: FixedInput = {
         type: 'fixed-input',
         identifier: 'fixed-input-node',
-        input: { userName: 'Alice', age: 30 },
         output: {
           processedData: '{{input.userName}} is {{input.age}} years old',
           userInfo: {
@@ -353,6 +351,8 @@ describe('WorkflowEngine', () => {
 
       // Execute the workflow with context
       const result = await engine.execute(workflow, {
+        userName: 'Alice',
+        age: 30,
         environment: 'production',
       });
 
@@ -393,7 +393,6 @@ describe('WorkflowEngine', () => {
       const fixedInput: FixedInput = {
         type: 'fixed-input',
         identifier: 'fixed-input-node',
-        input: { category: 'users', count: 42 },
         output: {
           processType: '{{input.category}}_processing',
           itemCount: '{{input.count}}',
@@ -431,6 +430,8 @@ describe('WorkflowEngine', () => {
 
       // Execute the workflow with context
       const result = await engine.execute(workflow, {
+        category: 'users',
+        count: 42,
         env: 'staging',
       });
 

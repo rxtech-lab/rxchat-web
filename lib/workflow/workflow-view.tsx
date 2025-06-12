@@ -27,6 +27,7 @@ import type {
   ConditionNode,
   ConverterNode,
   CronjobTriggerNode,
+  FixedInput,
   ToolNode,
   TriggerNode,
   Workflow,
@@ -38,7 +39,8 @@ type WorkflowNode =
   | ConditionNode
   | ConverterNode
   | TriggerNode
-  | CronjobTriggerNode;
+  | CronjobTriggerNode
+  | FixedInput;
 
 // Custom node components
 const TriggerNodeComponent = ({
@@ -209,6 +211,86 @@ const ConverterNodeComponent = ({ data }: { data: ConverterNode }) => {
   );
 };
 
+const FixedInputNodeComponent = ({ data }: { data: FixedInput }) => {
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+
+  return (
+    <div
+      className={cn(
+        'px-4 py-3 rounded-lg border-2 min-w-[200px]',
+        'bg-orange-50 border-orange-300 shadow-md',
+      )}
+    >
+      <Handle type="target" position={Position.Top} />
+      <Handle type="source" position={Position.Bottom} />
+      <div className="flex items-center gap-2 mb-1">
+        <Zap className="size-4 text-orange-600" />
+        <span className="font-semibold text-orange-800">Fixed Input</span>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="ml-auto p-1 size-6 text-orange-600 hover:text-orange-800 hover:bg-orange-100 z-10 relative"
+          onClick={(e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            setIsDialogOpen(true);
+          }}
+          onMouseDown={(e) => {
+            e.stopPropagation();
+          }}
+        >
+          <Eye className="size-3" />
+        </Button>
+        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <DialogContent className="max-w-4xl max-h-[80vh] overflow-hidden">
+            <DialogHeader>
+              <DialogTitle>Fixed Input Output - {data.identifier}</DialogTitle>
+            </DialogHeader>
+            <div className="flex flex-col gap-2">
+              <div className="text-sm text-gray-600">
+                Output configuration that supports Jinja2 syntax for accessing
+                input and context variables.
+              </div>
+              <div
+                className="border rounded-lg overflow-hidden"
+                style={{ height: '400px' }}
+              >
+                <Editor
+                  height="400px"
+                  language="json"
+                  theme="vs-light"
+                  value={JSON.stringify(data.output, null, 2)}
+                  options={{
+                    readOnly: true,
+                    minimap: { enabled: true },
+                    fontSize: 14,
+                    lineNumbers: 'on',
+                    scrollBeyondLastLine: false,
+                    automaticLayout: true,
+                    wordWrap: 'on',
+                  }}
+                />
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      </div>
+      <div className="text-sm text-orange-700">
+        <div>
+          Output:{' '}
+          <span className="font-mono bg-orange-100 px-1 rounded text-xs">
+            {Object.keys(data.output).length} key(s)
+          </span>
+        </div>
+        <div className="text-xs text-orange-600 mt-1">
+          Supports Jinja2 syntax
+        </div>
+        <div className="text-xs text-orange-600">ID: {data.identifier}</div>
+      </div>
+    </div>
+  );
+};
+
 const DefaultNodeComponent = ({
   data,
 }: { data: BaseNode & { type?: string } }) => (
@@ -237,6 +319,7 @@ const nodeTypes = {
   tool: ToolNodeComponent,
   condition: ConditionNodeComponent,
   converter: ConverterNodeComponent,
+  'fixed-input': FixedInputNodeComponent,
   default: DefaultNodeComponent,
 };
 
