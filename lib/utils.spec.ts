@@ -1,5 +1,5 @@
 import { addToolResultToMessage } from './ai/utils';
-import { getBrandName, estimateTokenCount } from './utils';
+import { getBrandName } from './utils';
 
 describe('getBrandName', () => {
   const originalEnv = process.env;
@@ -163,46 +163,5 @@ describe('addToolResultToMessage', () => {
   it('should add a failed result to the message', () => {
     const result = addToolResultToMessage(errorMessage as any) as any;
     expect(result.parts[10].toolInvocation.result).toBeDefined();
-  });
-});
-
-describe('estimateTokenCount', () => {
-  it('should return 0 for empty messages array', () => {
-    expect(estimateTokenCount([])).toBe(0);
-  });
-
-  it('should count tokens from text parts correctly', () => {
-    const messages = [
-      {
-        parts: [
-          { type: 'text', text: 'Hello world' },
-          { type: 'text', text: 'How are you?' },
-        ],
-        usage: { totalTokens: 6 },
-      },
-    ];
-
-    expect(estimateTokenCount(messages as any)).toBe(6);
-  });
-
-  it('should count tokens from multiple messages', () => {
-    const messages = [
-      {
-        parts: [
-          { type: 'text', text: 'Hello world' },
-          { type: 'text', text: 'How are you?' },
-        ],
-        usage: { totalTokens: 6 },
-      },
-      {
-        parts: [
-          { type: 'text', text: 'Hello world' },
-          { type: 'text', text: 'How are you?' },
-        ],
-        usage: { totalTokens: 12 },
-      },
-    ];
-
-    expect(estimateTokenCount(messages as any)).toBe(12);
   });
 });

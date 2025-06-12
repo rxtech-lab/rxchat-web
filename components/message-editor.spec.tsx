@@ -12,6 +12,8 @@ jest.mock('@/app/(chat)/actions', () => ({
   deleteTrailingMessages: jest.fn(() => Promise.resolve()),
 }));
 
+jest.mock('@openrouter/ai-sdk-provider');
+
 describe('MessageEditor', () => {
   it('should render message with content', async () => {
     const message: UIMessage = {

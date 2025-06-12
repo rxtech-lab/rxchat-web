@@ -1,5 +1,3 @@
-import { generateDummyPassword } from './db/utils';
-
 export const isProductionEnvironment = process.env.NODE_ENV === 'production';
 export const isDevelopmentEnvironment = process.env.NODE_ENV === 'development';
 export const isTestEnvironment = Boolean(
@@ -13,8 +11,6 @@ export const isTestEnvironment = Boolean(
 export const AUTO_REFRESH_INTERVAL = 30_000;
 
 export const guestRegex = /^guest-\d+$/;
-
-export const DUMMY_PASSWORD = generateDummyPassword();
 
 export const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB
 
@@ -116,6 +112,8 @@ export const CHUNK_SIZE = 1000;
 
 export const MAX_WORKFLOW_RETRIES = 0;
 
+export const MESSAGE_COMPRESSION_MODEL =
+  'google/gemini-2.5-flash-preview-05-20';
 /**
  * Array of image MIME types for easy filtering
  */
