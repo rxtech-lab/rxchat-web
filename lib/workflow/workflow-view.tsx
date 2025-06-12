@@ -9,6 +9,7 @@ import {
 } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
 import Editor from '@monaco-editor/react';
+import cronstrue from 'cronstrue';
 import type { Edge, Node } from '@xyflow/react';
 import {
   Background,
@@ -60,9 +61,24 @@ const TriggerNodeComponent = ({
     <div className="text-sm text-green-700">
       <div>
         Schedule:{' '}
-        <code className="bg-green-100 px-1 rounded">
-          {data.type === 'cronjob-trigger' ? data.cron : 'Manual'}
-        </code>
+        {data.type === 'cronjob-trigger' && data.cron ? (
+          <div className="mt-1 space-y-1">
+            <div className="text-sm font-medium">
+              {(() => {
+                try {
+                  return cronstrue.toString(data.cron);
+                } catch (error) {
+                  return 'Invalid cron expression';
+                }
+              })()}
+            </div>
+            <code className="bg-green-100 px-1 rounded text-xs">
+              {data.cron}
+            </code>
+          </div>
+        ) : (
+          <code className="bg-green-100 px-1 rounded">Manual</code>
+        )}
       </div>
       <div className="text-xs text-green-600 mt-1">ID: {data.identifier}</div>
     </div>

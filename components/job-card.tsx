@@ -12,6 +12,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
 import type { Job as JobType } from '@/lib/db/schema';
+import cronstrue from 'cronstrue';
 import {
   Calendar,
   Clock,
@@ -260,6 +261,34 @@ export function JobCard({
           <div className="flex items-center gap-2 text-sm text-gray-600">
             <FileText className="size-4" />
             <span>Document: {job.documentId.slice(0, 8)}...</span>
+          </div>
+
+          {/* Job Type and Cron */}
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 text-sm">
+              <Badge
+                variant="outline"
+                className="bg-purple-100 text-purple-800 border-purple-200 text-xs"
+              >
+                {job.jobTriggerType.toUpperCase()}
+              </Badge>
+            </div>
+            {job.cron && (
+              <div className="space-y-1">
+                <div className="text-xs text-gray-700 font-medium">
+                  {(() => {
+                    try {
+                      return cronstrue.toString(job.cron);
+                    } catch (error) {
+                      return 'Invalid cron expression';
+                    }
+                  })()}
+                </div>
+                <div className="text-xs text-gray-500 font-mono bg-gray-50 px-2 py-1 rounded border">
+                  {job.cron}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Timestamps */}

@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { JobResult } from '@/lib/db/schema';
 import dayjs from 'dayjs';
+import cronstrue from 'cronstrue';
 import {
   ArrowLeft,
   Calendar,
@@ -236,6 +237,40 @@ async function JobResultsPage({ params, searchParams }: PageProps) {
       ),
     },
     {
+      label: 'Job Type',
+      value: (
+        <Badge
+          variant="outline"
+          className="bg-purple-100 text-purple-800 border-purple-200"
+        >
+          {job.jobTriggerType.toUpperCase()}
+        </Badge>
+      ),
+    },
+    {
+      label: 'Cron Schedule',
+      value: (
+        <div className="space-y-1">
+          {job.cron ? (
+            <>
+              <div className="text-sm text-gray-900">
+                {(() => {
+                  try {
+                    return cronstrue.toString(job.cron);
+                  } catch (error) {
+                    return 'Invalid cron expression';
+                  }
+                })()}
+              </div>
+              <div className="text-xs text-gray-500 font-mono">{job.cron}</div>
+            </>
+          ) : (
+            <div className="text-sm text-gray-600">Not scheduled</div>
+          )}
+        </div>
+      ),
+    },
+    {
       label: 'Created',
       value: (
         <div className="flex items-center gap-1 text-sm text-gray-600">
@@ -283,7 +318,7 @@ async function JobResultsPage({ params, searchParams }: PageProps) {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
               {jobInfoItems.map((item, index) => (
                 <div key={item.label}>
                   <h4 className="text-sm font-medium text-gray-700 mb-1">
