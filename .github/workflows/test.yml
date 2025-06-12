@@ -27,6 +27,14 @@ jobs:
         image: redis:7
         ports:
           - 6379:6379
+      upstash:
+        image: hiett/serverless-redis-http:latest
+        ports:
+          - 8079:80
+        env:
+          SRH_MODE: env
+          SRH_TOKEN: example_token
+          SRH_CONNECTION_STRING: "redis://redis:6379"
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -74,6 +82,14 @@ jobs:
         image: redis:7
         ports:
           - 6379:6379
+      upstash:
+        image: hiett/serverless-redis-http:latest
+        ports:
+          - 8079:80
+        env:
+          SRH_MODE: env
+          SRH_TOKEN: example_token
+          SRH_CONNECTION_STRING: "redis://redis:6379"
     env:
       MCP_ROUTER_SERVER_URL: https://router.mcprouter.app/sse
       MCP_ROUTER_SERVER_API_KEY: ${{ secrets.MCP_ROUTER_SERVER_API_KEY }}
@@ -100,7 +116,7 @@ jobs:
         env:
           POSTGRES_URL: postgresql://postgres:postgres@localhost:5432/postgres
       - name: Install Playwright Browsers
-        run: npx playwright install --with-deps
+        run: npx playwright install chromium --with-deps
       - name: Run QStash
         run: |
           npx @upstash/qstash-cli dev &
