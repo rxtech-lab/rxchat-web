@@ -33,7 +33,7 @@ export async function saveChatModelAsCookie(
   const cookieStore = await cookies();
   cookieStore.set('chat-model', model);
   cookieStore.set('chat-model-provider', provider);
-  
+
   // Track model selection event
   track('user_select_model', {
     model,

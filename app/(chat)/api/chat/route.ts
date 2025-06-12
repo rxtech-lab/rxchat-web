@@ -228,7 +228,7 @@ export async function POST(request: Request) {
           },
         ],
       });
-      
+
       // Track user message sending event
       track('user_send_message', {
         chatId: id,

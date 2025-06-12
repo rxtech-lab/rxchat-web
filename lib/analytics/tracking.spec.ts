@@ -24,7 +24,7 @@ describe('Analytics Tracking', () => {
   it('should allow tracking events with properties', () => {
     // Test that we can call track with event name and properties
     mockTrack('test_event', { property: 'value' });
-    
+
     expect(mockTrack).toHaveBeenCalledWith('test_event', { property: 'value' });
     expect(mockTrack).toHaveBeenCalledTimes(1);
   });
@@ -41,7 +41,7 @@ describe('Analytics Tracking', () => {
     };
 
     mockTrack('user_send_message', eventData);
-    
+
     expect(mockTrack).toHaveBeenCalledWith('user_send_message', eventData);
   });
 
@@ -55,7 +55,7 @@ describe('Analytics Tracking', () => {
     };
 
     mockTrack('user_upload_document', eventData);
-    
+
     expect(mockTrack).toHaveBeenCalledWith('user_upload_document', eventData);
   });
 
@@ -70,7 +70,7 @@ describe('Analytics Tracking', () => {
     };
 
     mockTrack('user_create_passkey', eventData);
-    
+
     expect(mockTrack).toHaveBeenCalledWith('user_create_passkey', eventData);
   });
 
@@ -82,7 +82,7 @@ describe('Analytics Tracking', () => {
     };
 
     mockTrack('user_select_model', eventData);
-    
+
     expect(mockTrack).toHaveBeenCalledWith('user_select_model', eventData);
   });
 
@@ -96,7 +96,7 @@ describe('Analytics Tracking', () => {
 
     // For client-side tracking, we test the structure would be similar
     mockTrack('user_execute_artifact', eventData);
-    
+
     expect(mockTrack).toHaveBeenCalledWith('user_execute_artifact', eventData);
   });
 });

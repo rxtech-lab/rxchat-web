@@ -438,7 +438,7 @@ export async function completeDocumentUpload({
         });
       });
       await Promise.all(vectorStorePromises);
-      
+
       // Track successful document upload
       track('user_upload_document', {
         documentId: document.id,
@@ -446,7 +446,7 @@ export async function completeDocumentUpload({
         userId: session.user.id,
         chunkCount: chunks.length,
       });
-      
+
       return updatedDoc;
     });
     return {};
