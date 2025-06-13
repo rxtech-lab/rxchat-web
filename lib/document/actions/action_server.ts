@@ -27,6 +27,7 @@ import { RecursiveCharacterTextSplitter } from '@langchain/textsplitters';
 import { generateText } from 'ai';
 import path from 'node:path';
 import { z } from 'zod';
+import { track } from '@vercel/analytics/server';
 
 // Types
 export interface DocumentHistory {
@@ -437,6 +438,15 @@ export async function completeDocumentUpload({
         });
       });
       await Promise.all(vectorStorePromises);
+
+      // Track successful document upload
+      track('user_upload_document', {
+        documentId: document.id,
+        mimeType: document.mimeType,
+        userId: session.user.id,
+        chunkCount: chunks.length,
+      });
+
       return updatedDoc;
     });
     return {};

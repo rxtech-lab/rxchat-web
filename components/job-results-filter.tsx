@@ -38,7 +38,7 @@ export function JobResultsFilter({
 
     params.delete('page'); // Reset page when filter changes
     router.push(`/jobs/${jobId}/results?${params.toString()}`);
-};
+  };
 
   return (
     <div className="">

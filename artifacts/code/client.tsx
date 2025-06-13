@@ -10,6 +10,7 @@ import {
 } from '@/components/icons';
 import { toast } from 'sonner';
 import { generateUUID } from '@/lib/utils';
+import { track } from '@vercel/analytics/react';
 import {
   Console,
   type ConsoleOutput,
@@ -119,6 +120,13 @@ export const codeArtifact = new Artifact<'code', Metadata>({
       onClick: async ({ content, setMetadata }) => {
         const runId = generateUUID();
         const outputContent: Array<ConsoleOutputContent> = [];
+
+        // Track artifact code execution
+        track('user_execute_artifact', {
+          artifactType: 'code',
+          language: 'python',
+          codeLength: content.length,
+        });
 
         setMetadata((metadata) => ({
           ...metadata,

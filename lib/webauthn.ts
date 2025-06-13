@@ -23,6 +23,7 @@ import {
   getChallenge,
 } from '@/lib/webauthn-challenges';
 import { getBrandName } from '@/lib/utils';
+import { track } from '@vercel/analytics/server';
 
 /**
  * WebAuthn Implementation with Graceful Challenge Handling
@@ -261,6 +262,15 @@ export async function verifyPasskeyRegistration({
     name: name || 'Unnamed Passkey',
   });
 
+  // Track passkey creation event
+  track('user_create_passkey', {
+    userId: actualUserId,
+    deviceType: registrationInfo.credentialDeviceType,
+    backedUp: registrationInfo.credentialBackedUp,
+    transports: registrationInfo.credential.transports?.join(',') || '',
+    isNewUser: challengeRecord.userId.startsWith('temp_'),
+  });
+
   return {
     verified: true,
     authenticator,
@@ -388,6 +398,14 @@ export async function verifyPasskeyAuthentication({
       counter: verification.authenticationInfo.newCounter,
     });
   }
+
+  // Track passkey use event
+  track('user_use_passkey', {
+    userId: authenticator.userId,
+    deviceType: authenticator.credentialDeviceType,
+    backedUp: authenticator.credentialBackedUp,
+    transports: authenticator.transports?.join(',') || '',
+  });
 
   return {
     verified: true,
