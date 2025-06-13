@@ -1,6 +1,7 @@
 import type { ProviderType } from '@/lib/ai/models';
 import { getModelProvider } from '@/lib/ai/providers';
 import { createDocumentHandler } from '@/lib/artifacts/server';
+import { getTextContentFromUserMessage } from '@/lib/utils.server';
 import { experimental_generateImage } from 'ai';
 
 export const imageDocumentHandler = (
@@ -19,7 +20,7 @@ export const imageDocumentHandler = (
         selectedChatModelProvider,
       );
 
-      const prompt = context && context.trim() !== '' ? context : title;
+      const prompt = getTextContentFromUserMessage(context);
 
       const { image } = await experimental_generateImage({
         model: provider.imageModel('small-model'),

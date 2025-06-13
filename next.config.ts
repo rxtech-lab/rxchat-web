@@ -12,7 +12,7 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-  serverExternalPackages: ['vm2'],
+  serverExternalPackages: ['vm2', 'nunjucks', 'chokidar', 'fsevents'],
 };
 
 // export default withRspack(nextConfig);

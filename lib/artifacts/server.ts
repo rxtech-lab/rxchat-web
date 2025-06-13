@@ -1,14 +1,14 @@
 import { codeDocumentHandler } from '@/artifacts/code/server';
-import type { ArtifactKind } from '@/components/artifact';
-import type { DataStreamWriter } from 'ai';
-import type { Document } from '../db/schema';
-import { saveDocument } from '../db/queries/queries';
-import type { Session } from 'next-auth';
-import type { ProviderType } from '../ai/models';
+import { flowchartDocumentHandler } from '@/artifacts/flowchart/server';
 import { imageDocumentHandler } from '@/artifacts/image/server';
 import { sheetDocumentHandler } from '@/artifacts/sheet/server';
 import { textDocumentHandler } from '@/artifacts/text/server';
-import { flowchartDocumentHandler } from '@/artifacts/flowchart/server';
+import type { ArtifactKind } from '@/components/artifact';
+import type { DataStreamWriter, UIMessage } from 'ai';
+import type { Session } from 'next-auth';
+import type { ProviderType } from '../ai/models';
+import { saveDocument } from '../db/queries/queries';
+import type { Document } from '../db/schema';
 
 export interface SaveDocumentProps {
   id: string;
@@ -21,7 +21,7 @@ export interface SaveDocumentProps {
 export interface CreateDocumentCallbackProps {
   id: string;
   title: string;
-  context: string;
+  context: UIMessage;
   dataStream: DataStreamWriter;
   session: Session;
 }

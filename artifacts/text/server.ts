@@ -19,7 +19,7 @@ export const textDocumentHandler = (
         selectedChatModelProvider,
       );
 
-      const prompt = context && context.trim() !== '' ? context : title;
+      const prompt = title;
 
       const { fullStream } = streamText({
         model: provider.languageModel('artifact-model'),

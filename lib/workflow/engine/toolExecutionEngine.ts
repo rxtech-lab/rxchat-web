@@ -18,7 +18,12 @@ export class McpToolExecutionEngine implements ToolExecutionEngine {
     this.mcpRouterApiKey = mcpRouterApiKey;
   }
 
-  async execute(tool: string, input: any): Promise<any> {
+  async execute(
+    tool: string,
+    input: any,
+    inputSchema: Record<string, any>,
+    outputSchema: Record<string, any>,
+  ): Promise<any> {
     const url = new URL(this.mcpRouterServerUrl);
     url.pathname = `/tool/${tool}/use`;
 

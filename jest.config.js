@@ -21,4 +21,6 @@ module.exports = {
       },
     ],
   },
+  // Skip collecting coverage from the tests folder
+  coveragePathIgnorePatterns: ['<rootDir>/tests/'],
 };

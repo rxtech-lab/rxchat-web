@@ -7,6 +7,7 @@ import type { z } from 'zod';
 import { createMCPClient } from '../ai/mcp';
 import {
   WorkflowInputOutputMismatchError,
+  WorkflowReferenceError,
   WorkflowToolMissingError,
 } from './errors';
 import { DiscoverySchema, type OnStep, SuggestionSchema } from './types';
@@ -19,36 +20,27 @@ import {
   modifyToolNode,
   modifyTriggerTool,
   removeNodeTool,
+  swapNodesTool,
   viewWorkflow,
   Workflow,
 } from './workflow';
 import { MAX_WORKFLOW_STEPS } from '../constants';
+import type { UserContext } from '../types';
+import { WorkflowEngine } from './workflow-engine';
+import { createJSExecutionEngine, createToolExecutionEngine } from './engine';
 
 const modelProviders = () => {
   const openRouter = createOpenRouter({
     apiKey: process.env.OPENROUTER_API_KEY,
   });
   return {
-    workflow: openRouter('openai/gpt-4.1'),
-    discovery: openRouter('openai/gpt-4.1'),
+    workflow: openRouter('google/gemini-2.5-pro-preview'),
+    discovery: openRouter('google/gemini-2.5-pro-preview'),
     suggestion: openRouter('google/gemini-2.5-pro-preview'),
   };
 };
 
-const DiscoverySystemPrompt = `
-    You are a tool discovery agent. 
-    Your job is to analyze the user query and select the most relevant tools from the available MCP tools.
-    
-    You should return list of the tools' identifiers that you think are relevant to the user query.
-    And the reasoning for the selected tools. Always returned list of tools, even if it is empty.
-    Refine your search query to find the most relevant tools.
-  `;
-
-const WorkflowBuilderSystemPrompt = (
-  toolDiscoveryResult: z.infer<typeof DiscoverySchema>,
-  suggestion: z.infer<typeof SuggestionSchema> | null,
-) => `
-You are a workflow builder that creates structured workflows based on user queries and available MCP tools.
+const generalWorkflowPrompt = () => `
 
 ## WORKFLOW STRUCTURE
 A workflow consists of:
@@ -93,11 +85,8 @@ A workflow consists of:
 - **Template Support**: Use Jinja2 syntax for dynamic values:
   - Use {{input.fieldName}} to access parent node output
   - Use {{context.fieldName}} to access global workflow context
+- **Note** Fixed input should always be a parent of a tool node.
 
-## CURRENT CONTEXT
-- **Selected Tools**: ${JSON.stringify(toolDiscoveryResult.selectedTools)}
-- **User Query**: ${toolDiscoveryResult.reasoning}
-- **Suggestions**: ${JSON.stringify(suggestion)}
 
 ## WORKFLOW BUILDING RULES
 
@@ -117,13 +106,32 @@ A workflow consists of:
 2. **Provide proper inputs**: Use FixedInput nodes when tools need specific parameters
 3. **Handle mismatches**: Add ConverterNodes between incompatible schemas
 
+### Cronjob Trigger
+1. **Make sure the cron expression is valid** - Use standard cron format (e.g., "0 */10 * * *" for every 10 minutes)
+2. **Make sure the cron expression matches the user query** - If user specifies timing (e.g., "every hour", "daily"), set appropriate cron expression
+3. You can call the modifyTriggerTool tool to modify the cron expression
+
+### Node Swapping
+1. **Use swapNodesTool** to swap two nodes in the workflow
+2. **Make sure the nodes are not the trigger node**
+3. **Make sure the nodes are not the same node**
+4. **Make sure the nodes have the same parent**
+5. After swapping, their original children will not be swapped. For example: node1 -> child1 -> node2 -> child2, after swapping node1 and node2, the workflow will be node2 -> child1 -> node1 -> child2
+
 ## EXAMPLE WORKFLOWS
 
 ### Simple Tool Execution Pattern
 1. User query: "Create a workflow to fetch BTCUSDT price"
 - Start with cronjob-trigger (cron schedule)
-- Add fixed-input node with tool parameters (through addInputTool tool not addNodeTool)
-- Add tool node with proper toolIdentifier
+- Add fixed-input node with tool parameters (through addInputTool tool not addNodeTool) that matches the child tool's input schema
+- Add tool node after fixed-input node with proper toolIdentifier to fetch price
+- Ensure schemas match between nodes
+
+2. User query: "Create a workflow to fetch BTCUSDT price and send notification"
+- Start with cronjob-trigger (cron schedule)
+- Add fixed-input node with tool parameters (through addInputTool tool not addNodeTool) that matches the child tool's input schema
+- Add tool node after fixed-input node with proper toolIdentifier to fetch price
+- Add tool node after tool node with proper toolIdentifier to send notification
 - Ensure schemas match between nodes
 
 ### Data Conversion Pattern  
@@ -150,19 +158,82 @@ A workflow consists of:
 Remember: Node identifiers in the workflow are different from tool identifiers. Always use viewWorkflow to find the correct node IDs for connections.
 `;
 
+const DiscoverySystemPrompt = `
+    You are a tool discovery agent. 
+    Your job is to analyze the user query and select the most relevant tools from the available MCP tools.
+    
+    You should return list of the tools' identifiers that you think are relevant to the user query.
+    And the reasoning for the selected tools. Always returned list of tools, even if it is empty.
+    Refine your search query to find the most relevant tools.
+  `;
+
+/**
+ * Generates a prompt string containing user context information for workflow execution.
+ * This context can be used in FixedInput nodes and as input parameters for tools.
+ *
+ * @param userContext - The user's context information containing relevant data for workflow execution
+ * @returns A formatted string containing the user context, or empty string if no context is provided
+ *
+ * @example
+ * // With context
+ * const context = { userId: "123", preferences: { timezone: "UTC" } };
+ * // Returns: "User Context: {"userId":"123","preferences":{"timezone":"UTC"}}.
+ * // This context is available in the workflow and can be accessed in two ways:
+ * // 1. In FixedInput nodes using Jinja2 syntax: {{context.userId}}
+ * // 2. As direct input parameters to tools that accept user context"
+ */
+const userContextPrompt = (userContext: UserContext | null) => {
+  if (!userContext) {
+    return 'No user context provided';
+  }
+  return `User Context: ${JSON.stringify(userContext)}. 
+This context is available in the workflow and can be accessed in two ways:
+1. In FixedInput nodes using Jinja2 syntax: {{context.fieldName}}
+2. As direct input parameters to tools that accept user context`;
+};
+
+const WorkflowBuilderSystemPrompt = (
+  toolDiscoveryResult: z.infer<typeof DiscoverySchema>,
+  userContext: UserContext | null,
+  suggestion: z.infer<typeof SuggestionSchema> | null,
+) => `
+You are a workflow builder that creates structured workflows based on user queries and available MCP tools.
+
+# USER CONTEXT
+${userContextPrompt(userContext)}
+
+${generalWorkflowPrompt()}
+
+## CURRENT CONTEXT
+- **Selected Tools**: ${JSON.stringify(toolDiscoveryResult.selectedTools)}
+- **User Query**: ${toolDiscoveryResult.reasoning}
+- **Suggestions**: ${JSON.stringify(suggestion)}
+
+`;
+
 const SuggestionSystemPrompt = async (
   workflow: Workflow,
+  query: string,
   inputOutputMismatchError: WorkflowInputOutputMismatchError | null,
   missingToolsError: WorkflowToolMissingError | null,
   toolDiscoveryResult: z.infer<typeof DiscoverySchema> | null,
+  userContext: UserContext | null,
 ) => {
   const generalPrompt = `
     You are a team leader that guides the workflow builder and suggestion agent.
+
+    # USER CONTEXT
+    ${userContextPrompt(userContext)}
     
     Your primary responsibilities:
     1. Evaluate the workflow builder's implementation
     2. Review suggestion agent recommendations
     3. Determine when the workflow is complete and should exit the building process
+
+    # GENERAL WORKFLOW PROMPT
+    ${generalWorkflowPrompt()}
+
+    **If user ask about to send notification, check whether this workflow has a notification tool.**
     
     Important guidelines:
     - The trigger is automatically assigned by the system - no modifications needed
@@ -172,7 +243,6 @@ const SuggestionSystemPrompt = async (
     - Keep the workflow simple - no need for error handling or retry logic
     
     Make decisions based on whether the workflow accomplishes the user's request efficiently.
-    If you think the workflow is complete, you should return the nextStep: "stop".
 
     A workflow should contain at least one tool node and one input node. A workflow only contains trigger is invalid.
   `;
@@ -214,7 +284,7 @@ const SuggestionSystemPrompt = async (
     Workflow: ${JSON.stringify(workflow.getWorkflow())}
     Compiling Result: ${JSON.stringify(compilingResult)}
     Tools: ${JSON.stringify(toolDiscoveryResult?.selectedTools)}
-    User Query: ${toolDiscoveryResult?.reasoning}
+    User Query: ${query}
   `;
 };
 
@@ -275,6 +345,7 @@ async function workflowBuilderAgent(
   suggestion: z.infer<typeof SuggestionSchema> | null,
   mcpClient: any,
   toolDiscoveryResult: z.infer<typeof DiscoverySchema>,
+  userContext: UserContext | null,
   workflow: Workflow,
 ): Promise<{ workflow: Workflow; response: string }> {
   const model = modelProviders().workflow;
@@ -293,9 +364,14 @@ async function workflowBuilderAgent(
       addConverterTool: addConverterTool(workflow),
       addInputTool: addInputTool(workflow),
       modifyTriggerTool: modifyTriggerTool(workflow),
+      swapNodesTool: swapNodesTool(workflow),
     },
     toolChoice: 'required',
-    system: WorkflowBuilderSystemPrompt(toolDiscoveryResult, suggestion),
+    system: WorkflowBuilderSystemPrompt(
+      toolDiscoveryResult,
+      userContext,
+      suggestion,
+    ),
     prompt: `User Query: "${query}"`,
     maxSteps: 5,
   });
@@ -310,6 +386,7 @@ async function suggestionAgent(
   query: string | undefined,
   error: Error | null,
   workflow: Workflow,
+  userContext: UserContext | null,
   toolDiscoveryResult: z.infer<typeof DiscoverySchema> | null,
 ): Promise<z.infer<typeof SuggestionSchema>> {
   const model = modelProviders().suggestion;
@@ -319,9 +396,11 @@ async function suggestionAgent(
       schema: SuggestionSchema,
       system: await SuggestionSystemPrompt(
         workflow,
+        query ?? '',
         error instanceof WorkflowInputOutputMismatchError ? error : null,
         error instanceof WorkflowToolMissingError ? error : null,
         toolDiscoveryResult,
+        userContext,
       ),
       prompt: `User Query: "${query}", Error: ${error.message}`,
     });
@@ -329,6 +408,11 @@ async function suggestionAgent(
   }
   try {
     await workflow.compile();
+    const engine = new WorkflowEngine(
+      createJSExecutionEngine(),
+      createToolExecutionEngine(),
+    );
+    await engine.execute(workflow.getWorkflow());
   } catch (error) {
     if (error instanceof WorkflowInputOutputMismatchError) {
       const suggestion = await generateObject({
@@ -336,9 +420,11 @@ async function suggestionAgent(
         schema: SuggestionSchema,
         system: await SuggestionSystemPrompt(
           workflow,
+          query ?? '',
           error,
           null,
           toolDiscoveryResult,
+          userContext,
         ),
         prompt: `User got the workflow input/output mismatch error. That means you need to modify the workflow to match the input and output of the tools. User Query: "${query}".`,
       });
@@ -351,11 +437,30 @@ async function suggestionAgent(
         schema: SuggestionSchema,
         system: await SuggestionSystemPrompt(
           workflow,
+          query ?? '',
           null,
           error,
           toolDiscoveryResult,
+          userContext,
         ),
         prompt: `User got the workflow tool's missing error indicates that some tools in the workflow are not available in MCP. User Query: "${query}".`,
+      });
+      return suggestion.object;
+    }
+
+    if (error instanceof WorkflowReferenceError) {
+      const suggestion = await generateObject({
+        model,
+        schema: SuggestionSchema,
+        system: await SuggestionSystemPrompt(
+          workflow,
+          query ?? '',
+          null,
+          null,
+          toolDiscoveryResult,
+          userContext,
+        ),
+        prompt: `User got the workflow reference error. That means in the fixed input node, the output's jinja2 template is referencing a field that doesn't exist. User Query: "${query}". You need to check the node's parent and user context to find the correct field.`,
       });
       return suggestion.object;
     }
@@ -368,9 +473,11 @@ async function suggestionAgent(
     schema: SuggestionSchema,
     system: await SuggestionSystemPrompt(
       workflow,
+      query ?? '',
       null,
       null,
       toolDiscoveryResult,
+      userContext,
     ),
     prompt: `User Query: "${query}"`,
   });
@@ -380,6 +487,7 @@ async function suggestionAgent(
 export async function agent(
   query: string,
   oldWorkflow: Workflow | null = null,
+  userContext: UserContext | null = null,
   onStep?: (step: OnStep) => void,
 ): Promise<OnStep> {
   const mcpClient = await createMCPClient();
@@ -425,11 +533,15 @@ export async function agent(
           break;
         }
         if (suggestion?.skipToolDiscovery) {
-          toolDiscovery = {
-            selectedTools: [],
-            reasoning: 'Tool discovery skipped',
-          };
         } else {
+          onStep?.({
+            title: 'Start Tool Discovery',
+            type: 'info',
+            toolDiscovery,
+            suggestion,
+            workflow: workflowResult?.workflow.getWorkflow(),
+            error: null,
+          });
           toolDiscovery = await toolDiscoveryAgent(
             query,
             suggestion,
@@ -437,7 +549,7 @@ export async function agent(
           );
         }
         onStep?.({
-          title: 'Tool Discovery',
+          title: 'Starting Workflow Builder',
           type: 'info',
           toolDiscovery,
           suggestion,
@@ -448,11 +560,12 @@ export async function agent(
           query,
           suggestion,
           mcpClient,
-          toolDiscovery,
+          toolDiscovery as any,
+          userContext,
           workflowResult?.workflow,
         );
         onStep?.({
-          title: 'Workflow Builder',
+          title: 'Starting suggestion agent',
           type: 'info',
           toolDiscovery,
           suggestion,
@@ -463,17 +576,18 @@ export async function agent(
           query,
           null,
           workflowResult.workflow,
+          userContext,
           toolDiscovery,
         );
         onStep?.({
-          title: 'Suggestion',
+          title: 'Deciding next step',
           type: 'info',
           toolDiscovery,
           suggestion,
           error: null,
           workflow: workflowResult?.workflow.getWorkflow(),
         });
-        if (suggestion.nextStep === 'stop') {
+        if ((suggestion.modifications ?? []).length === 0) {
           break;
         }
       } catch (error) {
@@ -489,6 +603,7 @@ export async function agent(
           query,
           error as Error,
           workflowResult?.workflow,
+          userContext,
           toolDiscovery ?? null,
         );
         onStep?.({
@@ -499,7 +614,7 @@ export async function agent(
           error: error as Error,
           workflow: workflowResult?.workflow.getWorkflow(),
         });
-        if (suggestion.nextStep === 'stop') {
+        if ((suggestion.modifications ?? []).length === 0) {
           break;
         }
       } finally {

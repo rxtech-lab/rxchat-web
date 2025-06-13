@@ -203,17 +203,10 @@ export const DiscoverySchema = z.object({
 });
 
 export const SuggestionSchema = z.object({
-  suggestions: z
-    .array(z.string())
-    .describe('The suggestions for the workflow')
-    .optional(),
   modifications: z
     .array(z.string())
     .describe('The modifications for the workflow')
     .optional(),
-  nextStep: z
-    .enum(['continue', 'stop'])
-    .describe('The next step for the workflow'),
   skipToolDiscovery: z
     .boolean()
     .describe('Whether to skip the tool discovery step'),

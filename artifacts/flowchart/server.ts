@@ -1,5 +1,7 @@
 import type { ProviderType } from '@/lib/ai/models';
 import { createDocumentHandler } from '@/lib/artifacts/server';
+import { getUserContext } from '@/lib/db/queries/user';
+import { getTextContentFromUserMessage } from '@/lib/utils.server';
 import { agent } from '@/lib/workflow/agent';
 import { OnStepSchema } from '@/lib/workflow/types';
 import type { Workflow } from '@/lib/workflow/workflow';
@@ -15,11 +17,12 @@ export const flowchartDocumentHandler = (
     kind: 'flowchart',
     selectedChatModel,
     selectedChatModelProvider,
-    onCreateDocument: async ({ title, context, dataStream }) => {
+    onCreateDocument: async ({ session, context, dataStream }) => {
       // Use context (original user query) if available, fallback to title
-      const query = context && context.trim() !== '' ? context : title;
+      const query = getTextContentFromUserMessage(context);
+      const userContext = await getUserContext(session.user.id);
 
-      const workflow = await agent(query, null, (step) => {
+      const workflow = await agent(query, null, userContext, (step) => {
         dataStream.writeData({
           type: 'flowchart-step-delta',
           content: JSON.stringify(step, null, 2),
@@ -33,7 +36,12 @@ export const flowchartDocumentHandler = (
 
       return JSON.stringify(workflow, null, 2);
     },
-    onUpdateDocument: async ({ document, description, dataStream }) => {
+    onUpdateDocument: async ({
+      document,
+      description,
+      dataStream,
+      session,
+    }) => {
       let workflow: Workflow | null = null;
       try {
         const parsed = JSON.parse(document.content as unknown as string);
@@ -43,12 +51,19 @@ export const flowchartDocumentHandler = (
         }
       } catch {}
 
-      const workflowResult = await agent(description, workflow, (step) => {
-        dataStream.writeData({
-          type: 'flowchart-step-delta',
-          content: JSON.stringify(step, null, 2),
-        });
-      });
+      const userContext = await getUserContext(session.user.id);
+
+      const workflowResult = await agent(
+        description,
+        workflow,
+        userContext,
+        (step) => {
+          dataStream.writeData({
+            type: 'flowchart-step-delta',
+            content: JSON.stringify(step, null, 2),
+          });
+        },
+      );
       const draftContent = JSON.stringify(workflowResult, null, 2);
 
       dataStream.writeData({

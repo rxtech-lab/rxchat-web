@@ -24,6 +24,11 @@ import {
 import { Client } from '@upstash/qstash';
 import { getWorkflowWebhookUrl } from '@/lib/workflow/utils';
 import { OnStepSchema } from '@/lib/workflow/types';
+import { getUserContext } from '@/lib/db/queries/user';
+import { WorkflowEngine } from '@/lib/workflow/workflow-engine';
+import { createJSExecutionEngine } from '@/lib/workflow/engine';
+import { createTestToolExecutionEngine } from '@/lib/workflow/engine/testToolExecutionEngine';
+import { WorkflowReferenceError } from '@/lib/workflow/errors';
 
 export async function saveChatModelAsCookie(
   model: string,
@@ -141,6 +146,13 @@ export async function createWorkflowJob(documentId: string) {
     throw new Error('Unauthorized');
   }
 
+  const userContext = await getUserContext(session.user.id);
+
+  const engine = new WorkflowEngine(
+    createJSExecutionEngine(),
+    createTestToolExecutionEngine(),
+  );
+
   const userId = session.user.id;
   await db.transaction(async (tx) => {
     const document = await getDocumentById({
@@ -159,6 +171,16 @@ export async function createWorkflowJob(documentId: string) {
     const previousJob = await getJobByDocumentId({
       documentId,
     });
+
+    try {
+      await engine.execute(parsedContent.workflow, userContext);
+    } catch (error) {
+      if (error instanceof WorkflowReferenceError) {
+        return {
+          error: error.message,
+        };
+      }
+    }
 
     if (previousJob) {
       await workflowClient.schedules.delete(previousJob.id);

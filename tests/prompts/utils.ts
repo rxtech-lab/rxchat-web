@@ -198,7 +198,8 @@ export const getResponseChunksByPrompt = (
       },
     ];
   } else if (
-    compareMessages(recentMessage, TEST_PROMPTS.CREATE_DOCUMENT_TEXT_CALL)
+    compareMessages(recentMessage, TEST_PROMPTS.CREATE_DOCUMENT_TEXT_CALL) ||
+    compareMessages(recentMessage, TEST_PROMPTS.CREATE_DOCUMENT_TEXT_CALL_2)
   ) {
     return [
       ...textToDeltas(`\n

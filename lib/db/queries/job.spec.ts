@@ -30,6 +30,7 @@ import { createUser, deleteUserAccount, saveDocument } from './queries';
 import { ChatSDKError } from '@/lib/errors';
 import type { Job as JobType, JobResult as JobResultType } from '../schema';
 import { generateRandomTestUser } from '@/tests/helpers';
+import { db } from '@/lib/db/queries/client';
 
 jest.retryTimes(3, {
   logErrorsBeforeRetry: true,
@@ -43,14 +44,15 @@ const createMockJob = (
   documentId: string,
   documentCreatedAt: Date,
   overrides: Partial<JobType> = {},
-): Omit<JobType, 'id' | 'createdAt' | 'updatedAt'> => ({
-  userId,
-  documentId,
-  documentCreatedAt,
-  status: 'pending',
-  runningStatus: 'stopped',
-  ...overrides,
-});
+): Omit<JobType, 'id' | 'createdAt' | 'updatedAt'> =>
+  ({
+    userId,
+    documentId,
+    documentCreatedAt,
+    status: 'pending',
+    runningStatus: 'stopped',
+    ...overrides,
+  }) as any;
 
 const createMockJobResult = (
   jobId: string,
@@ -95,6 +97,12 @@ describe('Job Queries', () => {
     if (testUserId) {
       await deleteUserAccount({ id: testUserId });
     }
+  });
+
+  afterAll(() => {
+    // Cleanup database connections or any global state if needed
+    jest.clearAllMocks();
+    db.$client.end();
   });
 
   describe('Job CRUD Operations', () => {

@@ -367,6 +367,7 @@ export async function POST(request: Request) {
               dataStream,
               selectedChatModelProvider,
               selectedChatModel,
+              userMessage: message,
             }),
             updateDocument: updateDocument({
               session,
