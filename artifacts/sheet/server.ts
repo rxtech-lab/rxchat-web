@@ -4,6 +4,7 @@ import { streamObject } from 'ai';
 import { z } from 'zod';
 import type { ProviderType } from '@/lib/ai/models';
 import { getModelProvider } from '@/lib/ai/providers';
+import { getTextContentFromUserMessage } from '@/lib/utils.server';
 
 export const sheetDocumentHandler = (
   selectedChatModel: string,
@@ -20,7 +21,7 @@ export const sheetDocumentHandler = (
         selectedChatModelProvider,
       );
 
-      const prompt = context && context.trim() !== '' ? context : title;
+      const prompt = getTextContentFromUserMessage(context);
 
       const { fullStream } = streamObject({
         model: provider.languageModel('artifact-model'),

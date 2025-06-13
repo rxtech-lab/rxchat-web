@@ -61,6 +61,7 @@ export const addNodeTool = (workflow: Workflow) =>
           inputSchema: toolInfo.inputSchema,
           outputSchema: toolInfo.outputSchema,
         };
+
         if (id === null || (typeof id === 'string' && id.trim() === '')) {
           workflow.addAfter(undefined, node);
         } else {
@@ -96,19 +97,25 @@ export const addConditionTool = (workflow: Workflow) =>
         ),
     }),
     execute: async ({ toolIdentifier, code }) => {
-      const node: ConditionNode = {
-        identifier: v4(),
-        type: 'condition',
-        code: code,
-        runtime: 'js',
-        children: [],
-      };
-      if (toolIdentifier) {
-        workflow.addChild(toolIdentifier, node);
-      } else {
-        workflow.addChild(undefined, node);
+      try {
+        const node: ConditionNode = {
+          identifier: v4(),
+          type: 'condition',
+          code: code,
+          runtime: 'js',
+          children: [],
+        };
+        if (toolIdentifier) {
+          workflow.addChild(toolIdentifier, node);
+        } else {
+          workflow.addChild(undefined, node);
+        }
+        return `Added condition node with identifier ${node.identifier}`;
+      } catch (error) {
+        return {
+          error: error,
+        };
       }
-      return `Added condition node with identifier ${node.identifier}`;
     },
   });
 
@@ -135,20 +142,21 @@ export const addConverterTool = (workflow: Workflow) =>
     execute: async ({ toolIdentifier, code }) => {
       try {
         await compileCode(code, 'typescript');
+
+        const node: ConverterNode = {
+          identifier: v4(),
+          type: 'converter',
+          code: code,
+          child: null,
+          runtime: 'js',
+        };
+        workflow.addAfter(toolIdentifier, node);
+        return `Added converter node with identifier ${node.identifier}`;
       } catch (error) {
         return {
           error: error,
         };
       }
-      const node: ConverterNode = {
-        identifier: v4(),
-        type: 'converter',
-        code: code,
-        child: null,
-        runtime: 'js',
-      };
-      workflow.addAfter(toolIdentifier, node);
-      return `Added converter node with identifier ${node.identifier}`;
     },
   });
 
@@ -159,8 +167,14 @@ export const removeNodeTool = (workflow: Workflow) =>
       identifier: z.string(),
     }),
     execute: async ({ identifier }) => {
-      workflow.removeChild(identifier);
-      return `Removed node with identifier ${identifier}`;
+      try {
+        workflow.removeChild(identifier);
+        return `Removed node with identifier ${identifier}`;
+      } catch (error) {
+        return {
+          error: error,
+        };
+      }
     },
   });
 
@@ -175,19 +189,25 @@ export const modifyToolNode = (workflow: Workflow) =>
       }),
     }),
     execute: async ({ id, node }) => {
-      // Get the current node to preserve its existing child relationship
-      const currentNode = workflow.findNode(id);
-      const existingChild =
-        currentNode && 'child' in currentNode ? currentNode.child : null;
+      try {
+        // Get the current node to preserve its existing child relationship
+        const currentNode = workflow.findNode(id);
+        const existingChild =
+          currentNode && 'child' in currentNode ? currentNode.child : null;
 
-      workflow.modifyChild(id, {
-        identifier: id,
-        type: 'tool',
-        toolIdentifier: node.toolIdentifier,
-        child: existingChild,
-      } as ToolNode);
+        workflow.modifyChild(id, {
+          identifier: id,
+          type: 'tool',
+          toolIdentifier: node.toolIdentifier,
+          child: existingChild,
+        } as ToolNode);
 
-      return `Modified tool node with identifier ${id} to ${node.toolIdentifier}`;
+        return `Modified tool node with identifier ${id} to ${node.toolIdentifier}`;
+      } catch (error) {
+        return {
+          error: error,
+        };
+      }
     },
   });
 
@@ -196,7 +216,14 @@ export const compileTool = (workflow: Workflow) =>
     description: 'Compile the workflow to see if it is valid',
     parameters: z.object({}),
     execute: async () => {
-      workflow.compile();
+      try {
+        await workflow.compile();
+        return 'Workflow compiled successfully';
+      } catch (error) {
+        return {
+          error: error,
+        };
+      }
     },
   });
 
@@ -216,12 +243,38 @@ export const modifyTriggerTool = (workflow: Workflow) =>
       cron: z.string().describe('The cron expression to schedule the workflow'),
     }),
     execute: async ({ cron }) => {
-      workflow.modifyTrigger({
-        type: 'cronjob-trigger',
-        identifier: v4(),
-        cron,
-      });
-      return workflow.getWorkflow();
+      try {
+        workflow.modifyTrigger({
+          type: 'cronjob-trigger',
+          identifier: v4(),
+          cron,
+        });
+        return workflow.getWorkflow();
+      } catch (error) {
+        return {
+          error: error,
+        };
+      }
+    },
+  });
+
+export const swapNodesTool = (workflow: Workflow) =>
+  tool({
+    description:
+      'Swap two nodes in the workflow but still keep their children intact',
+    parameters: z.object({
+      identifier1: z.string().describe('The identifier of the first node'),
+      identifier2: z.string().describe('The identifier of the second node'),
+    }),
+    execute: async ({ identifier1, identifier2 }) => {
+      try {
+        workflow.swapNodes(identifier1, identifier2);
+        return `Swapped nodes ${identifier1} and ${identifier2}`;
+      } catch (error) {
+        return {
+          error: error,
+        };
+      }
     },
   });
 
@@ -242,22 +295,28 @@ export const addInputTool = (workflow: Workflow) =>
         ),
     }),
     execute: async ({ toolIdentifier, output }) => {
-      const node: FixedInput = {
-        identifier: v4(),
-        type: 'fixed-input',
-        output: output,
-        child: null,
-      };
+      try {
+        const node: FixedInput = {
+          identifier: v4(),
+          type: 'fixed-input',
+          output: JSON.parse(output),
+          child: null,
+        };
 
-      if (
-        toolIdentifier === null ||
-        (typeof toolIdentifier === 'string' && toolIdentifier.trim() === '')
-      ) {
-        workflow.addChild(undefined, node);
-      } else {
-        workflow.addChild(toolIdentifier, node);
+        if (
+          toolIdentifier === null ||
+          (typeof toolIdentifier === 'string' && toolIdentifier.trim() === '')
+        ) {
+          workflow.addChild(undefined, node);
+        } else {
+          workflow.addChild(toolIdentifier, node);
+        }
+        return `Added fixed input node with identifier ${node.identifier}`;
+      } catch (error) {
+        return {
+          error: error,
+        };
       }
-      return `Added fixed input node with identifier ${node.identifier}`;
     },
   });
 
@@ -585,6 +644,158 @@ export class Workflow implements WorkflowInterface {
       throw new Error(`Invalid workflow format: ${result.error.message}`);
     }
     return new Workflow(result.data.title, result.data.trigger);
+  }
+
+  swapNodes(identifier1: string, identifier2: string): void {
+    const node1 = this.findNode(identifier1);
+    const node2 = this.findNode(identifier2);
+    if (!node1 || !node2) {
+      throw new Error(
+        `Node with identifier ${identifier1} or ${identifier2} not found`,
+      );
+    }
+
+    // Cannot swap with trigger node
+    if (
+      node1.identifier === this.workflow.trigger.identifier ||
+      node2.identifier === this.workflow.trigger.identifier
+    ) {
+      throw new Error('Cannot swap trigger node');
+    }
+
+    // Cannot swap a node with itself
+    if (identifier1 === identifier2) {
+      throw new Error('Cannot swap a node with itself');
+    }
+
+    // Find parents of both nodes
+    const parent1 = this.findParentNode(identifier1);
+    const parent2 = this.findParentNode(identifier2);
+
+    if (!parent1 || !parent2) {
+      throw new Error('Cannot swap nodes without valid parent relationships');
+    }
+
+    // Special case: if both nodes have the same parent and are in children array
+    if (
+      parent1.identifier === parent2.identifier &&
+      'children' in parent1 &&
+      Array.isArray((parent1 as any).children)
+    ) {
+      this.swapSiblingNodes(parent1, identifier1, identifier2);
+      return;
+    }
+
+    // Special case: if node1 is the parent of node2 (consecutive nodes)
+    if (parent2.identifier === node1.identifier) {
+      this.swapConsecutiveNodes(parent1, node1, node2);
+      return;
+    }
+
+    // Special case: if node2 is the parent of node1 (consecutive nodes)
+    if (parent1.identifier === node2.identifier) {
+      this.swapConsecutiveNodes(parent2, node2, node1);
+      return;
+    }
+
+    // General case: swap non-consecutive nodes
+    // Simply update the parent references to swap the nodes
+    // swap but keep the child relationships intact
+    const node1Child = (node1 as any).child;
+    const node2Child = (node2 as any).child;
+    this.updateParentChildReference(parent1, identifier1, node2);
+    (node2 as any).child = node1Child;
+    this.updateParentChildReference(parent2, identifier2, node1);
+    (node1 as any).child = node2Child;
+  }
+
+  /**
+   * Helper method to swap sibling nodes (nodes with the same parent in children array)
+   */
+  private swapSiblingNodes(
+    parent: BaseNode,
+    identifier1: string,
+    identifier2: string,
+  ): void {
+    if ('children' in parent && Array.isArray((parent as any).children)) {
+      const children = (parent as any).children as BaseNode[];
+      const index1 = children.findIndex(
+        (child: BaseNode) => child.identifier === identifier1,
+      );
+      const index2 = children.findIndex(
+        (child: BaseNode) => child.identifier === identifier2,
+      );
+
+      if (index1 !== -1 && index2 !== -1) {
+        // Swap the elements in the array
+        [children[index1], children[index2]] = [
+          children[index2],
+          children[index1],
+        ];
+      }
+    }
+  }
+
+  /**
+   * Helper method to swap consecutive nodes (where one is the parent of the other)
+   */
+  private swapConsecutiveNodes(
+    grandParent: BaseNode,
+    parentNode: BaseNode,
+    childNode: BaseNode,
+  ): void {
+    const childOfChild =
+      'child' in childNode
+        ? childNode.child
+        : 'children' in childNode
+          ? (childNode as any).children
+          : null;
+
+    // Update grandparent to point to childNode instead of parentNode
+    this.updateParentChildReference(
+      grandParent,
+      parentNode.identifier,
+      childNode,
+    );
+
+    // Set childNode's child to be parentNode
+    if ('child' in childNode) {
+      (childNode as any).child = parentNode;
+    }
+
+    // Set parentNode's child to be the original child of childNode
+    if ('child' in parentNode) {
+      (parentNode as any).child = childOfChild;
+    }
+  }
+
+  /**
+   * Helper method to update parent-child reference when swapping nodes
+   */
+  private updateParentChildReference(
+    parent: BaseNode,
+    oldChildIdentifier: string,
+    newChild: BaseNode,
+  ): void {
+    if (
+      'child' in parent &&
+      parent.child &&
+      this.isBaseNode(parent.child) &&
+      parent.child.identifier === oldChildIdentifier
+    ) {
+      (parent as any).child = newChild;
+    } else if (
+      'children' in parent &&
+      Array.isArray((parent as any).children)
+    ) {
+      const children = (parent as any).children as BaseNode[];
+      const childIndex = children.findIndex(
+        (child: BaseNode) => child.identifier === oldChildIdentifier,
+      );
+      if (childIndex !== -1) {
+        children[childIndex] = newChild;
+      }
+    }
   }
 
   /**

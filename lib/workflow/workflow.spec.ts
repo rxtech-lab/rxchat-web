@@ -1,4 +1,4 @@
-import type { CronjobTriggerNode, ToolNode } from './types';
+import type { ConditionNode, CronjobTriggerNode, ToolNode } from './types';
 import { Workflow } from './workflow';
 import { McpRouter } from '../router/mcpRouter';
 import { WorkflowToolMissingError } from './errors';
@@ -2131,6 +2131,398 @@ describe('Workflow', () => {
       expect(
         workflow.getWorkflow().trigger.child.child.child.toolIdentifier,
       ).toEqual('child-tool-2');
+    });
+  });
+
+  describe('swapNodes', () => {
+    beforeEach(() => {
+      // Create a fresh workflow for each test
+      const freshTrigger: CronjobTriggerNode = {
+        identifier: 'trigger-id',
+        type: 'cronjob-trigger',
+        cron: '0 2 * * *',
+        child: null,
+      };
+      workflow = new Workflow('Test Workflow', freshTrigger, mockMcpRouter);
+    });
+
+    it('should swap two tool nodes successfully', () => {
+      const node1: ToolNode = {
+        identifier: 'node1',
+        type: 'tool',
+        toolIdentifier: 'tool1',
+        description: 'Tool 1',
+        child: null,
+      };
+
+      const node2: ToolNode = {
+        identifier: 'node2',
+        type: 'tool',
+        toolIdentifier: 'tool2',
+        description: 'Tool 2',
+        child: null,
+      };
+
+      const node3: ToolNode = {
+        identifier: 'node3',
+        type: 'tool',
+        toolIdentifier: 'tool3',
+        description: 'Tool 3',
+        child: null,
+      };
+
+      // Build workflow: trigger -> node1 -> node2 -> node3
+      workflow.addChild(undefined, node1);
+      workflow.addChild('node1', node2);
+      workflow.addChild('node2', node3);
+
+      // Swap node1 and node2
+      workflow.swapNodes('node1', 'node2');
+
+      // Verify the structure is now: trigger -> node2 -> node1 -> node3
+      const workflowData = workflow.getWorkflow();
+      expect(workflowData.trigger.child?.identifier).toBe('node2');
+      expect((workflowData.trigger.child as any)?.child?.identifier).toBe(
+        'node1',
+      );
+      expect(
+        (workflowData.trigger.child as any)?.child?.child?.identifier,
+      ).toBe('node3');
+    });
+
+    it('should preserve child relationships when swapping nodes with children', () => {
+      const node1: ToolNode = {
+        identifier: 'node1',
+        type: 'tool',
+        toolIdentifier: 'tool1',
+        description: 'Tool 1',
+        child: null,
+      };
+
+      const node2: ToolNode = {
+        identifier: 'node2',
+        type: 'tool',
+        toolIdentifier: 'tool2',
+        description: 'Tool 2',
+        child: null,
+      };
+
+      const child1: ToolNode = {
+        identifier: 'child1',
+        type: 'tool',
+        toolIdentifier: 'child-tool1',
+        description: 'Child Tool 1',
+        child: null,
+      };
+
+      const child2: ToolNode = {
+        identifier: 'child2',
+        type: 'tool',
+        toolIdentifier: 'child-tool2',
+        description: 'Child Tool 2',
+        child: null,
+      };
+
+      // Build workflow: trigger -> node1 -> child1 -> node2 -> child2
+      workflow.addChild(undefined, node1);
+      workflow.addChild('node1', child1);
+      workflow.addChild('child1', node2);
+      workflow.addChild('node2', child2);
+
+      // Now swap node1 and node2
+      // New structure should be: trigger -> node2 -> child1 -> node1 -> child2
+      workflow.swapNodes('node1', 'node2');
+
+      // Verify that node2 is now first and node1 is later, with their children preserved
+      const workflowData = workflow.getWorkflow();
+      expect(workflowData.trigger.child?.identifier).toBe('node2');
+      expect((workflowData.trigger.child as any)?.child?.identifier).toBe(
+        'child1',
+      );
+      expect(
+        (workflowData.trigger.child as any)?.child?.child?.identifier,
+      ).toBe('node1');
+      expect(
+        (workflowData.trigger.child as any)?.child?.child?.child?.identifier,
+      ).toBe('child2');
+    });
+
+    it('should throw error when trying to swap non-existent node', () => {
+      const node1: ToolNode = {
+        identifier: 'node1',
+        type: 'tool',
+        toolIdentifier: 'tool1',
+        description: 'Tool 1',
+        child: null,
+      };
+
+      workflow.addChild(undefined, node1);
+
+      expect(() => {
+        workflow.swapNodes('node1', 'non-existent');
+      }).toThrow('Node with identifier node1 or non-existent not found');
+
+      expect(() => {
+        workflow.swapNodes('non-existent', 'node1');
+      }).toThrow('Node with identifier non-existent or node1 not found');
+    });
+
+    it('should throw error when trying to swap trigger node', () => {
+      const node1: ToolNode = {
+        identifier: 'node1',
+        type: 'tool',
+        toolIdentifier: 'tool1',
+        description: 'Tool 1',
+        child: null,
+      };
+
+      workflow.addChild(undefined, node1);
+
+      expect(() => {
+        workflow.swapNodes('trigger-id', 'node1');
+      }).toThrow('Cannot swap trigger node');
+
+      expect(() => {
+        workflow.swapNodes('node1', 'trigger-id');
+      }).toThrow('Cannot swap trigger node');
+    });
+
+    it('should throw error when trying to swap a node with itself', () => {
+      const node1: ToolNode = {
+        identifier: 'node1',
+        type: 'tool',
+        toolIdentifier: 'tool1',
+        description: 'Tool 1',
+        child: null,
+      };
+
+      workflow.addChild(undefined, node1);
+
+      expect(() => {
+        workflow.swapNodes('node1', 'node1');
+      }).toThrow('Cannot swap a node with itself');
+    });
+
+    it('should swap nodes in a complex workflow with multiple levels', () => {
+      const node1: ToolNode = {
+        identifier: 'node1',
+        type: 'tool',
+        toolIdentifier: 'tool1',
+        description: 'Tool 1',
+        child: null,
+      };
+
+      const node2: ToolNode = {
+        identifier: 'node2',
+        type: 'tool',
+        toolIdentifier: 'tool2',
+        description: 'Tool 2',
+        child: null,
+      };
+
+      const node3: ToolNode = {
+        identifier: 'node3',
+        type: 'tool',
+        toolIdentifier: 'tool3',
+        description: 'Tool 3',
+        child: null,
+      };
+
+      const node4: ToolNode = {
+        identifier: 'node4',
+        type: 'tool',
+        toolIdentifier: 'tool4',
+        description: 'Tool 4',
+        child: null,
+      };
+
+      // Build workflow: trigger -> node1 -> node2 -> node3 -> node4
+      workflow.addChild(undefined, node1);
+      workflow.addChild('node1', node2);
+      workflow.addChild('node2', node3);
+      workflow.addChild('node3', node4);
+
+      // Swap node2 and node3 (middle nodes)
+      workflow.swapNodes('node2', 'node3');
+
+      // Verify the structure is now: trigger -> node1 -> node3 -> node2 -> node4
+      const workflowData = workflow.getWorkflow();
+      expect(workflowData.trigger.child?.identifier).toBe('node1');
+      expect((workflowData.trigger.child as any)?.child?.identifier).toBe(
+        'node3',
+      );
+      expect(
+        (workflowData.trigger.child as any)?.child?.child?.identifier,
+      ).toBe('node2');
+      expect(
+        (workflowData.trigger.child as any)?.child?.child?.child?.identifier,
+      ).toBe('node4');
+    });
+
+    it('should work with condition nodes that have children arrays', () => {
+      const conditionNode: ConditionNode = {
+        identifier: 'condition1',
+        type: 'condition',
+        code: 'return "node1";',
+        runtime: 'js',
+        children: [],
+      };
+
+      const node1: ToolNode = {
+        identifier: 'node1',
+        type: 'tool',
+        toolIdentifier: 'tool1',
+        description: 'Tool 1',
+        child: null,
+      };
+
+      const node2: ToolNode = {
+        identifier: 'node2',
+        type: 'tool',
+        toolIdentifier: 'tool2',
+        description: 'Tool 2',
+        child: null,
+      };
+
+      // Build workflow: trigger -> conditionNode with children [node1, node2]
+      workflow.addChild(undefined, conditionNode);
+      workflow.addChild('condition1', node1);
+      workflow.addChild('condition1', node2);
+
+      // Swap the two child nodes
+      workflow.swapNodes('node1', 'node2');
+
+      // Verify that the nodes are swapped in the children array
+      const workflowData = workflow.getWorkflow();
+      const condition = workflowData.trigger.child as ConditionNode;
+      expect(condition.children[0].identifier).toBe('node2');
+      expect(condition.children[1].identifier).toBe('node1');
+    });
+
+    it('should swap nodes between different parent types (single child and children array)', () => {
+      const conditionNode: ConditionNode = {
+        identifier: 'condition1',
+        type: 'condition',
+        code: 'return "node1";',
+        runtime: 'js',
+        children: [],
+      };
+
+      const regularNode: ToolNode = {
+        identifier: 'regular1',
+        type: 'tool',
+        toolIdentifier: 'regular-tool',
+        description: 'Regular Tool',
+        child: null,
+      };
+
+      const childNode1: ToolNode = {
+        identifier: 'child1',
+        type: 'tool',
+        toolIdentifier: 'child-tool1',
+        description: 'Child Tool 1',
+        child: null,
+      };
+
+      const childNode2: ToolNode = {
+        identifier: 'child2',
+        type: 'tool',
+        toolIdentifier: 'child-tool2',
+        description: 'Child Tool 2',
+        child: null,
+      };
+
+      // Build workflow: trigger -> conditionNode -> [child1] -> regularNode -> child2
+      workflow.addChild(undefined, conditionNode);
+      workflow.addChild('condition1', childNode1);
+      workflow.addChild('condition1', regularNode);
+      workflow.addChild('regular1', childNode2);
+
+      // Swap child1 (from children array) with child2 (from single child)
+      workflow.swapNodes('child1', 'child2');
+
+      // Verify the swap occurred correctly
+      const workflowData = workflow.getWorkflow();
+      const condition = workflowData.trigger.child as ConditionNode;
+
+      expect(condition.children[0].identifier).toBe('child2');
+      expect(condition.children[1].identifier).toBe('regular1');
+      expect((condition.children[1] as ToolNode).child?.identifier).toBe(
+        'child1',
+      );
+    });
+
+    it('should preserve deep child structures when swapping', () => {
+      const node1: ToolNode = {
+        identifier: 'node1',
+        type: 'tool',
+        toolIdentifier: 'tool1',
+        description: 'Tool 1',
+        child: null,
+      };
+
+      const node2: ToolNode = {
+        identifier: 'node2',
+        type: 'tool',
+        toolIdentifier: 'tool2',
+        description: 'Tool 2',
+        child: null,
+      };
+
+      const deepChild1: ToolNode = {
+        identifier: 'deep1',
+        type: 'tool',
+        toolIdentifier: 'deep-tool1',
+        description: 'Deep Tool 1',
+        child: null,
+      };
+
+      const deepChild2: ToolNode = {
+        identifier: 'deep2',
+        type: 'tool',
+        toolIdentifier: 'deep-tool2',
+        description: 'Deep Tool 2',
+        child: null,
+      };
+
+      const deepestChild: ToolNode = {
+        identifier: 'deepest',
+        type: 'tool',
+        toolIdentifier: 'deepest-tool',
+        description: 'Deepest Tool',
+        child: null,
+      };
+
+      // Build complex structure:
+      // trigger -> node1 -> deep1 -> deepest -> node2 -> deep2
+      workflow.addChild(undefined, node1);
+      workflow.addChild('node1', deepChild1);
+      workflow.addChild('deep1', deepestChild);
+      workflow.addChild('deepest', node2);
+      workflow.addChild('node2', deepChild2);
+
+      // Swap node1 and node2, which should preserve their entire subtrees
+      // New structure should be:
+      // trigger -> node2 -> deep1 -> deepest -> node1 -> deep2
+      workflow.swapNodes('node1', 'node2');
+
+      // Verify the structure is now:
+      // trigger -> node2 -> deep2 -> node1 -> deep1 -> deepest
+      const workflowData = workflow.getWorkflow();
+      expect(workflowData.trigger.child?.identifier).toBe('node2');
+      expect((workflowData.trigger.child as any)?.child?.identifier).toBe(
+        'deep1',
+      );
+      expect(
+        (workflowData.trigger.child as any)?.child?.child?.identifier,
+      ).toBe('deepest');
+      expect(
+        (workflowData.trigger.child as any)?.child?.child?.child?.identifier,
+      ).toBe('node1');
+      expect(
+        (workflowData.trigger.child as any)?.child?.child?.child?.child
+          ?.identifier,
+      ).toBe('deep2');
     });
   });
 });

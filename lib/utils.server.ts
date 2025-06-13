@@ -5,15 +5,17 @@ import {
   MESSAGE_COMPRESSION_MODEL,
 } from '@/lib/constants';
 
-import type { DBMessage } from './db/schema';
 import { createOpenRouter } from '@openrouter/ai-sdk-provider';
 import {
+  CoreUserMessage,
   generateText,
+  UIMessage,
   type TextPart,
   type ToolCallPart,
   type ToolResultPart,
 } from 'ai';
 import { estimateTokenCount } from 'tokenx';
+import type { DBMessage } from './db/schema';
 
 /**
  * Calculate SHA256 hash from file content downloaded from URL
@@ -148,4 +150,16 @@ export async function compressMessage(
   }
 
   return messages;
+}
+
+export function getTextContentFromUserMessage(userMessage: UIMessage): string {
+  userMessage;
+  const textContent = userMessage.parts
+    .map((part) => {
+      if (part.type === 'text') {
+        return part.text;
+      }
+    })
+    .join('\n');
+  return textContent;
 }

@@ -1,4 +1,4 @@
-import { WorkflowEngineError } from './errors';
+import { WorkflowEngineError, WorkflowReferenceError } from './errors';
 import {
   type ConditionNode,
   type ConditionNodeExecutionResult,
@@ -37,7 +37,12 @@ interface ExecutionContext {
 }
 
 export interface ToolExecutionEngine {
-  execute(tool: string, input: any): Promise<any>;
+  execute(
+    tool: string,
+    input: any,
+    inputSchema: Record<string, any>,
+    outputSchema: Record<string, any>,
+  ): Promise<any>;
 }
 
 export interface JSCodeExecutionEngine {
@@ -55,6 +60,8 @@ export class WorkflowEngine implements WorkflowEngineInterface {
   private jsCodeExecutionEngine: JSCodeExecutionEngine;
   private toolExecutionEngine: ToolExecutionEngine;
 
+  private workflowContext: Record<string, any> = {};
+
   constructor(
     jsCodeExecutionEngine: JSCodeExecutionEngine,
     toolExecutionEngine: ToolExecutionEngine,
@@ -67,6 +74,7 @@ export class WorkflowEngine implements WorkflowEngineInterface {
     workflow: Workflow,
     context: Record<string, any> = {},
   ): Promise<any> {
+    this.workflowContext = context;
     try {
       this.reset();
       this.workflow = workflow;
@@ -74,7 +82,7 @@ export class WorkflowEngine implements WorkflowEngineInterface {
       if (workflow.trigger.child) {
         this.executionQueue.push({
           nodeId: workflow.trigger.child.identifier,
-          context: context,
+          context: {},
         });
       } else {
         throw new WorkflowEngineError('Trigger node has no child to execute');
@@ -278,17 +286,21 @@ export class WorkflowEngine implements WorkflowEngineInterface {
   ): Promise<any> {
     console.log(`Fixed input node executed: ${node.identifier}`);
 
-    const env = new Environment();
-    // Use context (from parent node's output) as input, and context as context
+    const env = new Environment(undefined, { throwOnUndefined: true });
+    // Use context (from parent node's output) as input, and workflow context as context
+    // If context is empty (first node after trigger), use workflow context as input too
+    const inputContext =
+      Object.keys(context).length === 0 ? this.workflowContext : context;
     const renderContext = {
-      input: context,
-      context: context,
+      input: inputContext,
+      context: this.workflowContext,
     };
 
     /**
      * Recursively renders all string templates in an object, array, or primitive value
      * @param value - The value to render (can be object, array, string, or primitive)
      * @returns The rendered value with all templates processed
+     * @throws WorkflowReferenceError if a template variable is not found
      */
     const renderRecursively = (value: any): any => {
       if (typeof value === 'string') {
@@ -296,8 +308,27 @@ export class WorkflowEngine implements WorkflowEngineInterface {
         try {
           return env.renderString(value, renderContext);
         } catch (error) {
-          console.warn(`Failed to render template "${value}":`, error);
-          return value; // Return original value if rendering fails
+          // Check if the error is about a missing variable
+          if (error instanceof Error) {
+            // Extract the variable name from the template string
+            const matches = value.match(/{{([^}]+)}}/);
+            if (matches) {
+              const [_, reference] = matches;
+              const [field, ...path] = reference.trim().split('.');
+              if (field === 'input' || field === 'context') {
+                // Check if the variable exists in the context
+                const contextValue =
+                  field === 'input' ? inputContext : this.workflowContext;
+                if (!(path[0] in contextValue)) {
+                  throw new WorkflowReferenceError(
+                    field as 'input' | 'context',
+                    path.join('.'),
+                  );
+                }
+              }
+            }
+          }
+          throw error; // Re-throw other errors
         }
       } else if (Array.isArray(value)) {
         // Recursively render each item in the array
@@ -315,9 +346,17 @@ export class WorkflowEngine implements WorkflowEngineInterface {
       }
     };
 
-    const renderedOutput = renderRecursively(node.output);
-
-    return renderedOutput;
+    try {
+      const renderedOutput = renderRecursively(node.output);
+      return renderedOutput;
+    } catch (error) {
+      if (error instanceof WorkflowReferenceError) {
+        throw error;
+      }
+      throw new WorkflowEngineError(
+        `Fixed input node '${node.identifier}' execution failed: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
   }
 
   private async executeTriggerNode(
@@ -343,6 +382,8 @@ export class WorkflowEngine implements WorkflowEngineInterface {
       const result = await this.toolExecutionEngine.execute(
         node.toolIdentifier,
         input,
+        node.inputSchema,
+        node.outputSchema,
       );
       return result;
     } catch (error) {
@@ -398,6 +439,7 @@ export class WorkflowEngine implements WorkflowEngineInterface {
   private async executeConverterNode(
     node: ConverterNode,
     input?: any,
+    context?: Record<string, any>,
   ): Promise<ConverterNodeExecutionResult> {
     console.log(
       `Converter node executed: ${node.identifier} using converter: ${node.code}`,
@@ -405,11 +447,15 @@ export class WorkflowEngine implements WorkflowEngineInterface {
 
     try {
       // Execute the JavaScript code for conversion
-      const result = this.jsCodeExecutionEngine.execute(input, node.code, {
+      const result = await this.jsCodeExecutionEngine.execute(
         input,
-        code: node.code,
-        nodeId: node.identifier,
-      });
+        node.code,
+        {
+          input,
+          code: node.code,
+          nodeId: node.identifier,
+        },
+      );
 
       return ConverterNodeExecutionResultSchema.parse(result);
     } catch (error) {

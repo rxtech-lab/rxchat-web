@@ -7,6 +7,7 @@ import {
   updateJobResult,
   updateJobStatus,
 } from '@/lib/db/queries/job';
+import { getUserContext } from '@/lib/db/queries/user';
 import {
   createJSExecutionEngine,
   createToolExecutionEngine,
@@ -34,6 +35,7 @@ export const { POST } = serve(
           status: 'pending',
           dbConnection: tx,
         });
+        const userContext = await getUserContext(job.userId);
         const document = await getDocumentById({
           id: job.documentId,
         });
@@ -76,6 +78,7 @@ export const { POST } = serve(
           jobResult,
           job,
           workflow: onStep,
+          userContext,
         };
       });
 
@@ -89,6 +92,7 @@ export const { POST } = serve(
       );
       const executionResult = await workflowEngine.execute(
         result.workflow.workflow,
+        result.userContext,
       );
 
       await db.transaction(async (tx) => {

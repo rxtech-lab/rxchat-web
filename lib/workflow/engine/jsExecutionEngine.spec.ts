@@ -10,6 +10,10 @@ describe('Execute JS Engine', () => {
       input: {},
     },
     {
+      title: 'Object input with properties',
+      input: { key1: 'value1', key2: 42, key3: true },
+    },
+    {
       title: 'Empty Array input',
       input: [],
     },

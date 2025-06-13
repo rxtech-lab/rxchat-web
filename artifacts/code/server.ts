@@ -4,6 +4,7 @@ import { getModelProvider } from '@/lib/ai/providers';
 import { codePrompt, updateDocumentPrompt } from '@/lib/ai/prompts';
 import { createDocumentHandler } from '@/lib/artifacts/server';
 import type { ProviderType } from '@/lib/ai/models';
+import { getTextContentFromUserMessage } from '@/lib/utils.server';
 
 export const codeDocumentHandler = (
   selectedChatModel: string,
@@ -16,7 +17,7 @@ export const codeDocumentHandler = (
     onCreateDocument: async ({ title, context, dataStream }) => {
       let draftContent = '';
 
-      const prompt = context && context.trim() !== '' ? context : title;
+      const prompt = getTextContentFromUserMessage(context);
 
       const { fullStream } = streamObject({
         model: getModelProvider(

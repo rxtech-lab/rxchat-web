@@ -58,6 +58,15 @@ export const TEST_PROMPTS: Record<string, CoreMessage> = {
       },
     ],
   },
+  CREATE_DOCUMENT_TEXT_CALL_2: {
+    role: 'user',
+    content: [
+      {
+        type: 'text',
+        text: 'Help me write an essay about Silicon Valley',
+      },
+    ],
+  },
   CREATE_DOCUMENT_TEXT_RESULT: {
     role: 'tool',
     content: [

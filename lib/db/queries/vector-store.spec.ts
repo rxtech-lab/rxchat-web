@@ -1,3 +1,5 @@
+import { db } from '@/lib/db/queries/client';
+
 jest.mock('server-only', () => ({}));
 
 // Mock bcrypt-ts to avoid ESM import issues in Jest
@@ -60,6 +62,12 @@ describe('Vector Store Queries', () => {
     if (testUserId) {
       await deleteUserAccount({ id: testUserId });
     }
+  });
+
+  afterAll(() => {
+    // Cleanup database connections or any global state if needed
+    jest.clearAllMocks();
+    db.$client.end();
   });
 
   describe('createVectorStoreDocument', () => {

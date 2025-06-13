@@ -35,3 +35,19 @@ export class WorkflowToolMissingError extends WorkflowEngineError {
     return this.missingTools;
   }
 }
+
+export class WorkflowReferenceError extends WorkflowEngineError {
+  /**
+   * Create a new WorkflowReferenceError.
+   *
+   * @param field - The field that is referenced.
+   * @param reference - The reference that is not found. Can be nested object like 'input.user.name'.
+   */
+  constructor(field: 'input' | 'context', reference: string) {
+    super(
+      `Reference to non existing ${field}: ${reference}. Please check if the ${field} is available in the workflow.`,
+    );
+    Object.setPrototypeOf(this, WorkflowReferenceError.prototype);
+    this.name = 'WorkflowReferenceError';
+  }
+}

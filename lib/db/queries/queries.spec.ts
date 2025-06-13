@@ -1,3 +1,5 @@
+import { db } from '@/lib/db/queries/client';
+
 jest.mock('server-only', () => ({}));
 
 // Mock bcrypt-ts to avoid ESM import issues in Jest
@@ -55,6 +57,12 @@ describe('Prompt Queries', () => {
       userId: testUserId,
     });
     testPromptId = mockPrompt.id;
+  });
+
+  afterAll(() => {
+    // Cleanup database connections or any global state if needed
+    jest.clearAllMocks();
+    db.$client.end();
   });
 
   /**

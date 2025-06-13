@@ -4,6 +4,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
+import { AnimatePresence, motion } from 'framer-motion';
 import {
   AlertTriangle,
   ArrowRight,
@@ -11,12 +12,9 @@ import {
   Info,
   Lightbulb,
   Loader2,
-  Play,
   Search,
-  Square,
   Wrench,
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
 import type { OnStep } from './types';
 import WorkflowView from './workflow-view';
 
@@ -368,46 +366,6 @@ export function OnStepView({
                         </div>
                       </CardHeader>
                       <CardContent className="space-y-4">
-                        {onStep.suggestion.suggestions &&
-                          onStep.suggestion.suggestions.length > 0 && (
-                            <motion.div
-                              initial={{ opacity: 0, y: 20 }}
-                              animate={{ opacity: 1, y: 0 }}
-                              transition={{ delay: 0.2 }}
-                            >
-                              <h4 className="font-medium text-sm text-gray-700 mb-2">
-                                Suggestions:
-                              </h4>
-                              <ul className="space-y-2">
-                                {onStep.suggestion.suggestions.map(
-                                  (suggestion, index) => (
-                                    <motion.li
-                                      key={`suggestion-${index}-${suggestion.substring(0, 50)}`}
-                                      initial={{ opacity: 0, x: -20 }}
-                                      animate={{ opacity: 1, x: 0 }}
-                                      transition={{ delay: 0.3 + index * 0.1 }}
-                                      className="flex items-start gap-2"
-                                    >
-                                      <motion.div
-                                        animate={{ x: [0, 3, 0] }}
-                                        transition={{
-                                          duration: 1.5,
-                                          repeat: Number.POSITIVE_INFINITY,
-                                          delay: index * 0.2,
-                                        }}
-                                      >
-                                        <ArrowRight className="size-4 text-gray-400 mt-0.5 shrink-0" />
-                                      </motion.div>
-                                      <span className="text-sm bg-yellow-50 p-2 rounded border">
-                                        {suggestion}
-                                      </span>
-                                    </motion.li>
-                                  ),
-                                )}
-                              </ul>
-                            </motion.div>
-                          )}
-
                         {onStep.suggestion.modifications &&
                           onStep.suggestion.modifications.length > 0 && (
                             <motion.div
@@ -447,42 +405,6 @@ export function OnStepView({
                               </ul>
                             </motion.div>
                           )}
-
-                        <motion.div
-                          initial={{ opacity: 0, scale: 0.9 }}
-                          animate={{ opacity: 1, scale: 1 }}
-                          transition={{ delay: 0.6 }}
-                          className="flex items-center gap-2 pt-2"
-                        >
-                          <span className="text-sm font-medium text-gray-700">
-                            Next Step:
-                          </span>
-                          <motion.div
-                            whileHover={{ scale: 1.05 }}
-                            whileTap={{ scale: 0.95 }}
-                          >
-                            <Badge
-                              variant={
-                                onStep.suggestion.nextStep === 'continue'
-                                  ? 'default'
-                                  : 'secondary'
-                              }
-                              className="flex items-center gap-1"
-                            >
-                              {onStep.suggestion.nextStep === 'continue' ? (
-                                <>
-                                  <Play className="size-3" />
-                                  Continue
-                                </>
-                              ) : (
-                                <>
-                                  <Square className="size-3" />
-                                  Stop
-                                </>
-                              )}
-                            </Badge>
-                          </motion.div>
-                        </motion.div>
                       </CardContent>
                     </Card>
                   </motion.div>

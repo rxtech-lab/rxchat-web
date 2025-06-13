@@ -3,7 +3,8 @@ import {
   documentHandlersByArtifactKind,
 } from '@/lib/artifacts/server';
 import { generateUUID } from '@/lib/utils';
-import { type DataStreamWriter, tool } from 'ai';
+import type { DataStreamWriter, UIMessage } from 'ai';
+import { tool } from 'ai';
 import type { Session } from 'next-auth';
 import { z } from 'zod';
 import type { ProviderType } from '../models';
@@ -13,6 +14,7 @@ interface CreateDocumentProps {
   selectedChatModelProvider: ProviderType;
   selectedChatModel: string;
   dataStream: DataStreamWriter;
+  userMessage: UIMessage;
 }
 
 export const createDocument = ({
@@ -20,6 +22,7 @@ export const createDocument = ({
   selectedChatModelProvider,
   selectedChatModel,
   dataStream,
+  userMessage,
 }: CreateDocumentProps) =>
   tool({
     description: `Create a document for a writing or content creation activities. 
@@ -30,14 +33,8 @@ export const createDocument = ({
     parameters: z.object({
       title: z.string().describe('A short, descriptive title for the document'),
       kind: z.enum(artifactKinds),
-      context: z
-        .string()
-        .optional()
-        .describe(
-          'The complete original user query/request with all details and context. For flowcharts, this should contain the full user message describing what workflow they want to build, including specific requirements, tools, triggers, conditions, and expected outcomes.',
-        ),
     }),
-    execute: async ({ title, kind, context }) => {
+    execute: async ({ title, kind }) => {
       const id = generateUUID();
 
       dataStream.writeData({
@@ -78,7 +75,7 @@ export const createDocument = ({
       ).onCreateDocument({
         id,
         title,
-        context: context || '',
+        context: userMessage,
         dataStream,
         session,
       });

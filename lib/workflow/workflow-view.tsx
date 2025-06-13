@@ -9,7 +9,6 @@ import {
 } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
 import Editor from '@monaco-editor/react';
-import cronstrue from 'cronstrue';
 import type { Edge, Node } from '@xyflow/react';
 import {
   Background,
@@ -21,8 +20,9 @@ import {
   useReactFlow,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
+import cronstrue from 'cronstrue';
 import { Clock, Code, Eye, GitBranch, Wrench, Zap } from 'lucide-react';
-import { memo, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type {
   BaseNode,
   ConditionNode,
@@ -380,7 +380,10 @@ function WorkflowFlowComponent({
   );
 }
 
-export function PureWorkflowView({ workflow, className }: WorkflowViewProps) {
+export default function WorkflowView({
+  workflow,
+  className,
+}: WorkflowViewProps) {
   // Build nodes and edges from workflow structure
   const { nodes: initialNodes, edges: initialEdges } = useMemo(() => {
     const nodes: Node[] = [];
@@ -503,7 +506,3 @@ export function PureWorkflowView({ workflow, className }: WorkflowViewProps) {
     </div>
   );
 }
-
-export default memo(PureWorkflowView, (prev, next) => {
-  return prev.workflow !== next.workflow;
-});
