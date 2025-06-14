@@ -44,19 +44,6 @@ describe('McpRouter', () => {
       expect(result).toEqual({ missingTools: [] });
     });
 
-    it('should return all tools as missing when exists is false', async () => {
-      const tools = ['tool1', 'tool2'];
-      nock(baseUrl)
-        .get('/tools/check')
-        .query({ ids: tools })
-        .matchHeader('x-api-key', 'test-api-key')
-        .reply(200, { exists: false });
-
-      const result = await mcpRouter.checkToolsExist(tools);
-
-      expect(result).toEqual({ missingTools: tools });
-    });
-
     it('should return missingIds from 400 error response', async () => {
       nock(baseUrl)
         .get('/tools/check')

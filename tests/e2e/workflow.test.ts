@@ -32,10 +32,7 @@ test.describe('Workflow execution', () => {
           identifier: v4(),
           input: null,
           output: {
-            endpoint: 'PRICE',
-            price: {
-              symbol: 'BTCUSDT',
-            },
+            symbol: 'BTCUSDT',
           },
           child: {
             type: 'tool',
@@ -59,6 +56,6 @@ test.describe('Workflow execution', () => {
     const result = await workflowEngine.execute(workflow);
 
     expect(result).toBeDefined();
-    expect(result.data.price.length).toBeGreaterThan(0);
+    expect(result.price).toBeGreaterThan(0);
   });
 });
