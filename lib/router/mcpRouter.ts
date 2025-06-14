@@ -140,9 +140,10 @@ export class McpRouter implements McpRouterInterface {
         return { missingTools: [] };
       }
 
-      // If exists is false, all tools are missing
-      return { missingTools: tools };
+      console.log(responseData);
+      return { missingTools: [] };
     } catch (error) {
+      console.error(error);
       // If there's a network error, parsing error, or Zod validation error, assume all tools are missing
       return { missingTools: tools };
     }

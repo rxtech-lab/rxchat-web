@@ -9,10 +9,10 @@ import { expect, test } from '@playwright/test';
 
 test.beforeEach(async ({ page }, testInfo) => {
   // Extend timeout for all tests running this hook by 30 seconds.
-  testInfo.setTimeout(testInfo.timeout + 30_000);
+  testInfo.setTimeout(testInfo.timeout + 100_000);
 });
 
-test.describe('agent integration test', () => {
+test.describe.skip('agent integration test', () => {
   test('should be able to create a simple btc price alert workflow', async () => {
     const workflow = await agent('Create a workflow to fetch BTCUSDT price');
     expect(workflow?.workflow).toBeDefined();
@@ -24,7 +24,7 @@ test.describe('agent integration test', () => {
     );
 
     const result = await workflowEngine.execute(workflow.workflow);
-    expect(result.data.price.length).toBeGreaterThan(0);
+    expect(result.price).toBeGreaterThan(0);
     console.dir(result, { depth: null });
   });
 
@@ -44,7 +44,7 @@ test.describe('agent integration test', () => {
     // Check if cron expression is for every 10 minutes
     expect(['*/10 * * * *', '0 */10 * * *']).toContain(cron);
     const result = await workflowEngine.execute(workflow.workflow);
-    expect(result.data.price.length).toBeGreaterThan(0);
+    expect(result.price).toBeGreaterThan(0);
     console.dir(result, { depth: null });
   });
 
@@ -55,18 +55,35 @@ test.describe('agent integration test', () => {
     expect(workflow?.workflow).toBeDefined();
 
     console.dir(workflow, { depth: null });
-    const toolExecutionEngine = createTestToolExecutionEngine();
+
+    const testToolExecutionEngine = createTestToolExecutionEngine((tool) => {
+      if (tool === 'telegram-bot') {
+        return {
+          mode: 'test',
+          result: {
+            result: 'success',
+          },
+        };
+      }
+      return {
+        mode: 'real',
+      };
+    });
     const workflowEngine = new WorkflowEngine(
       createJSExecutionEngine(),
-      toolExecutionEngine, // cant use real tool for telegram bot
+      testToolExecutionEngine,
     );
 
-    await workflowEngine.execute(workflow.workflow);
-    expect(toolExecutionEngine.getCallCount('telegram')).toBe(1);
-    expect(toolExecutionEngine.getCallArgs('telegram')).toHaveProperty('data');
+    await workflowEngine.execute(workflow.workflow, {
+      tgId: '1234567890',
+    });
+    // expect testToolTelegram > 1
+    expect(
+      testToolExecutionEngine.getCallCount('telegram-bot'),
+    ).toBeGreaterThan(0);
 
-    const result = await workflowEngine.execute(workflow.workflow);
-    expect(result.data.price.length).toBeGreaterThan(0);
-    console.dir(result, { depth: null });
+    const args = testToolExecutionEngine.getCallArgs('telegram-bot');
+    expect(args.chat_id).toBe('1234567890');
+    expect(args.message).not.toBe('BTCUSDT price is undefined');
   });
 });

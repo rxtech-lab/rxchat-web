@@ -21,8 +21,8 @@ export class McpToolExecutionEngine implements ToolExecutionEngine {
   async execute(
     tool: string,
     input: any,
-    inputSchema: Record<string, any>,
-    outputSchema: Record<string, any>,
+    inputSchema: Record<string, any> = {},
+    outputSchema: Record<string, any> = {},
   ): Promise<any> {
     const url = new URL(this.mcpRouterServerUrl);
     url.pathname = `/tool/${tool}/use`;
