@@ -407,7 +407,7 @@ export default function WorkflowView({
       visited.add(node.identifier);
 
       const xPosition = 200; // Center position
-      const ySpacing = 150; // Vertical spacing between nodes
+      const ySpacing = 200; // Vertical spacing between nodes
 
       // Create the current node
       const flowNode: Node = {
