@@ -9,10 +9,15 @@ import { expect, test } from '@playwright/test';
 
 test.beforeEach(async ({ page }, testInfo) => {
   // Extend timeout for all tests running this hook by 30 seconds.
-  testInfo.setTimeout(testInfo.timeout + 100_000);
+  const isUsingLmStudio = process.env.USE_LM_STUDIO === 'true';
+  if (isUsingLmStudio) {
+    testInfo.setTimeout(testInfo.timeout + 200_000);
+  } else {
+    testInfo.setTimeout(testInfo.timeout + 100_000);
+  }
 });
 
-test.describe.skip('agent integration test', () => {
+test.describe('agent integration test', () => {
   test('should be able to create a simple btc price alert workflow', async () => {
     const workflow = await agent('Create a workflow to fetch BTCUSDT price');
     expect(workflow?.workflow).toBeDefined();
@@ -48,7 +53,7 @@ test.describe.skip('agent integration test', () => {
     console.dir(result, { depth: null });
   });
 
-  test.skip('should be able to create a simple notification bot that triggers every 10 minutes', async () => {
+  test('should be able to create a simple notification bot that triggers every 10 minutes', async () => {
     const workflow = await agent(
       'Create a workflow to fetch BTCUSDT price every 10 minutes and then send a notification using telegram',
     );
@@ -75,7 +80,7 @@ test.describe.skip('agent integration test', () => {
     );
 
     await workflowEngine.execute(workflow.workflow, {
-      tgId: '1234567890',
+      telegramId: '1234567890',
     });
     // expect testToolTelegram > 1
     expect(

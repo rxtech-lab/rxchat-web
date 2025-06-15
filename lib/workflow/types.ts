@@ -1,5 +1,9 @@
 import { z } from 'zod';
 import { isValidCron } from 'cron-validator';
+import type {
+  JSCodeExecutionEngine,
+  ToolExecutionEngine,
+} from './workflow-engine';
 
 const BaseNodeSchema = z.object({
   identifier: z
@@ -205,7 +209,9 @@ export const DiscoverySchema = z.object({
 export const SuggestionSchema = z.object({
   modifications: z
     .array(z.string())
-    .describe('The modifications for the workflow')
+    .describe(
+      'The modifications for the workflow. If you think there is no modification needed, return an empty array.',
+    )
     .optional(),
   skipToolDiscovery: z
     .boolean()
@@ -240,3 +246,8 @@ export const FixedInputSchema = BaseNodeSchema.extend({
 );
 
 export type FixedInput = z.infer<typeof FixedInputSchema>;
+
+export type WorkflowOptions = {
+  toolExecutionEngine?: ToolExecutionEngine;
+  jsExecutionEngine?: JSCodeExecutionEngine;
+};

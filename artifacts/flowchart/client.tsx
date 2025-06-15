@@ -99,6 +99,10 @@ export const flowchartArtifact = new Artifact<
       icon: <PlayIcon size={18} />,
       onClick: async ({ documentId }) => {
         const job = await createWorkflowJob(documentId);
+        if (job.error) {
+          toast.error(job.error);
+          return;
+        }
         toast.success(
           <div>
             Workflow job created successfully.

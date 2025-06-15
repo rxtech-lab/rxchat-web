@@ -4,16 +4,6 @@ import type { VisibilityType } from '@/components/visibility-selector';
 import { createPromptRunner } from '@/lib/agent/prompt-runner/runner';
 import { createMCPClient } from '@/lib/ai/mcp';
 import type { ProviderType } from '@/lib/ai/models';
-import {
-  deleteMessagesByChatIdAfterTimestamp,
-  getDocumentById,
-  getMessageById,
-  selectPromptById,
-  updateChatVisiblityById,
-} from '@/lib/db/queries/queries';
-import { generateText, type LanguageModel, type UIMessage } from 'ai';
-import { cookies } from 'next/headers';
-import { auth } from '../(auth)/auth';
 import { isTestEnvironment, MAX_WORKFLOW_RETRIES } from '@/lib/constants';
 import { db } from '@/lib/db/queries/client';
 import {
@@ -21,13 +11,24 @@ import {
   getJobByDocumentId,
   updateJobRunningStatus,
 } from '@/lib/db/queries/job';
-import { Client } from '@upstash/qstash';
-import { getWorkflowWebhookUrl } from '@/lib/workflow/utils';
-import { OnStepSchema } from '@/lib/workflow/types';
+import {
+  deleteMessagesByChatIdAfterTimestamp,
+  getDocumentById,
+  getMessageById,
+  selectPromptById,
+  updateChatVisiblityById,
+} from '@/lib/db/queries/queries';
 import { getUserContext } from '@/lib/db/queries/user';
-import { WorkflowEngine } from '@/lib/workflow/workflow-engine';
 import { createJSExecutionEngine } from '@/lib/workflow/engine';
 import { createTestToolExecutionEngine } from '@/lib/workflow/engine/testToolExecutionEngine';
+import { OnStepSchema } from '@/lib/workflow/types';
+import { getWorkflowWebhookUrl } from '@/lib/workflow/utils';
+import { WorkflowEngine } from '@/lib/workflow/workflow-engine';
+import { Client } from '@upstash/qstash';
+import { generateText, type LanguageModel, type UIMessage } from 'ai';
+import { cookies } from 'next/headers';
+import { auth } from '../(auth)/auth';
+import type { Job } from '@/lib/db/schema';
 import { WorkflowReferenceError } from '@/lib/workflow/errors';
 
 export async function saveChatModelAsCookie(
@@ -134,7 +135,10 @@ export async function selectPrompt({
   await selectPromptById({ id: promptId, userId });
 }
 
-export async function createWorkflowJob(documentId: string) {
+export async function createWorkflowJob(documentId: string): Promise<{
+  error?: string;
+  job?: Job;
+}> {
   const session = await auth();
   const workflowClient = new Client({
     token: process.env.QSTASH_TOKEN,
@@ -143,7 +147,9 @@ export async function createWorkflowJob(documentId: string) {
 
   const url = getWorkflowWebhookUrl();
   if (!session?.user) {
-    throw new Error('Unauthorized');
+    return {
+      error: 'Unauthorized',
+    };
   }
 
   const userContext = await getUserContext(session.user.id);
@@ -154,7 +160,7 @@ export async function createWorkflowJob(documentId: string) {
   );
 
   const userId = session.user.id;
-  await db.transaction(async (tx) => {
+  return await db.transaction(async (tx) => {
     const document = await getDocumentById({
       id: documentId,
     });
@@ -177,9 +183,12 @@ export async function createWorkflowJob(documentId: string) {
     } catch (error) {
       if (error instanceof WorkflowReferenceError) {
         return {
-          error: error.message,
+          error: `${error.humanReadableMessage}`,
         };
       }
+      return {
+        error: error instanceof Error ? error.message : 'Unknown error',
+      };
     }
 
     if (previousJob) {
@@ -198,7 +207,7 @@ export async function createWorkflowJob(documentId: string) {
         cron: parsedContent.workflow.trigger.cron ?? '0 0 * * *',
         retries: MAX_WORKFLOW_RETRIES,
       });
-      return previousJob;
+      return { job: previousJob };
     }
 
     const job = await createJob(
@@ -224,6 +233,8 @@ export async function createWorkflowJob(documentId: string) {
       cron: '0 0 * * *',
     });
 
-    return job;
+    return {
+      job,
+    };
   });
 }

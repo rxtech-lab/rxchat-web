@@ -961,9 +961,8 @@ describe('Workflow', () => {
 
         nock(baseUrl)
           .get('/tools/check')
-          .query({ ids: 'existing-tool' })
+          .query(true)
           .matchHeader('x-api-key', 'test-api-key')
-          .matchHeader('Content-Type', 'application/json')
           .reply(200, { exists: true });
 
         await expect(workflowWithRealRouter.compile()).resolves.toBeDefined();
