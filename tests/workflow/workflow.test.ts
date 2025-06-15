@@ -1,19 +1,14 @@
 import { createJSExecutionEngine } from '@/lib/workflow/engine';
 import { createTestToolExecutionEngine } from '@/lib/workflow/engine/testToolExecutionEngine';
 import { WorkflowReferenceError } from '@/lib/workflow/errors';
-import type {
-  ConverterNode,
-  FixedInput,
-  ToolNode,
-  Workflow,
-} from '@/lib/workflow/types';
+import type { ConverterNode, FixedInput, ToolNode } from '@/lib/workflow/types';
 import { WorkflowEngine } from '@/lib/workflow/workflow-engine';
 import { expect, test } from '@playwright/test';
 import { v4 } from 'uuid';
 
 test.describe('workflow', () => {
   test('should be able to create a simple btc price alert workflow', async () => {
-    const workflow: Workflow = {
+    const workflow = {
       trigger: {
         type: 'cronjob-trigger',
         identifier: 'cronjob-trigger',
@@ -81,7 +76,7 @@ test.describe('workflow', () => {
       testToolExecutionEngine,
     );
 
-    await workflowEngine.execute(workflow, {
+    await workflowEngine.execute(workflow as any, {
       tgId: '1234567890',
     });
     // expect testToolTelegram > 1

@@ -21,6 +21,11 @@ export const flowchartDocumentHandler = (
       // Use context (original user query) if available, fallback to title
       const query = getTextContentFromUserMessage(context);
       const userContext = await getUserContext(session.user.id);
+      const abortController = new AbortController();
+
+      dataStream.onError?.(() => {
+        abortController.abort();
+      });
 
       const workflow = await agent(query, null, userContext, {}, (step) => {
         dataStream.writeData({

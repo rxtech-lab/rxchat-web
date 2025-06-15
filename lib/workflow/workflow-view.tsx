@@ -362,11 +362,11 @@ function WorkflowFlowComponent({
       // Use setTimeout to ensure the nodes are rendered before fitting
       setTimeout(() => {
         reactFlowInstance.fitView({
-          padding: 20, // More padding for better spacing
+          padding: 40, // Better padding for centered view
           includeHiddenNodes: false,
-          minZoom: 1.2, // Zoom out more for better overview
-          maxZoom: 10, // Higher maximum zoom
-          duration: 800, // Smooth animation duration
+          minZoom: 1, // Maintain readable zoom level
+          maxZoom: 1.5, // Prevent over-zooming
+          duration: 600, // Smooth animation duration
         });
       }, 100);
     }
@@ -389,6 +389,44 @@ export default function WorkflowView({
     const nodes: Node[] = [];
     const edges: Edge[] = [];
 
+    // Helper function to calculate node height based on content
+    const getNodeHeight = (node: WorkflowNode): number => {
+      const baseHeight = 80; // Base node height
+      const lineHeight = 20; // Height per line of content
+
+      switch (node.type) {
+        case 'cronjob-trigger':
+        case 'trigger':
+          // Base + schedule info + ID
+          return (
+            baseHeight +
+            (node.type === 'cronjob-trigger' &&
+            (node as CronjobTriggerNode).cron
+              ? lineHeight * 2
+              : lineHeight)
+          );
+
+        case 'tool':
+          // Base + tool info + ID
+          return baseHeight + lineHeight;
+
+        case 'condition':
+          // Base + runtime + children count + ID
+          return baseHeight + lineHeight * 2;
+
+        case 'converter':
+          // Base + code preview + runtime + ID
+          return baseHeight + lineHeight * 2;
+
+        case 'fixed-input':
+          // Base + output info + jinja note + ID
+          return baseHeight + lineHeight * 2;
+
+        default:
+          return baseHeight;
+      }
+    };
+
     // Helper function to build nodes and edges recursively while maintaining order
     const processNode = (
       node: WorkflowNode | null | undefined,
@@ -406,8 +444,9 @@ export default function WorkflowView({
 
       visited.add(node.identifier);
 
-      const xPosition = 200; // Center position
-      const ySpacing = 200; // Vertical spacing between nodes
+      const xPosition = 0; // Center position - ReactFlow will handle centering
+      const nodeHeight = getNodeHeight(node);
+      const minSpacing = 40; // Minimum spacing between nodes
 
       // Create the current node
       const flowNode: Node = {
@@ -420,7 +459,7 @@ export default function WorkflowView({
       };
 
       nodes.push(flowNode);
-      let nextYPosition = yPosition + ySpacing;
+      let nextYPosition = yPosition + nodeHeight + minSpacing;
 
       // Handle child (singular) - for ToolNode, ConverterNode, TriggerNode, CronjobTriggerNode
       if ('child' in node && node.child) {
@@ -435,7 +474,7 @@ export default function WorkflowView({
             id: `${node.identifier}-${child.identifier}`,
             source: node.identifier,
             target: child.identifier,
-            type: 'default',
+            type: 'straight',
             animated: true,
           });
           nextYPosition = processNode(
@@ -448,7 +487,9 @@ export default function WorkflowView({
 
       // Handle children (array) - for ConditionNode
       if ('children' in node && Array.isArray(node.children)) {
-        node.children.forEach((child) => {
+        let maxChildYPosition = nextYPosition;
+
+        node.children.forEach((child, index) => {
           if (
             child &&
             typeof child === 'object' &&
@@ -459,16 +500,37 @@ export default function WorkflowView({
               id: `${node.identifier}-${child.identifier}`,
               source: node.identifier,
               target: child.identifier,
-              type: 'default',
+              type: 'straight',
               animated: true,
             });
-            nextYPosition = processNode(
+
+            // For multiple children, position them side by side and continue the longest branch
+            const childXOffset = (index - (node.children.length - 1) / 2) * 250;
+            const childYPosition = nextYPosition;
+
+            // Update child position to be side by side
+            const processedChildYPosition = processNode(
               child as WorkflowNode,
-              nextYPosition,
+              childYPosition,
               visited,
+            );
+
+            // Update the x-position for side-by-side layout
+            const childNodeIndex = nodes.findIndex(
+              (n) => n.id === (child as WorkflowNode).identifier,
+            );
+            if (childNodeIndex !== -1) {
+              nodes[childNodeIndex].position.x = childXOffset;
+            }
+
+            maxChildYPosition = Math.max(
+              maxChildYPosition,
+              processedChildYPosition,
             );
           }
         });
+
+        nextYPosition = maxChildYPosition;
       }
 
       return nextYPosition;
@@ -493,11 +555,11 @@ export default function WorkflowView({
           nodesDraggable={false}
           fitView
           fitViewOptions={{
-            padding: 20,
+            padding: 40,
             includeHiddenNodes: false,
-            minZoom: 0.8,
-            maxZoom: 2,
-            duration: 800,
+            minZoom: 1,
+            maxZoom: 1.5,
+            duration: 600,
           }}
         >
           <WorkflowFlowComponent nodes={initialNodes} edges={initialEdges} />

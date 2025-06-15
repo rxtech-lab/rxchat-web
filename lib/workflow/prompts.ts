@@ -73,6 +73,7 @@ A workflow consists of:
 1. **Get tool schema first**: Use schema tools to understand input/output requirements
 2. **Provide proper inputs**: Use FixedInput nodes when tools need specific parameters
 3. **Handle mismatches**: Add ConverterNodes between incompatible schemas
+4. If a tool node is after the trigger, it should have a fixed input node as a parent.
 
 ### Cronjob Trigger
 1. **Make sure the cron expression is valid** - Use standard cron format (e.g., "0 */10 * * *" for every 10 minutes)
@@ -127,6 +128,14 @@ A workflow consists of:
 }
 \`\`\`
 - Ensure schemas match between nodes
+
+The final result should look like this:
+└── Trigger (d7364851...) - cron: */10 * * * *
+    └── FixedInputNode (2c5fbb9e...)
+        └── ToolNode (1b47310e...) - tool: binance
+            └── ConverterNode (f809fc61...)
+                └── FixedInputNode (9eb5dca9...)
+                    └── ToolNode (347e62d1...) - tool: telegram-bot
 
 ### Data Conversion Pattern  
 - Tool node outputs data
@@ -192,20 +201,50 @@ export const WorkflowBuilderSystemPrompt = (
   toolDiscoveryResult: z.infer<typeof DiscoverySchema>,
   userContext: UserContext | null,
   suggestion: z.infer<typeof SuggestionSchema> | null,
-) => `
+  workflow: Workflow,
+) => {
+  const workflowString = workflow.toViewableString();
+
+  return `
   You are a workflow builder that creates structured workflows based on user queries and available MCP tools.
   
+  # CURRENT WORKFLOW
+  ${workflowString}
+
   # USER CONTEXT
   ${userContextPrompt(userContext)}
   
   ${generalWorkflowPrompt()}
+
+  # IMPORTANT
+  ## Add between nodes
+  Suppose we have a workflow:
+  - node1(abc) -> node2(def) -> node3(ghi)
+  And suggestion is saying to add an input node between node1 and node2, use addInputNode(identifier: abc) to add the input node.
+
+  ## Prioritize fixed input node over tool node
+  If suggestion is saying add a fixed input node and a tool node, add the fixed input node first since it is required to be a parent of the tool node in most cases unless the tool node has a parent that produces output.
   
   ## CURRENT CONTEXT
   - **Selected Tools**: ${JSON.stringify(toolDiscoveryResult.selectedTools)}
   - **User Query**: ${toolDiscoveryResult.reasoning}
   - **Suggestions**: ${JSON.stringify(suggestion)}
+
+  Add/modify/delete one node each time.
+
+  # Tool instructions
+
+  - addNodeTool: Add a new node as a child of the parent node.
+  - addAfterNodeTool: Add a new node after the specified node. If the specified node has a child, the new node will be added as a child of the specified node's child.
+  - modifyNodeTool: Modify the node.
+  - deleteNodeTool: Delete the node.
+  - swapNodesTool: Swap the position of two nodes.
+  - addConverterTool: Add a converter node between two nodes.
+  - addInputTool: Add a fixed input node as a parent of the tool node.
+  - viewWorkflow: View the current workflow.
   
   `;
+};
 
 export const SuggestionSystemPrompt = async (
   workflow: Workflow,
@@ -215,6 +254,7 @@ export const SuggestionSystemPrompt = async (
   toolDiscoveryResult: z.infer<typeof DiscoverySchema> | null,
   userContext: UserContext | null,
 ) => {
+  const workflowString = workflow.toViewableString();
   const generalPrompt = `
       You are a team leader that guides the workflow builder and suggestion agent.
   
@@ -250,7 +290,7 @@ export const SuggestionSystemPrompt = async (
   if (inputOutputMismatchError) {
     return `
         ${generalPrompt}
-        Workflow: ${JSON.stringify(workflow.getWorkflow())}
+        Workflow: ${workflowString}
         Input node doesn't match output node: ${inputOutputMismatchError.errors.join(', ')}. 
         Compiler's Suggestions: ${inputOutputMismatchError.suggestions.join(', ')}.
         
@@ -261,7 +301,7 @@ export const SuggestionSystemPrompt = async (
   if (missingToolsError) {
     return `
         ${generalPrompt}
-        Workflow: ${JSON.stringify(workflow.getWorkflow())}
+        Workflow: ${workflowString}
         Tools not exist: ${missingToolsError.getMissingTools().join(', ')}
         You should give suggestion modify the workflow to replace tools that not exist.
       `;
@@ -281,7 +321,7 @@ export const SuggestionSystemPrompt = async (
   return `
       ${generalPrompt}
     
-      Workflow: ${JSON.stringify(workflow.getWorkflow())}
+      Workflow: ${workflowString}
       Compiling Result: ${JSON.stringify(compilingResult)}
       Tools: ${JSON.stringify(toolDiscoveryResult?.selectedTools)}
       User Query: ${query}

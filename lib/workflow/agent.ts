@@ -3,14 +3,14 @@
 import { createOpenRouter } from '@openrouter/ai-sdk-provider';
 import { generateText, tool } from 'ai';
 import { v4 } from 'uuid';
-import { z } from 'zod';
-import { zodToJsonSchema } from 'zod-to-json-schema';
+import type { z } from 'zod';
 import { createMCPClient } from '../ai/mcp';
 import { MAX_WORKFLOW_STEPS } from '../constants';
-import { UserContextSchema, type UserContext } from '../types';
+import type { UserContext } from '../types';
 import { createJSExecutionEngine, createToolExecutionEngine } from './engine';
 import {
   WorkflowInputOutputMismatchError,
+  WorkflowReferenceError,
   WorkflowToolMissingError,
 } from './errors';
 import {
@@ -45,9 +45,9 @@ const modelProviders = () => {
   });
 
   return {
+    discovery: openRouter('openai/gpt-4.1-mini'),
     workflow: openRouter('google/gemini-2.5-pro-preview'),
-    discovery: openRouter('google/gemini-2.5-pro-preview'),
-    suggestion: openRouter('google/gemini-2.5-pro-preview'),
+    suggestion: openRouter('openai/gpt-4.1'),
   };
 };
 
@@ -90,6 +90,7 @@ async function toolDiscoveryAgent({
     let parsedToolCall: z.infer<typeof DiscoverySchema> | null = null;
     let missingTools: string[] = [];
 
+    let retryCount = 0;
     while (true) {
       const result = await generateText({
         model,
@@ -117,9 +118,13 @@ async function toolDiscoveryAgent({
       onUpdate({
         ...parsedToolCall,
         reasoning:
-          'Tools not exist, refine the tools to make sure they are available in the MCP Router.',
+          'Tools not exist, refine the tools to make sure they are available in the MCP Router. Use query tool to search for the tools first!',
       });
       if (missingTools.length === 0) {
+        break;
+      }
+      retryCount++;
+      if (retryCount > 5) {
         break;
       }
     }
@@ -145,6 +150,7 @@ interface WorkflowBuilderAgentParams {
   userContext: UserContext | null;
   workflow: Workflow;
   options: WorkflowOptions;
+  onUpdate: (workflow: Workflow) => void;
 }
 
 /**
@@ -159,12 +165,19 @@ async function workflowBuilderAgent({
   userContext,
   workflow,
   options,
+  onUpdate,
 }: WorkflowBuilderAgentParams): Promise<{
   workflow: Workflow;
   response: string;
 }> {
   const model = modelProviders().workflow;
   const availableTools = await mcpClient.tools();
+  const prompt = WorkflowBuilderSystemPrompt(
+    toolDiscoveryResult,
+    userContext,
+    suggestion,
+    workflow,
+  );
 
   const { text } = await generateText({
     model,
@@ -182,13 +195,12 @@ async function workflowBuilderAgent({
       swapNodesTool: swapNodesTool(workflow),
     },
     toolChoice: 'required',
-    system: WorkflowBuilderSystemPrompt(
-      toolDiscoveryResult,
-      userContext,
-      suggestion,
-    ),
+    system: prompt,
     prompt: `User Query: "${query}"`,
     maxSteps: 5,
+    onStepFinish: () => {
+      onUpdate(workflow);
+    },
   });
   return { workflow, response: text };
 }
@@ -224,7 +236,12 @@ async function suggestionAgent({
   }
   try {
     await workflow.compile();
-  } catch (error) {
+    const engine = new WorkflowEngine(
+      options.jsExecutionEngine ?? createJSExecutionEngine(),
+      options.toolExecutionEngine ?? createToolExecutionEngine(),
+    );
+    await engine.execute(workflow.getWorkflow(), userContext ?? {});
+  } catch (error: any) {
     if (error instanceof WorkflowInputOutputMismatchError) {
       prompt = `User got the workflow input/output mismatch error. That means you need to modify the workflow to match the input and output of the tools. User Query: "${query}".`;
     }
@@ -237,34 +254,16 @@ async function suggestionAgent({
         skipToolDiscovery: false,
       };
     }
+
+    if (error instanceof WorkflowReferenceError) {
+    } else {
+      prompt = `Workflow execution failed. Please fix the error: ${error.message}`;
+    }
   }
 
   const result = await generateText({
     model,
     tools: {
-      workflowExecutor: tool({
-        description: `Execute the workflow. You can use this to execute the workflow and see the error message. 
-          You can also use this to execute the workflow and see the result.
-          User Context: ${JSON.stringify(zodToJsonSchema(UserContextSchema))}`,
-        parameters: z.object({}),
-        execute: async (args) => {
-          try {
-            const engine = new WorkflowEngine(
-              options.jsExecutionEngine ?? createJSExecutionEngine(),
-              options.toolExecutionEngine ?? createToolExecutionEngine(),
-            );
-            const result = await engine.execute(
-              workflow.getWorkflow(),
-              userContext ?? {},
-            );
-            return result;
-          } catch (error: any) {
-            return {
-              error: error.message,
-            };
-          }
-        },
-      }),
       answerTool: tool({
         description: 'Provide suggestions for the workflow',
         parameters: SuggestionSchema,
@@ -280,7 +279,7 @@ async function suggestionAgent({
       userContext,
     ),
     prompt: prompt,
-    maxSteps: 10,
+    maxSteps: 4,
   });
 
   const lastToolCall = Array.from(result.toolCalls).pop();
@@ -363,23 +362,37 @@ export async function agent(
             },
           });
         }
-        onStep?.({
-          title: 'Starting Workflow Builder',
-          type: 'info',
-          toolDiscovery,
-          suggestion,
-          workflow: workflowResult?.workflow.getWorkflow(),
-          error: null,
-        });
-        workflowResult = await workflowBuilderAgent({
-          query,
-          suggestion,
-          mcpClient,
-          toolDiscoveryResult: toolDiscovery as any,
-          userContext,
-          workflow: workflowResult?.workflow,
-          options,
-        });
+
+        if (suggestion !== null) {
+          onStep?.({
+            title: 'Starting Workflow Builder',
+            type: 'info',
+            toolDiscovery,
+            suggestion,
+            workflow: workflowResult?.workflow.getWorkflow(),
+            error: null,
+          });
+          workflowResult = await workflowBuilderAgent({
+            query,
+            suggestion,
+            mcpClient,
+            toolDiscoveryResult: toolDiscovery as any,
+            userContext,
+            workflow: workflowResult?.workflow,
+            options,
+            onUpdate: (workflow) => {
+              onStep?.({
+                title: 'Starting Workflow Builder',
+                type: 'info',
+                toolDiscovery,
+                suggestion,
+                workflow: workflow.getWorkflow(),
+                error: null,
+              });
+            },
+          });
+        }
+
         onStep?.({
           title: 'Starting suggestion agent',
           type: 'info',
