@@ -1,3 +1,6 @@
+import zodToJsonSchema from 'zod-to-json-schema';
+import { UserContextSchema } from '../types';
+
 export class WorkflowEngineError extends Error {
   constructor(message: string) {
     super(message);
@@ -37,6 +40,9 @@ export class WorkflowToolMissingError extends WorkflowEngineError {
 }
 
 export class WorkflowReferenceError extends WorkflowEngineError {
+  field: 'input' | 'context';
+  reference: string;
+
   /**
    * Create a new WorkflowReferenceError.
    *
@@ -49,5 +55,49 @@ export class WorkflowReferenceError extends WorkflowEngineError {
     );
     Object.setPrototypeOf(this, WorkflowReferenceError.prototype);
     this.name = 'WorkflowReferenceError';
+    this.field = field;
+    this.reference = reference;
+  }
+
+  private getDescriptionForField(jsonSchema: any): any {
+    if (!jsonSchema || !this.reference) {
+      return null;
+    }
+
+    // Split the reference by dots to handle nested properties like 'input.user.name'
+    const fieldParts = this.reference.split('.');
+    let currentSchema = jsonSchema;
+
+    // Traverse the schema recursively for each part of the reference
+    for (const fieldPart of fieldParts) {
+      // Check if current schema has properties
+      if (!currentSchema.properties || !currentSchema.properties[fieldPart]) {
+        return null;
+      }
+
+      // Move to the next level of the schema
+      currentSchema = currentSchema.properties[fieldPart];
+
+      // If this is an object type, we might need to go deeper
+      if (currentSchema.type === 'object' && currentSchema.properties) {
+        // Continue with the current schema for the next iteration
+        continue;
+      }
+    }
+
+    return currentSchema;
+  }
+
+  get humanReadableMessage(): string {
+    if (this.field === 'context') {
+      const jsonSchema = zodToJsonSchema(UserContextSchema);
+      const fieldSchema = this.getDescriptionForField(jsonSchema);
+
+      if (fieldSchema) {
+        return `Missing field '${this.reference}': ${fieldSchema.description}. You can go to my account tab to set it.`;
+      }
+    }
+
+    return `Please check if the ${this.field} field '${this.reference}' should be passed by its parent node but not. Call AI to fix it.`;
   }
 }
