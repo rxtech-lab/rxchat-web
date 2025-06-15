@@ -45,9 +45,9 @@ const modelProviders = () => {
   });
 
   return {
+    discovery: openRouter('openai/gpt-4.1-mini'),
     workflow: openRouter('google/gemini-2.5-pro-preview'),
-    discovery: openRouter('google/gemini-2.5-pro-preview'),
-    suggestion: openRouter('google/gemini-2.5-pro-preview'),
+    suggestion: openRouter('openai/gpt-4.1-mini'),
   };
 };
 
@@ -90,6 +90,7 @@ async function toolDiscoveryAgent({
     let parsedToolCall: z.infer<typeof DiscoverySchema> | null = null;
     let missingTools: string[] = [];
 
+    let retryCount = 0;
     while (true) {
       const result = await generateText({
         model,
@@ -117,9 +118,13 @@ async function toolDiscoveryAgent({
       onUpdate({
         ...parsedToolCall,
         reasoning:
-          'Tools not exist, refine the tools to make sure they are available in the MCP Router.',
+          'Tools not exist, refine the tools to make sure they are available in the MCP Router. Use query tool to search for the tools first!',
       });
       if (missingTools.length === 0) {
+        break;
+      }
+      retryCount++;
+      if (retryCount > 5) {
         break;
       }
     }
@@ -186,9 +191,10 @@ async function workflowBuilderAgent({
       toolDiscoveryResult,
       userContext,
       suggestion,
+      workflow,
     ),
     prompt: `User Query: "${query}"`,
-    maxSteps: 5,
+    maxSteps: 3,
   });
   return { workflow, response: text };
 }
@@ -280,7 +286,7 @@ async function suggestionAgent({
       userContext,
     ),
     prompt: prompt,
-    maxSteps: 10,
+    maxSteps: 4,
   });
 
   const lastToolCall = Array.from(result.toolCalls).pop();

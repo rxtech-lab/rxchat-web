@@ -192,9 +192,16 @@ export const WorkflowBuilderSystemPrompt = (
   toolDiscoveryResult: z.infer<typeof DiscoverySchema>,
   userContext: UserContext | null,
   suggestion: z.infer<typeof SuggestionSchema> | null,
-) => `
+  workflow: Workflow,
+) => {
+  const workflowString = workflow.toViewableString();
+
+  return `
   You are a workflow builder that creates structured workflows based on user queries and available MCP tools.
   
+  # CURRENT WORKFLOW
+  ${workflowString}
+
   # USER CONTEXT
   ${userContextPrompt(userContext)}
   
@@ -204,8 +211,22 @@ export const WorkflowBuilderSystemPrompt = (
   - **Selected Tools**: ${JSON.stringify(toolDiscoveryResult.selectedTools)}
   - **User Query**: ${toolDiscoveryResult.reasoning}
   - **Suggestions**: ${JSON.stringify(suggestion)}
+
+  Add/modify/delete one node each time.
+
+  # Tool instructions
+
+  - addNodeTool: Add a new node as a child of the parent node.
+  - addAfterNodeTool: Add a new node after the specified node. If the specified node has a child, the new node will be added as a child of the specified node's child.
+  - modifyNodeTool: Modify the node.
+  - deleteNodeTool: Delete the node.
+  - swapNodesTool: Swap the position of two nodes.
+  - addConverterTool: Add a converter node between two nodes.
+  - addInputTool: Add a fixed input node as a parent of the tool node.
+  - viewWorkflow: View the current workflow.
   
   `;
+};
 
 export const SuggestionSystemPrompt = async (
   workflow: Workflow,
@@ -215,6 +236,7 @@ export const SuggestionSystemPrompt = async (
   toolDiscoveryResult: z.infer<typeof DiscoverySchema> | null,
   userContext: UserContext | null,
 ) => {
+  const workflowString = workflow.toViewableString();
   const generalPrompt = `
       You are a team leader that guides the workflow builder and suggestion agent.
   
@@ -250,7 +272,7 @@ export const SuggestionSystemPrompt = async (
   if (inputOutputMismatchError) {
     return `
         ${generalPrompt}
-        Workflow: ${JSON.stringify(workflow.getWorkflow())}
+        Workflow: ${workflowString}
         Input node doesn't match output node: ${inputOutputMismatchError.errors.join(', ')}. 
         Compiler's Suggestions: ${inputOutputMismatchError.suggestions.join(', ')}.
         
@@ -261,7 +283,7 @@ export const SuggestionSystemPrompt = async (
   if (missingToolsError) {
     return `
         ${generalPrompt}
-        Workflow: ${JSON.stringify(workflow.getWorkflow())}
+        Workflow: ${workflowString}
         Tools not exist: ${missingToolsError.getMissingTools().join(', ')}
         You should give suggestion modify the workflow to replace tools that not exist.
       `;
@@ -281,7 +303,7 @@ export const SuggestionSystemPrompt = async (
   return `
       ${generalPrompt}
     
-      Workflow: ${JSON.stringify(workflow.getWorkflow())}
+      Workflow: ${workflowString}
       Compiling Result: ${JSON.stringify(compilingResult)}
       Tools: ${JSON.stringify(toolDiscoveryResult?.selectedTools)}
       User Query: ${query}

@@ -1152,4 +1152,48 @@ export class Workflow implements WorkflowInterface {
       suggestions,
     };
   }
+
+  // draw the workflow using tree structure string with node type and its identifier
+  toViewableString(): string {
+    return this.buildTreeString(this.workflow.trigger, '', true);
+  }
+
+  /**
+   * Helper method to build tree string representation recursively
+   */
+  private buildTreeString(
+    node: BaseNode,
+    prefix: string,
+    isLast: boolean,
+  ): string {
+    const nodeTypeMap: Record<string, string> = {
+      'cronjob-trigger': 'Trigger',
+      tool: 'ToolNode',
+      condition: 'ConditionNode',
+      converter: 'ConverterNode',
+      'fixed-input': 'FixedInputNode',
+    };
+
+    const nodeType = nodeTypeMap[(node as any).type] || (node as any).type;
+    const nodeIdentifier = `${node.identifier.split('-').slice(0, 2).join('-')}...`;
+
+    let result = `${prefix}${isLast ? '└── ' : '├── '}${nodeType} (${nodeIdentifier})\n`;
+
+    // Handle children array (for condition nodes)
+    if ('children' in node && Array.isArray((node as any).children)) {
+      const children = (node as any).children as BaseNode[];
+      children.forEach((child, index) => {
+        const isLastChild = index === children.length - 1;
+        const childPrefix = `${prefix}${isLast ? '    ' : '│   '}`;
+        result += this.buildTreeString(child, childPrefix, isLastChild);
+      });
+    }
+    // Handle single child
+    else if ('child' in node && node.child && this.isBaseNode(node.child)) {
+      const childPrefix = `${prefix}${isLast ? '    ' : '│   '}`;
+      result += this.buildTreeString(node.child, childPrefix, true);
+    }
+
+    return result;
+  }
 }
