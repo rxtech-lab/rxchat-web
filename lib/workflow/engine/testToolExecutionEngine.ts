@@ -1,16 +1,39 @@
-import type { ToolExecutionEngine } from '../workflow-engine';
 import * as jsonschema from 'jsonschema';
 import { faker } from '@faker-js/faker';
+import { McpToolExecutionEngine } from './toolExecutionEngine';
+
+export type ToolCallResult =
+  | {
+      mode: 'real';
+    }
+  | {
+      mode: 'test';
+      result: Record<string, any> | null;
+    };
+
+/**
+ * Generate a mock tool call result. If return null, will use the random output schema to generate a random output.
+ */
+export type OnToolCall = (
+  tool: string,
+  input: Record<string, any>,
+  outputSchema: Record<string, any>,
+) => ToolCallResult;
 
 /**
  * Fake tool execution engine that use for testing the workflow without real tool execution
  */
-export class TestToolExecutionEngine implements ToolExecutionEngine {
+export class TestToolExecutionEngine extends McpToolExecutionEngine {
   private validator: jsonschema.Validator;
   private callCountMap: Record<string, number> = {};
   private callArgsMap: Record<string, any> = {};
 
-  constructor() {
+  constructor(
+    private readonly onToolCall: OnToolCall | null = null,
+    mcpRouterServerUrl?: string,
+    mcpRouterApiKey?: string,
+  ) {
+    super(mcpRouterServerUrl, mcpRouterApiKey);
     this.validator = new jsonschema.Validator();
   }
 
@@ -96,9 +119,9 @@ export class TestToolExecutionEngine implements ToolExecutionEngine {
   }
 
   /**
-   * Execute the tool without real tool execution.
-   * This function will first check whether the input matches the input schema using `jsonschema`
-   * and then generate a random output that matches the output schema
+   * Execute the tool. This function will first check whether the input matches the input schema using `jsonschema`.
+   * If onToolCall returns mode 'real', it will delegate to the real McpToolExecutionEngine.
+   * If onToolCall returns mode 'test', it will use the provided result or generate random data.
    */
   async execute(
     tool: string,
@@ -119,8 +142,22 @@ export class TestToolExecutionEngine implements ToolExecutionEngine {
       );
     }
 
-    // Generate random output based on output schema
-    const result = this.generateRandomData(outputSchema);
+    // Get the tool call result from the callback
+    const toolCallResult = this.onToolCall?.(tool, input, outputSchema);
+
+    if (toolCallResult?.mode === 'real') {
+      // Delegate to the real implementation
+      return await super.execute(tool, input, inputSchema, outputSchema);
+    }
+
+    // Handle test mode
+    let result: any;
+    if (toolCallResult?.result !== null) {
+      result = toolCallResult?.result;
+    } else {
+      // Generate random output based on output schema
+      result = this.generateRandomData(outputSchema);
+    }
 
     // Add a small delay to simulate real tool execution
     await new Promise((resolve) => setTimeout(resolve, 100));
@@ -136,6 +173,14 @@ export class TestToolExecutionEngine implements ToolExecutionEngine {
   }
 }
 
-export const createTestToolExecutionEngine = (): TestToolExecutionEngine => {
-  return new TestToolExecutionEngine();
+export const createTestToolExecutionEngine = (
+  onToolCall: OnToolCall = () => ({ mode: 'test', result: null }),
+  mcpRouterServerUrl?: string,
+  mcpRouterApiKey?: string,
+): TestToolExecutionEngine => {
+  return new TestToolExecutionEngine(
+    onToolCall,
+    mcpRouterServerUrl,
+    mcpRouterApiKey,
+  );
 };

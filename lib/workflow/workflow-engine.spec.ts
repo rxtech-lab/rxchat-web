@@ -561,6 +561,10 @@ describe('WorkflowEngine', () => {
   });
 
   describe('FixedInput to ConverterNode Integration', () => {
+    beforeEach(() => {
+      process.env.MCP_ROUTER_SERVER_URL = 'http://localhost:3000';
+      process.env.MCP_ROUTER_SERVER_API_KEY = 'test-api-key';
+    });
     it('Should be able to pass FixedInput output to ConverterNode', async () => {
       const converterNode: ConverterNode = {
         identifier: 'fd55a028-6db0-45d9-b1d7-00859e38363e',
@@ -650,6 +654,8 @@ describe('Workflow Engine with test ToolExecutionEngine', () => {
   let toolExecutionEngine: TestToolExecutionEngine;
 
   beforeEach(() => {
+    process.env.MCP_ROUTER_SERVER_URL = 'http://localhost:3000';
+    process.env.MCP_ROUTER_SERVER_API_KEY = 'test-api-key';
     jsCodeExecutionEngine = {
       execute: jest.fn(),
     };
