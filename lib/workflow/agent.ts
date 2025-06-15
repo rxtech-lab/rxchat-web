@@ -1,20 +1,29 @@
 'server-only';
 
 import { createOpenRouter } from '@openrouter/ai-sdk-provider';
-import { generateObject, generateText, tool } from 'ai';
+import { generateText, tool } from 'ai';
 import { v4 } from 'uuid';
-import type { z } from 'zod';
+import { z } from 'zod';
+import { zodToJsonSchema } from 'zod-to-json-schema';
 import { createMCPClient } from '../ai/mcp';
 import { MAX_WORKFLOW_STEPS } from '../constants';
-import type { UserContext } from '../types';
+import { UserContextSchema, type UserContext } from '../types';
 import { createJSExecutionEngine, createToolExecutionEngine } from './engine';
 import {
   WorkflowInputOutputMismatchError,
-  WorkflowReferenceError,
   WorkflowToolMissingError,
 } from './errors';
-import { DiscoverySystemPrompt, SuggestionSystemPrompt, WorkflowBuilderSystemPrompt } from './prompts';
-import { DiscoverySchema, type OnStep, SuggestionSchema } from './types';
+import {
+  DiscoverySystemPrompt,
+  SuggestionSystemPrompt,
+  WorkflowBuilderSystemPrompt,
+} from './prompts';
+import {
+  DiscoverySchema,
+  SuggestionSchema,
+  type OnStep,
+  type WorkflowOptions,
+} from './types';
 import {
   addConditionTool,
   addConverterTool,
@@ -34,6 +43,7 @@ const modelProviders = () => {
   const openRouter = createOpenRouter({
     apiKey: process.env.OPENROUTER_API_KEY,
   });
+
   return {
     workflow: openRouter('google/gemini-2.5-pro-preview'),
     discovery: openRouter('google/gemini-2.5-pro-preview'),
@@ -42,14 +52,30 @@ const modelProviders = () => {
 };
 
 /**
+ * Parameters for the tool discovery agent
+ */
+interface ToolDiscoveryAgentParams {
+  query: string;
+  suggestion: z.infer<typeof SuggestionSchema> | null;
+  mcpClient: any;
+  workflow: Workflow;
+  onUpdate: (response: z.infer<typeof DiscoverySchema>) => void;
+}
+
+/**
  * Agent 1: Tool Discovery Agent
  * Searches for available MCP tools based on the user query
  */
-async function toolDiscoveryAgent(
-  query: string,
-  suggestion: z.infer<typeof SuggestionSchema> | null,
-  mcpClient: any,
-): Promise<{ selectedTools: any[]; reasoning: string }> {
+async function toolDiscoveryAgent({
+  query,
+  suggestion,
+  mcpClient,
+  workflow,
+  onUpdate,
+}: ToolDiscoveryAgentParams): Promise<{
+  selectedTools: any[];
+  reasoning: string;
+}> {
   try {
     if (!mcpClient) {
       return {
@@ -61,24 +87,43 @@ async function toolDiscoveryAgent(
     // Get all available tools from MCP client
     const availableTools = await mcpClient.tools();
     const model = modelProviders().discovery;
+    let parsedToolCall: z.infer<typeof DiscoverySchema> | null = null;
+    let missingTools: string[] = [];
 
-    const result = await generateText({
-      model,
-      tools: {
-        ...availableTools,
-        answerTool: tool({
-          description: 'Answer the user query',
-          parameters: DiscoverySchema,
-        }),
-      },
-      toolChoice: 'required',
-      system: DiscoverySystemPrompt,
-      prompt: `User Query: "${query}", Suggestion: ${JSON.stringify(suggestion)}`,
-      maxSteps: 10,
-    });
+    while (true) {
+      const result = await generateText({
+        model,
+        tools: {
+          ...availableTools,
+          answerTool: tool({
+            description: 'Answer the user query',
+            parameters: DiscoverySchema,
+          }),
+        },
+        toolChoice: 'required',
+        system: DiscoverySystemPrompt,
+        prompt: `User Query: "${query}", Suggestion: ${JSON.stringify(suggestion)}.
+        Missing Tools: ${missingTools.join(', ')}. If missing tools are provided, refine the tools to make sure they are available in the MCP Router.`,
+        maxSteps: 5,
+      });
 
-    const lastToolCall = Array.from(result.toolCalls).pop();
-    const parsedToolCall = DiscoverySchema.parse(lastToolCall?.args);
+      const lastToolCall = Array.from(result.toolCalls).pop();
+      parsedToolCall = DiscoverySchema.parse(lastToolCall?.args);
+      onUpdate(parsedToolCall);
+
+      const { missingTools: newMissingTools } =
+        await workflow.mcpRouter.checkToolsExist(parsedToolCall.selectedTools);
+      missingTools = newMissingTools;
+      onUpdate({
+        ...parsedToolCall,
+        reasoning:
+          'Tools not exist, refine the tools to make sure they are available in the MCP Router.',
+      });
+      if (missingTools.length === 0) {
+        break;
+      }
+    }
+
     return parsedToolCall;
   } catch (error) {
     console.error('Tool Discovery Agent Error:', error);
@@ -90,17 +135,34 @@ async function toolDiscoveryAgent(
 }
 
 /**
+ * Parameters for the workflow builder agent
+ */
+interface WorkflowBuilderAgentParams {
+  query: string;
+  suggestion: z.infer<typeof SuggestionSchema> | null;
+  mcpClient: any;
+  toolDiscoveryResult: z.infer<typeof DiscoverySchema>;
+  userContext: UserContext | null;
+  workflow: Workflow;
+  options: WorkflowOptions;
+}
+
+/**
  * Agent 2: Workflow Builder Agent
  * Uses the selected tools to create and update the workflow
  */
-async function workflowBuilderAgent(
-  query: string,
-  suggestion: z.infer<typeof SuggestionSchema> | null,
-  mcpClient: any,
-  toolDiscoveryResult: z.infer<typeof DiscoverySchema>,
-  userContext: UserContext | null,
-  workflow: Workflow,
-): Promise<{ workflow: Workflow; response: string }> {
+async function workflowBuilderAgent({
+  query,
+  suggestion,
+  mcpClient,
+  toolDiscoveryResult,
+  userContext,
+  workflow,
+  options,
+}: WorkflowBuilderAgentParams): Promise<{
+  workflow: Workflow;
+  response: string;
+}> {
   const model = modelProviders().workflow;
   const availableTools = await mcpClient.tools();
 
@@ -132,98 +194,83 @@ async function workflowBuilderAgent(
 }
 
 /**
+ * Parameters for the suggestion agent
+ */
+interface SuggestionAgentParams {
+  query: string | undefined;
+  error: Error | null;
+  workflow: Workflow;
+  userContext: UserContext | null;
+  toolDiscoveryResult: z.infer<typeof DiscoverySchema> | null;
+  options?: WorkflowOptions;
+}
+
+/**
  * Agent 3: Suggestion Agent
  * Provides suggestions and modifications for the workflow
  */
-async function suggestionAgent(
-  query: string | undefined,
-  error: Error | null,
-  workflow: Workflow,
-  userContext: UserContext | null,
-  toolDiscoveryResult: z.infer<typeof DiscoverySchema> | null,
-): Promise<z.infer<typeof SuggestionSchema>> {
+async function suggestionAgent({
+  query,
+  error,
+  workflow,
+  userContext,
+  toolDiscoveryResult,
+  options = {},
+}: SuggestionAgentParams): Promise<z.infer<typeof SuggestionSchema>> {
   const model = modelProviders().suggestion;
+  let prompt = `User Query: "${query}"`;
   if (error !== null) {
-    const suggestion = await generateObject({
-      model,
-      schema: SuggestionSchema,
-      system: await SuggestionSystemPrompt(
-        workflow,
-        query ?? '',
-        error instanceof WorkflowInputOutputMismatchError ? error : null,
-        error instanceof WorkflowToolMissingError ? error : null,
-        toolDiscoveryResult,
-        userContext,
-      ),
-      prompt: `User Query: "${query}", Error: ${error.message}`,
-    });
-    return suggestion.object;
+    prompt = `User Query: "${query}", Error: ${error.message}`;
   }
   try {
     await workflow.compile();
-    const engine = new WorkflowEngine(
-      createJSExecutionEngine(),
-      createToolExecutionEngine(),
-    );
-    await engine.execute(workflow.getWorkflow());
   } catch (error) {
     if (error instanceof WorkflowInputOutputMismatchError) {
-      const suggestion = await generateObject({
-        model,
-        schema: SuggestionSchema,
-        system: await SuggestionSystemPrompt(
-          workflow,
-          query ?? '',
-          error,
-          null,
-          toolDiscoveryResult,
-          userContext,
-        ),
-        prompt: `User got the workflow input/output mismatch error. That means you need to modify the workflow to match the input and output of the tools. User Query: "${query}".`,
-      });
-      return suggestion.object;
+      prompt = `User got the workflow input/output mismatch error. That means you need to modify the workflow to match the input and output of the tools. User Query: "${query}".`;
     }
 
     if (error instanceof WorkflowToolMissingError) {
-      const suggestion = await generateObject({
-        model,
-        schema: SuggestionSchema,
-        system: await SuggestionSystemPrompt(
-          workflow,
-          query ?? '',
-          null,
-          error,
-          toolDiscoveryResult,
-          userContext,
-        ),
-        prompt: `User got the workflow tool's missing error indicates that some tools in the workflow are not available in MCP. User Query: "${query}".`,
-      });
-      return suggestion.object;
+      return {
+        modifications: [
+          `Tools ${error.getMissingTools().join(', ')} doesn't exist in the MCP Router. Please make sure the tools are available using query tool.`,
+        ],
+        skipToolDiscovery: false,
+      };
     }
-
-    if (error instanceof WorkflowReferenceError) {
-      const suggestion = await generateObject({
-        model,
-        schema: SuggestionSchema,
-        system: await SuggestionSystemPrompt(
-          workflow,
-          query ?? '',
-          null,
-          null,
-          toolDiscoveryResult,
-          userContext,
-        ),
-        prompt: `User got the workflow reference error. That means in the fixed input node, the output's jinja2 template is referencing a field that doesn't exist. User Query: "${query}". You need to check the node's parent and user context to find the correct field.`,
-      });
-      return suggestion.object;
-    }
-
-    console.error('Error during workflow compilation:', error);
   }
 
-  const object = await generateObject({
+  const result = await generateText({
     model,
-    schema: SuggestionSchema,
+    tools: {
+      workflowExecutor: tool({
+        description: `Execute the workflow. You can use this to execute the workflow and see the error message. 
+          You can also use this to execute the workflow and see the result.
+          User Context: ${JSON.stringify(zodToJsonSchema(UserContextSchema))}`,
+        parameters: z.object({}),
+        execute: async (args) => {
+          try {
+            const engine = new WorkflowEngine(
+              options.jsExecutionEngine ?? createJSExecutionEngine(),
+              options.toolExecutionEngine ?? createToolExecutionEngine(),
+            );
+            const result = await engine.execute(
+              workflow.getWorkflow(),
+              userContext ?? {},
+            );
+            return result;
+          } catch (error: any) {
+            return {
+              error: error.message,
+            };
+          }
+        },
+      }),
+      answerTool: tool({
+        description: 'Provide suggestions for the workflow',
+        parameters: SuggestionSchema,
+      }),
+    },
+    toolChoice: 'required',
     system: await SuggestionSystemPrompt(
       workflow,
       query ?? '',
@@ -232,15 +279,19 @@ async function suggestionAgent(
       toolDiscoveryResult,
       userContext,
     ),
-    prompt: `User Query: "${query}"`,
+    prompt: prompt,
+    maxSteps: 10,
   });
-  return object.object;
+
+  const lastToolCall = Array.from(result.toolCalls).pop();
+  return SuggestionSchema.parse(lastToolCall?.args);
 }
 
 export async function agent(
   query: string,
   oldWorkflow: Workflow | null = null,
   userContext: UserContext | null = null,
+  options: WorkflowOptions = {},
   onStep?: (step: OnStep) => void,
 ): Promise<OnStep> {
   const mcpClient = await createMCPClient();
@@ -295,11 +346,22 @@ export async function agent(
             workflow: workflowResult?.workflow.getWorkflow(),
             error: null,
           });
-          toolDiscovery = await toolDiscoveryAgent(
+          toolDiscovery = await toolDiscoveryAgent({
             query,
             suggestion,
             mcpClient,
-          );
+            workflow: workflowResult?.workflow,
+            onUpdate: (response) => {
+              onStep?.({
+                title: 'Tool Discovery',
+                type: 'info',
+                toolDiscovery: response,
+                suggestion,
+                workflow: workflowResult?.workflow.getWorkflow(),
+                error: null,
+              });
+            },
+          });
         }
         onStep?.({
           title: 'Starting Workflow Builder',
@@ -309,14 +371,15 @@ export async function agent(
           workflow: workflowResult?.workflow.getWorkflow(),
           error: null,
         });
-        workflowResult = await workflowBuilderAgent(
+        workflowResult = await workflowBuilderAgent({
           query,
           suggestion,
           mcpClient,
-          toolDiscovery as any,
+          toolDiscoveryResult: toolDiscovery as any,
           userContext,
-          workflowResult?.workflow,
-        );
+          workflow: workflowResult?.workflow,
+          options,
+        });
         onStep?.({
           title: 'Starting suggestion agent',
           type: 'info',
@@ -325,13 +388,14 @@ export async function agent(
           workflow: workflowResult?.workflow.getWorkflow(),
           error: null,
         });
-        suggestion = await suggestionAgent(
+        suggestion = await suggestionAgent({
           query,
-          null,
-          workflowResult.workflow,
+          error: null,
+          workflow: workflowResult.workflow,
           userContext,
-          toolDiscovery,
-        );
+          toolDiscoveryResult: toolDiscovery,
+          options,
+        });
         onStep?.({
           title: 'Deciding next step',
           type: 'info',
@@ -352,13 +416,14 @@ export async function agent(
           workflow: workflowResult?.workflow.getWorkflow(),
           error: error as Error,
         });
-        suggestion = await suggestionAgent(
+        suggestion = await suggestionAgent({
           query,
-          error as Error,
-          workflowResult?.workflow,
+          error: error as Error,
+          workflow: workflowResult?.workflow,
           userContext,
-          toolDiscovery ?? null,
-        );
+          toolDiscoveryResult: toolDiscovery ?? null,
+          options,
+        });
         onStep?.({
           title: 'Suggestion',
           type: 'info',

@@ -36,7 +36,6 @@ describe('McpRouter', () => {
         .get('/tools/check')
         .query({ ids: ['tool1', 'tool2'] })
         .matchHeader('x-api-key', 'test-api-key')
-        .matchHeader('Content-Type', 'application/json')
         .reply(200, { exists: true });
 
       const result = await mcpRouter.checkToolsExist(['tool1', 'tool2']);

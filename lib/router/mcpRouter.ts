@@ -98,9 +98,7 @@ export class McpRouter implements McpRouterInterface {
         url.searchParams.append('ids', tool);
       }
 
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
-      };
+      const headers: Record<string, string> = {};
 
       if (this.apiKey) {
         headers['x-api-key'] = this.apiKey;

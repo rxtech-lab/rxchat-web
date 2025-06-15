@@ -646,6 +646,59 @@ describe('WorkflowEngine', () => {
       });
     });
   });
+
+  describe('Fixed input should show error if referencing a non existing context', () => {
+    it('Should show error if referencing a non existing context', async () => {
+      const fixedInput: FixedInput = {
+        type: 'fixed-input',
+        identifier: v4(),
+        output: { fullName: '{{input.firstName}} {{context.lastName}}' },
+        child: null,
+      };
+
+      const workflow: Workflow = {
+        title: 'Fixed Input Workflow',
+        trigger: {
+          identifier: 'test-trigger',
+          type: 'cronjob-trigger',
+          cron: '0 0 * * *',
+          child: fixedInput,
+        },
+      };
+
+      await expect(
+        engine.execute(workflow, {
+          firstName: 'John',
+        }),
+      ).rejects.toThrow(new WorkflowReferenceError('context', 'lastName'));
+    });
+
+    it('Should show error if referencing a context property with null value', async () => {
+      const fixedInput: FixedInput = {
+        type: 'fixed-input',
+        identifier: v4(),
+        output: { fullName: '{{input.firstName}} {{context.lastName}}' },
+        child: null,
+      };
+
+      const workflow: Workflow = {
+        title: 'Fixed Input Workflow',
+        trigger: {
+          identifier: 'test-trigger',
+          type: 'cronjob-trigger',
+          cron: '0 0 * * *',
+          child: fixedInput,
+        },
+      };
+
+      await expect(
+        engine.execute(workflow, {
+          firstName: 'John',
+          lastName: null,
+        }),
+      ).rejects.toThrow(new WorkflowReferenceError('context', 'lastName'));
+    });
+  });
 });
 
 describe('Workflow Engine with test ToolExecutionEngine', () => {

@@ -5,7 +5,8 @@ import type {
 } from './errors';
 import type { DiscoverySchema, SuggestionSchema } from './types';
 import type { Workflow } from './workflow';
-import type { UserContext } from '../types';
+import { UserContextSchema, type UserContext } from '../types';
+import { zodToJsonSchema } from 'zod-to-json-schema';
 
 export const generalWorkflowPrompt = () => `
 
@@ -181,7 +182,7 @@ export const userContextPrompt = (userContext: UserContext | null) => {
   if (!userContext) {
     return 'No user context provided';
   }
-  return `User Context: ${JSON.stringify(userContext)}. 
+  return `User Context: ${JSON.stringify(zodToJsonSchema(UserContextSchema))}. 
   This context is available in the workflow and can be accessed in two ways:
   1. In FixedInput nodes using Jinja2 syntax: {{context.fieldName}}
   2. As direct input parameters to tools that accept user context`;
@@ -224,6 +225,10 @@ export const SuggestionSystemPrompt = async (
       1. Evaluate the workflow builder's implementation
       2. Review suggestion agent recommendations
       3. Determine when the workflow is complete and should exit the building process
+      4. Check if the cron expression is valid
+      5. You don't need to execute the workflow or ask to execute the workflow. You only need to give modifications to the workflow design!
+      6. If user doesn't ask for notification, don't add notification tool.
+      7. You don't need to provide modification to the workflow if workflow meets the user's request.
   
       # GENERAL WORKFLOW PROMPT
       ${generalWorkflowPrompt()}

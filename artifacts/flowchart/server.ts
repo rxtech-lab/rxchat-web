@@ -22,7 +22,7 @@ export const flowchartDocumentHandler = (
       const query = getTextContentFromUserMessage(context);
       const userContext = await getUserContext(session.user.id);
 
-      const workflow = await agent(query, null, userContext, (step) => {
+      const workflow = await agent(query, null, userContext, {}, (step) => {
         dataStream.writeData({
           type: 'flowchart-step-delta',
           content: JSON.stringify(step, null, 2),
@@ -57,6 +57,7 @@ export const flowchartDocumentHandler = (
         description,
         workflow,
         userContext,
+        {},
         (step) => {
           dataStream.writeData({
             type: 'flowchart-step-delta',

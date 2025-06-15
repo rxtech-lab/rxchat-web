@@ -310,20 +310,26 @@ export class WorkflowEngine implements WorkflowEngineInterface {
         } catch (error) {
           // Check if the error is about a missing variable
           if (error instanceof Error) {
-            // Extract the variable name from the template string
-            const matches = value.match(/{{([^}]+)}}/);
+            // Extract all variable references from the template string
+            const matches = value.match(/{{([^}]+)}}/g);
             if (matches) {
-              const [_, reference] = matches;
-              const [field, ...path] = reference.trim().split('.');
-              if (field === 'input' || field === 'context') {
-                // Check if the variable exists in the context
-                const contextValue =
-                  field === 'input' ? inputContext : this.workflowContext;
-                if (!(path[0] in contextValue)) {
-                  throw new WorkflowReferenceError(
-                    field as 'input' | 'context',
-                    path.join('.'),
-                  );
+              for (const match of matches) {
+                const reference = match.replace(/[{}]/g, '').trim();
+                const [field, ...path] = reference.split('.');
+                if (field === 'input' || field === 'context') {
+                  // Check if the variable exists in the context
+                  const contextValue =
+                    field === 'input' ? inputContext : this.workflowContext;
+                  if (
+                    path.length > 0 &&
+                    (!(path[0] in contextValue) ||
+                      contextValue[path[0]] == null)
+                  ) {
+                    throw new WorkflowReferenceError(
+                      field as 'input' | 'context',
+                      path.join('.'),
+                    );
+                  }
                 }
               }
             }
