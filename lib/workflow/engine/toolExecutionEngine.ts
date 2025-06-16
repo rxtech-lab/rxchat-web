@@ -38,7 +38,7 @@ export class McpToolExecutionEngine implements ToolExecutionEngine {
     if (!response.ok) {
       const errorText = await response.text();
       console.error(`Error executing tool ${tool}: ${errorText}`);
-      throw new Error('Failed to execute tool');
+      throw new Error(`Failed to execute tool ${tool}: ${errorText}`);
     }
 
     const data = await response.json();

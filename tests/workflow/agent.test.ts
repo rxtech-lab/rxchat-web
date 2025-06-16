@@ -39,7 +39,6 @@ test.describe('agent integration test', () => {
     );
     expect(workflow?.workflow).toBeDefined();
 
-    console.dir(workflow, { depth: null });
     const workflowEngine = new WorkflowEngine(
       createJSExecutionEngine(),
       createToolExecutionEngine(),

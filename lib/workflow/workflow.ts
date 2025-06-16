@@ -67,7 +67,8 @@ export const addNodeTool = (workflow: Workflow) =>
         } else {
           workflow.addAfter(id, node);
         }
-
+        console.log('added tool node');
+        console.log(workflow.toViewableString());
         return `Added tool node with identifier ${toolIdentifier} as child of ${id ?? 'root'}`;
       } catch (error) {
         console.log(error);
@@ -110,6 +111,8 @@ export const addConditionTool = (workflow: Workflow) =>
         } else {
           workflow.addChild(undefined, node);
         }
+        console.log('added condition node');
+        console.log(workflow.toViewableString());
         return `Added condition node with identifier ${node.identifier}`;
       } catch (error) {
         return {
@@ -151,6 +154,8 @@ export const addConverterTool = (workflow: Workflow) =>
           runtime: 'js',
         };
         workflow.addAfter(toolIdentifier, node);
+        console.log('added converter node');
+        console.log(workflow.toViewableString());
         return `Added converter node with identifier ${node.identifier}`;
       } catch (error) {
         return {
@@ -169,6 +174,8 @@ export const removeNodeTool = (workflow: Workflow) =>
     execute: async ({ identifier }) => {
       try {
         workflow.removeChild(identifier);
+        console.log('removed node');
+        console.log(workflow.toViewableString());
         return `Removed node with identifier ${identifier}`;
       } catch (error) {
         return {
@@ -201,7 +208,8 @@ export const modifyToolNode = (workflow: Workflow) =>
           toolIdentifier: node.toolIdentifier,
           child: existingChild,
         } as ToolNode);
-
+        console.log('modified tool node');
+        console.log(workflow.toViewableString());
         return `Modified tool node with identifier ${id} to ${node.toolIdentifier}`;
       } catch (error) {
         return {
@@ -249,6 +257,8 @@ export const modifyTriggerTool = (workflow: Workflow) =>
           identifier: v4(),
           cron,
         });
+        console.log('modified trigger node');
+        console.log(workflow.toViewableString());
         return workflow.getWorkflow();
       } catch (error) {
         return {
@@ -269,6 +279,8 @@ export const swapNodesTool = (workflow: Workflow) =>
     execute: async ({ identifier1, identifier2 }) => {
       try {
         workflow.swapNodes(identifier1, identifier2);
+        console.log('swapped nodes');
+        console.log(workflow.toViewableString());
         return `Swapped nodes ${identifier1} and ${identifier2}`;
       } catch (error) {
         return {
@@ -286,7 +298,7 @@ export const addInputTool = (workflow: Workflow) =>
       toolIdentifier: z
         .string()
         .describe(
-          'The identifier (UUID) of the node after which this input node will be added. Leave empty to add at the root level.',
+          'The identifier (UUID) of the node after which this input node will be added. Leave empty to add at the root level. If the suggestion is saying to add an node between two nodes, use the identifier of the node after which the input node will be added.',
         ),
       output: z
         .any()
@@ -307,10 +319,12 @@ export const addInputTool = (workflow: Workflow) =>
           toolIdentifier === null ||
           (typeof toolIdentifier === 'string' && toolIdentifier.trim() === '')
         ) {
-          workflow.addChild(undefined, node);
+          workflow.addAfter(undefined, node);
         } else {
-          workflow.addChild(toolIdentifier, node);
+          workflow.addAfter(toolIdentifier, node);
         }
+        console.log('added input node');
+        console.log(workflow.toViewableString());
         return `Added fixed input node with identifier ${node.identifier}`;
       } catch (error) {
         return {
@@ -1151,5 +1165,57 @@ export class Workflow implements WorkflowInterface {
       errors,
       suggestions,
     };
+  }
+
+  // draw the workflow using tree structure string with node type and its identifier
+  toViewableString(): string {
+    return this.buildTreeString(this.workflow.trigger, '', true);
+  }
+
+  /**
+   * Helper method to build tree string representation recursively
+   */
+  private buildTreeString(
+    node: BaseNode,
+    prefix: string,
+    isLast: boolean,
+  ): string {
+    const nodeTypeMap: Record<string, string> = {
+      'cronjob-trigger': 'Trigger',
+      tool: 'ToolNode',
+      condition: 'ConditionNode',
+      converter: 'ConverterNode',
+      'fixed-input': 'FixedInputNode',
+    };
+
+    const nodeType = nodeTypeMap[(node as any).type] || (node as any).type;
+    const nodeIdentifier = `${node.identifier}`;
+
+    // Add additional information based on node type
+    let additionalInfo = '';
+    if ((node as any).type === 'cronjob-trigger' && (node as any).cron) {
+      additionalInfo = ` - cron: ${(node as any).cron}`;
+    } else if ((node as any).type === 'tool' && (node as any).toolIdentifier) {
+      additionalInfo = ` - tool: ${(node as any).toolIdentifier}`;
+    }
+
+    let result = `${prefix}${isLast ? '└── ' : '├── '}${nodeType} (${nodeIdentifier})${additionalInfo}\n`;
+
+    // Handle children array (for condition nodes)
+    if ('children' in node && Array.isArray((node as any).children)) {
+      const children = (node as any).children as BaseNode[];
+      children.forEach((child, index) => {
+        const isLastChild = index === children.length - 1;
+        const childPrefix = `${prefix}${isLast ? '    ' : '│   '}`;
+        result += this.buildTreeString(child, childPrefix, isLastChild);
+      });
+    }
+    // Handle single child
+    else if ('child' in node && node.child && this.isBaseNode(node.child)) {
+      const childPrefix = `${prefix}${isLast ? '    ' : '│   '}`;
+      result += this.buildTreeString(node.child, childPrefix, true);
+    }
+
+    return result;
   }
 }
