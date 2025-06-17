@@ -43,6 +43,8 @@ export const regularPrompt = `
   Otherwise, use query tool to find the appropriate tools to use or you think the document is not relevant to the user's request.
   **Important**: If user attached a document/pdf, and ask what is in the document, then you do not need to use searchDocuments tool.
   **Important** Always use query to first, then call schema to get the input and output of the tool, then use the tool.
+  **Important** If you use useTool to call a tool and it returns a non empty url, don't include that URL in your final response. Don't say: You can complete the transaction here: https://someurl.com something like that.
+  **Important** If user want to create a workflow, or intent to create job, or intent to create a automated system, use createDocument tool to create a workflow.
   `;
 
 export interface RequestHints {

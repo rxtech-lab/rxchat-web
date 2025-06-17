@@ -27,22 +27,10 @@ import {
 } from './ui/collapsible';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
-
-function parseMcpContent(obj: any) {
-  if ('content' in obj) {
-    if (Array.isArray(obj.content)) {
-      return obj.content.map((item: { type: string; text: string }) => {
-        if (item.type === 'text') {
-          return JSON.parse(item.text);
-        }
-
-        return item;
-      });
-    }
-  }
-
-  return false;
-}
+import {
+  mcpToolResultSchema,
+  parseMcpContent,
+} from '@/components/message.utils';
 
 const PurePreviewMessage = ({
   chatId,
@@ -217,15 +205,22 @@ const PurePreviewMessage = ({
                   }
                 };
 
+                const result =
+                  state === 'result' ? toolInvocation.result : null;
+                const parsedResult = result ? parseMcpContent(result) : null;
+                const parsedMcpResult = parsedResult
+                  ? mcpToolResultSchema.safeParse(parsedResult)
+                  : { success: false };
+
                 const renderResultContent = () => {
-                  if (state !== 'result')
+                  if (state !== 'result' || !result)
                     return (
                       <div className="text-muted-foreground p-4">
                         No result data available
                       </div>
                     );
 
-                  const { result } = toolInvocation;
+                  console.log(parsedMcpResult);
 
                   if (toolName === 'createDocument') {
                     return (
@@ -257,10 +252,23 @@ const PurePreviewMessage = ({
                         isReadonly={isReadonly}
                       />
                     );
+                  } else if (
+                    parsedMcpResult.success &&
+                    (parsedMcpResult as any).data[0]?.url?.length > 0
+                  ) {
+                    return (
+                      <iframe
+                        title="MCP Result"
+                        src={(parsedMcpResult as any).data[0]?.url}
+                        className="w-full min-h-[500px]"
+                        sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-presentation"
+                        referrerPolicy="strict-origin-when-cross-origin"
+                      />
+                    );
                   } else {
                     return (
                       <CodeView
-                        code={JSON.stringify(parseMcpContent(result), null, 2)}
+                        code={JSON.stringify(parsedResult, null, 2)}
                         language="json"
                         maxHeight={400}
                       />
@@ -268,8 +276,13 @@ const PurePreviewMessage = ({
                   }
                 };
 
+                const isValidMcpResult =
+                  state === 'result' &&
+                  parsedMcpResult.success &&
+                  (parsedMcpResult as any).data[0]?.url?.length > 0;
+
                 return (
-                  <Collapsible key={toolCallId}>
+                  <Collapsible key={toolCallId} defaultOpen={isValidMcpResult}>
                     <CollapsibleTrigger className="flex items-center gap-3 p-4 hover:bg-muted/50 rounded-lg border w-full text-left transition-colors">
                       <ToolInvocationHeader
                         toolName={toolName}
@@ -278,24 +291,28 @@ const PurePreviewMessage = ({
                       />
                     </CollapsibleTrigger>
                     <CollapsibleContent className="mt-2">
-                      <Tabs defaultValue={state} className="w-full">
-                        <TabsList className="grid w-full grid-cols-2">
-                          <TabsTrigger value="call">Call</TabsTrigger>
-                          <TabsTrigger value="result">Result</TabsTrigger>
-                        </TabsList>
-                        <TabsContent
-                          value="call"
-                          className="mt-4 min-w-0 w-full"
-                        >
-                          {renderCallContent()}
-                        </TabsContent>
-                        <TabsContent
-                          value="result"
-                          className="mt-4 min-w-0 w-full"
-                        >
-                          {renderResultContent()}
-                        </TabsContent>
-                      </Tabs>
+                      {isValidMcpResult ? (
+                        <div className="mt-4">{renderResultContent()}</div>
+                      ) : (
+                        <Tabs defaultValue={state} className="w-full">
+                          <TabsList className="grid w-full grid-cols-2">
+                            <TabsTrigger value="call">Call</TabsTrigger>
+                            <TabsTrigger value="result">Result</TabsTrigger>
+                          </TabsList>
+                          <TabsContent
+                            value="call"
+                            className="mt-4 min-w-0 w-full"
+                          >
+                            {renderCallContent()}
+                          </TabsContent>
+                          <TabsContent
+                            value="result"
+                            className="mt-4 min-w-0 w-full"
+                          >
+                            {renderResultContent()}
+                          </TabsContent>
+                        </Tabs>
+                      )}
                     </CollapsibleContent>
                   </Collapsible>
                 );
