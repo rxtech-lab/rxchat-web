@@ -96,6 +96,8 @@ jobs:
       QSTASH_TOKEN: eyJVc2VySUQiOiJkZWZhdWx0VXNlciIsIlBhc3N3b3JkIjoiZGVmYXVsdFBhc3N3b3JkIn0
       QSTASH_URL: http://localhost:8080
       OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+      AZURE_API_KEY: ${{ secrets.AZURE_API_KEY }}
+      AZURE_RESOURCE_NAME: ${{ secrets.AZURE_RESOURCE_NAME }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4

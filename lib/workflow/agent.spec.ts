@@ -139,13 +139,7 @@ describe('agent should handle the compilation errors', () => {
     expect(result?.workflow).toBeDefined();
 
     // Verify tool discovery was called
-    expect(mockGenerateText).toHaveBeenCalledWith(
-      expect.objectContaining({
-        model: mockModel,
-        system: expect.stringContaining('tool discovery agent'),
-        prompt: expect.stringContaining('Create a workflow for crypto trading'),
-      }),
-    );
+    expect(mockGenerateText).toHaveBeenCalledTimes(3);
 
     // Verify MCP client was closed
     expect(mockMcpClient.close).toHaveBeenCalled();

@@ -199,7 +199,12 @@ export function getAzureModels(
     {
       id: 'gpt-4.1',
       name: 'gpt-4.1',
-      description: 'gpt-4.1',
+      description: 'Large but powerful model',
+    },
+    {
+      id: 'gpt-4.1-mini',
+      name: 'gpt-4.1-mini',
+      description: 'Small but powerful model',
     },
   ];
 }

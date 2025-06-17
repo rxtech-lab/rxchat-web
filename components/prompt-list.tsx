@@ -4,9 +4,9 @@
 import type { Prompt } from '@/lib/db/schema';
 import { cn } from '@/lib/utils';
 import { Edit, Loader2, Pin, Plus, Trash2 } from 'lucide-react';
-import { Button } from './ui/button';
+import { useSession } from 'next-auth/react';
 import { Badge } from './ui/badge';
-import { getSession, useSession } from 'next-auth/react';
+import { Button } from './ui/button';
 
 interface PromptListProps {
   prompts: Prompt[];
