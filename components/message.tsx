@@ -252,19 +252,6 @@ const PurePreviewMessage = ({
                         isReadonly={isReadonly}
                       />
                     );
-                  } else if (
-                    parsedMcpResult.success &&
-                    (parsedMcpResult as any).data[0]?.url?.length > 0
-                  ) {
-                    return (
-                      <iframe
-                        title="MCP Result"
-                        src={(parsedMcpResult as any).data[0]?.url}
-                        className="w-full min-h-[500px]"
-                        sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-presentation"
-                        referrerPolicy="strict-origin-when-cross-origin"
-                      />
-                    );
                   } else {
                     return (
                       <CodeView
@@ -281,6 +268,10 @@ const PurePreviewMessage = ({
                   parsedMcpResult.success &&
                   (parsedMcpResult as any).data[0]?.url?.length > 0;
 
+                const iframeUrl = isValidMcpResult
+                  ? (parsedMcpResult as any).data[0]?.url
+                  : undefined;
+
                 return (
                   <Collapsible key={toolCallId} defaultOpen={isValidMcpResult}>
                     <CollapsibleTrigger className="flex items-center gap-3 p-4 hover:bg-muted/50 rounded-lg border w-full text-left transition-colors">
@@ -288,12 +279,11 @@ const PurePreviewMessage = ({
                         toolName={toolName}
                         toolInvocation={toolInvocation}
                         status={status}
+                        iframeUrl={iframeUrl}
                       />
                     </CollapsibleTrigger>
                     <CollapsibleContent className="mt-2">
-                      {isValidMcpResult ? (
-                        <div className="mt-4">{renderResultContent()}</div>
-                      ) : (
+                      {!isValidMcpResult && (
                         <Tabs defaultValue={state} className="w-full">
                           <TabsList className="grid w-full grid-cols-2">
                             <TabsTrigger value="call">Call</TabsTrigger>
