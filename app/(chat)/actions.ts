@@ -230,7 +230,7 @@ export async function createWorkflowJob(documentId: string): Promise<{
         jobId: job.id,
       }),
       // run every day
-      cron: '0 0 * * *',
+      cron: parsedContent.workflow.trigger.cron ?? '0 0 * * *',
     });
 
     return {

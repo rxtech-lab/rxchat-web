@@ -1,6 +1,5 @@
 'server-only';
 
-import { createOpenRouter } from '@openrouter/ai-sdk-provider';
 import { generateText, tool } from 'ai';
 import { v4 } from 'uuid';
 import type { z } from 'zod';
@@ -13,6 +12,7 @@ import {
   WorkflowReferenceError,
   WorkflowToolMissingError,
 } from './errors';
+import { modelProviders } from './models';
 import {
   DiscoverySystemPrompt,
   SuggestionSystemPrompt,
@@ -38,18 +38,6 @@ import {
   Workflow,
 } from './workflow';
 import { WorkflowEngine } from './workflow-engine';
-
-const modelProviders = () => {
-  const openRouter = createOpenRouter({
-    apiKey: process.env.OPENROUTER_API_KEY,
-  });
-
-  return {
-    discovery: openRouter('openai/gpt-4.1-mini'),
-    workflow: openRouter('google/gemini-2.5-pro-preview'),
-    suggestion: openRouter('openai/gpt-4.1'),
-  };
-};
 
 /**
  * Parameters for the tool discovery agent
