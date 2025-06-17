@@ -11,12 +11,8 @@ jest.mock('bcrypt-ts', () => ({
 }));
 
 import { generateId } from 'ai';
-import {
-  createUser,
-  deleteUserAccount,
-  createPrompt,
-  updatePrompt,
-} from './queries';
+import { createUser, deleteUserAccount } from './queries';
+import { createPrompt, updatePrompt } from './prompts';
 import { generateRandomTestUser } from '@/tests/helpers';
 import type { Prompt } from '../schema';
 
@@ -35,6 +31,8 @@ const createMockPrompt = (
   visibility: 'private',
   createdAt: new Date(),
   updatedAt: new Date(),
+  icon: null,
+  tags: [],
   ...overrides,
 });
 
@@ -86,6 +84,7 @@ describe('Prompt Queries', () => {
       const result = await updatePrompt({
         promptId: testPromptId,
         prompt: updateData,
+        userId: testUserId,
       });
 
       expect(result).toBeDefined();
@@ -106,6 +105,7 @@ describe('Prompt Queries', () => {
       const result = await updatePrompt({
         promptId: testPromptId,
         prompt: partialUpdate,
+        userId: testUserId,
       });
 
       expect(result).toBeDefined();
@@ -127,6 +127,7 @@ describe('Prompt Queries', () => {
       const result = await updatePrompt({
         promptId: testPromptId,
         prompt: { title: 'Time Test Update' },
+        userId: testUserId,
       });
 
       expect(result.updatedAt.getTime()).toBeGreaterThan(
@@ -141,6 +142,7 @@ describe('Prompt Queries', () => {
         updatePrompt({
           promptId: nonExistentPromptId,
           prompt: { title: 'Should Fail' },
+          userId: testUserId,
         }),
       ).rejects.toThrow('An error occurred while executing a database query.');
     });

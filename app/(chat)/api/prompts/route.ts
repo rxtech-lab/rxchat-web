@@ -4,7 +4,7 @@ import {
   createPrompt,
   updatePrompt,
   deletePrompt,
-} from '@/lib/db/queries/queries';
+} from '@/lib/db/queries/prompts';
 import { ChatSDKError } from '@/lib/errors';
 import type { Prompt } from '@/lib/db/schema';
 import { generateUUID } from '@/lib/utils';
@@ -40,11 +40,15 @@ export async function POST(request: Request) {
       description,
       code,
       visibility = 'private',
+      icon = null,
+      tags = [],
     }: {
       title: string;
       description?: string;
       code: string;
       visibility?: 'private' | 'public';
+      icon?: string | null;
+      tags?: string[];
     } = await request.json();
 
     if (!title || !code) {
@@ -63,6 +67,8 @@ export async function POST(request: Request) {
       visibility,
       createdAt: new Date(),
       updatedAt: new Date(),
+      icon,
+      tags,
     };
 
     await createPrompt({
@@ -93,12 +99,16 @@ export async function PATCH(request: Request) {
       description,
       code,
       visibility,
+      icon,
+      tags,
     }: {
       id: string;
       title?: string;
       description?: string;
       code?: string;
       visibility?: 'private' | 'public';
+      icon?: string | null;
+      tags?: string[];
     } = await request.json();
 
     if (!id) {
@@ -110,11 +120,14 @@ export async function PATCH(request: Request) {
 
     const updatedPrompt = await updatePrompt({
       promptId: id,
+      userId: session.user.id,
       prompt: {
         title,
         description,
         code,
         visibility,
+        icon,
+        tags,
       },
     });
 
@@ -145,7 +158,7 @@ export async function DELETE(request: Request) {
   }
 
   try {
-    await deletePrompt({ id });
+    await deletePrompt({ id, userId: session.user.id });
 
     return Response.json({ success: true }, { status: 200 });
   } catch (error) {

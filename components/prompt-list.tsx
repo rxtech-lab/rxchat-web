@@ -3,8 +3,10 @@
 // Removed ScrollArea import - using div with overflow-y-auto instead
 import type { Prompt } from '@/lib/db/schema';
 import { cn } from '@/lib/utils';
-import { Edit, Loader2, Plus, Trash2 } from 'lucide-react';
+import { Edit, Loader2, Pin, Plus, Trash2 } from 'lucide-react';
 import { Button } from './ui/button';
+import { Badge } from './ui/badge';
+import { getSession, useSession } from 'next-auth/react';
 
 interface PromptListProps {
   prompts: Prompt[];
@@ -38,6 +40,7 @@ export function PromptList({
   loadingPromptId,
   className,
 }: PromptListProps) {
+  const { data: session } = useSession();
   return (
     <div className={cn('flex flex-col h-full', className)}>
       {prompts.length === 0 ? (
@@ -58,80 +61,142 @@ export function PromptList({
         </div>
       ) : (
         <div className="flex-1 overflow-y-auto">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-2">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-2 p-2">
             {prompts.map((prompt) => {
               const isLoading = loadingPromptId === prompt.id;
               const isSelected = selectedPromptId === prompt.id;
+              const isEditable = prompt.authorId === session?.user.id;
 
               return (
                 // biome-ignore lint/nursery/noStaticElementInteractions: <explanation>
                 <div
                   key={prompt.id}
                   className={cn(
-                    'group p-4 border rounded-lg cursor-pointer transition-all duration-200 hover:bg-muted/50 hover:shadow-md h-[180px] flex flex-col relative',
-                    isSelected && 'border-primary hover:scale-[1.02]',
+                    'group p-3 border-gray-200 border rounded-2xl cursor-pointer transition-all duration-200 hover:bg-muted/50 hover:shadow-lg bg-white relative',
                     isLoading && 'opacity-75 cursor-wait',
+                    isSelected && 'border-primary border-2',
                   )}
                   onClick={() => !isLoading && onSelect(prompt)}
                 >
                   {isLoading && (
-                    <div className="absolute inset-0 bg-background/50 rounded-lg flex items-center justify-center z-10">
+                    <div className="absolute inset-0 bg-background/50 rounded-2xl flex items-center justify-center z-10">
                       <Loader2 className="size-6 animate-spin text-primary" />
                     </div>
                   )}
 
-                  <div className="flex flex-col h-full">
-                    <div className="flex items-start justify-between mb-2">
-                      <h4
-                        className={cn(
-                          'font-medium truncate flex-1 transition-colors',
-                          isSelected && 'text-primary font-semibold',
-                        )}
+                  {/* Pin icon for selected prompt */}
+                  {isSelected && (
+                    <div className="absolute top-3 right-3 bg-primary rounded-full p-2 shadow-sm z-20">
+                      <Pin className="size-4 text-primary-foreground fill-current" />
+                    </div>
+                  )}
+
+                  {/* Action buttons */}
+                  {isEditable && (
+                    <div
+                      className={cn(
+                        'absolute top-10 right-4 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity',
+                        isLoading && 'opacity-0',
+                      )}
+                    >
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onEdit(prompt);
+                        }}
+                        className="size-8 p-0 hover:bg-gray-100"
+                        disabled={isLoading}
                       >
-                        {prompt.title}
-                      </h4>
-                      <div
-                        className={cn(
-                          'flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity ml-2 shrink-0',
-                          isLoading && 'opacity-0',
-                        )}
+                        <Edit className="size-4" />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onDelete(prompt);
+                        }}
+                        className="size-8 p-0 text-destructive hover:text-destructive hover:bg-red-50"
+                        disabled={isLoading}
                       >
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onEdit(prompt);
-                          }}
-                          className="size-8 p-0"
-                          disabled={isLoading}
+                        <Trash2 className="size-4" />
+                      </Button>
+                    </div>
+                  )}
+
+                  <div className="space-y-2 justify-between flex-col flex h-full">
+                    {/* Icon, Title, and Tags in same row */}
+                    <div className="flex items-start gap-2">
+                      {/* Icon */}
+                      {prompt.icon ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          alt={`icon-${prompt.title}`}
+                          src={prompt.icon}
+                          className="size-12 flex items-center justify-center text-2xl shrink-0"
+                        />
+                      ) : (
+                        <div className="size-12 rounded-xl bg-gradient-to-br from-blue-100 to-blue-200 flex items-center justify-center shrink-0">
+                          <span className="text-blue-600 text-lg font-bold">
+                            {prompt.title.charAt(0).toUpperCase()}
+                          </span>
+                        </div>
+                      )}
+
+                      {/* Title and Tags Column */}
+                      <div className="flex flex-col gap-2 flex-1 min-w-0">
+                        {/* Title */}
+                        <h3
+                          className={cn(
+                            'text font-bold text-gray-900 leading-tight',
+                            isSelected && 'text-primary',
+                          )}
                         >
-                          <Edit className="size-4" />
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onDelete(prompt);
-                          }}
-                          className="size-8 p-0 text-destructive hover:text-destructive"
-                          disabled={isLoading}
-                        >
-                          <Trash2 className="size-4" />
-                        </Button>
+                          {prompt.title}
+                        </h3>
+
+                        {/* Tags */}
+                        {prompt.tags && prompt.tags.length > 0 && (
+                          <div className="flex flex-wrap gap-2">
+                            {prompt.tags.slice(0, 4).map((tag) => (
+                              <Badge
+                                key={`${prompt.id}-${tag}`}
+                                className="rounded-full px-3 py-1 font-medium bg-cyan-100 text-cyan-800 border-0 hover:bg-cyan-200"
+                              >
+                                {tag}
+                              </Badge>
+                            ))}
+                            {prompt.tags.length > 4 && (
+                              <Badge
+                                variant="outline"
+                                className="rounded-full px-3 py-1 text-sm text-gray-600 border-gray-300"
+                              >
+                                +{prompt.tags.length - 4}
+                              </Badge>
+                            )}
+                          </div>
+                        )}
                       </div>
                     </div>
 
-                    {prompt.description && (
-                      <p className="text-sm text-muted-foreground line-clamp-4 flex-1">
-                        {prompt.description}
-                      </p>
-                    )}
+                    <div className="flex-1">
+                      {/* Description */}
+                      {prompt.description ? (
+                        <p className="text-gray-600 text-sm leading-relaxed line-clamp-2 flex-1">
+                          {prompt.description}
+                        </p>
+                      ) : (
+                        <p className="text-gray-600 text-sm leading-relaxed line-clamp-2 flex-1">
+                          No description
+                        </p>
+                      )}
+                    </div>
 
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground mt-auto pt-2">
-                      <span>{prompt.visibility}</span>
-                      <span>•</span>
+                    {/* Footer info */}
+                    <div className="flex items-center justify-between text-xs text-gray-500 pt-2 border-t border-gray-100">
+                      <span className="capitalize">{prompt.visibility}</span>
                       <span>
                         {new Date(prompt.updatedAt).toLocaleDateString()}
                       </span>

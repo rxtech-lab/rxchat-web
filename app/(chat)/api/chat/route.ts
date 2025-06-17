@@ -36,10 +36,10 @@ import {
   getMessagesByChatId,
   getStreamIdsByChatId,
   getUserById,
-  getUserPromptByUserId,
   saveChat,
   saveMessages,
 } from '@/lib/db/queries/queries';
+import { getUserPromptByUserId } from '@/lib/db/queries/prompts';
 import type { Chat } from '@/lib/db/schema';
 import { ChatSDKError } from '@/lib/errors';
 import { createMemoryClient } from '@/lib/memory';

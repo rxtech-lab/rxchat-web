@@ -229,6 +229,8 @@ export const prompt = pgTable('Prompt', {
   id: uuid('id').primaryKey().notNull().defaultRandom(),
   title: text('title').notNull(),
   description: text('description'),
+  icon: text('icon'),
+  tags: text('tags').array().notNull().default([]),
   code: text('code').notNull(),
   authorId: uuid('authorId')
     .notNull()

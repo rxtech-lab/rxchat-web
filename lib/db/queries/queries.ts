@@ -20,7 +20,6 @@ import {
   document,
   message,
   passkeyAuthenticator,
-  prompt,
   stream,
   suggestion,
   user,
@@ -29,7 +28,6 @@ import {
   type Chat,
   type DBMessage,
   type PasskeyAuthenticator,
-  type Prompt,
   type Suggestion,
   type User,
 } from '../schema';
@@ -577,99 +575,6 @@ export async function getStreamIdsByChatId({ chatId }: { chatId: string }) {
       'bad_request:database',
       'Failed to get stream ids by chat id',
     );
-  }
-}
-
-export async function getPromptsByUserId({ userId }: { userId: string }) {
-  try {
-    return await db
-      .select()
-      .from(prompt)
-      .where(eq(prompt.authorId, userId))
-      .orderBy(desc(prompt.createdAt));
-  } catch (error) {
-    throw new ChatSDKError(
-      'bad_request:database',
-      'Failed to get prompts by user id',
-    );
-  }
-}
-
-export async function getUserPromptByUserId({
-  userId,
-}: { userId: string }): Promise<Prompt | null> {
-  try {
-    const prompts = await db
-      .select()
-      .from(userPrompt)
-      .innerJoin(prompt, eq(userPrompt.promptId, prompt.id))
-      .where(eq(userPrompt.userId, userId))
-      .limit(1);
-
-    if (prompts.length === 0) {
-      return null;
-    }
-
-    return prompts[0].Prompt;
-  } catch (error) {
-    throw new ChatSDKError(
-      'bad_request:database',
-      'Failed to get user prompts by user id',
-    );
-  }
-}
-
-export async function createPrompt({
-  prompt: createdPrompt,
-  userId,
-}: {
-  prompt: Prompt;
-  userId: string;
-}) {
-  try {
-    return await db.insert(prompt).values({
-      ...createdPrompt,
-      authorId: userId,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    });
-  } catch (error) {
-    throw new ChatSDKError('bad_request:database', 'Failed to create prompt');
-  }
-}
-
-export async function updatePrompt({
-  promptId,
-  prompt: newPrompt,
-}: {
-  promptId: string;
-  prompt: Partial<Prompt>;
-}) {
-  try {
-    const updatedPrompts = await db
-      .update(prompt)
-      .set({ ...newPrompt, updatedAt: new Date() })
-      .where(eq(prompt.id, promptId))
-      .returning();
-
-    if (updatedPrompts.length === 0) {
-      throw new ChatSDKError('bad_request:database', 'Prompt not found');
-    }
-
-    return updatedPrompts[0];
-  } catch (error) {
-    if (error instanceof ChatSDKError) {
-      throw error;
-    }
-    throw new ChatSDKError('bad_request:database', 'Failed to update prompt');
-  }
-}
-
-export async function deletePrompt({ id }: { id: string }) {
-  try {
-    return await db.delete(prompt).where(eq(prompt.id, id));
-  } catch (error) {
-    throw new ChatSDKError('bad_request:database', 'Failed to delete prompt');
   }
 }
 
