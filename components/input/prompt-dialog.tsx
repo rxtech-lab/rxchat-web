@@ -111,18 +111,12 @@ export function PromptDialog({ currentPrompt }: PromptDialogProps) {
     setSubmitting(true);
     try {
       const updatedPrompt = await updatePrompt(editingPrompt.id, data);
-      // Keep dialog open and update the editing prompt with the latest data
-      // Since updatePrompt returns the updated prompt from the server, use that
-      const refreshedPrompts = prompts.find((p) => p.id === editingPrompt.id);
-      if (refreshedPrompts) {
-        setEditingPrompt(refreshedPrompts);
-      }
-      // Keep current form data since user might want to make more changes
-      formDataRef.current = data;
-      setFormValid(true);
+      setViewMode('list');
+      setEditingPrompt(null);
+      formDataRef.current = null;
+      setFormValid(false);
     } finally {
       setSubmitting(false);
-      router.refresh();
     }
   };
 
@@ -223,11 +217,11 @@ export function PromptDialog({ currentPrompt }: PromptDialogProps) {
   const getDialogTitle = () => {
     switch (viewMode) {
       case 'create':
-        return 'Create New Prompt';
+        return 'Create New Agent';
       case 'edit':
-        return 'Edit Prompt';
+        return 'Edit Agent';
       default:
-        return 'Select Prompt Template';
+        return 'Select Agent';
     }
   };
 
@@ -243,7 +237,7 @@ export function PromptDialog({ currentPrompt }: PromptDialogProps) {
               className="flex items-center gap-2 mr-10"
             >
               <Plus className="size-4" />
-              New Prompt
+              New Agent
             </Button>
           )}
         </div>
@@ -269,7 +263,10 @@ export function PromptDialog({ currentPrompt }: PromptDialogProps) {
         <Button
           size={'icon'}
           variant={'ghost'}
-          onClick={() => setOpen(false)}
+          onClick={() => {
+            setOpen(false);
+            router.refresh();
+          }}
           className="absolute right-4 top-6 rounded-full opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground"
         >
           <X className="size-4" />
@@ -287,13 +284,6 @@ export function PromptDialog({ currentPrompt }: PromptDialogProps) {
               ← Back to List
             </Button>
             <div className="flex gap-3">
-              <Button
-                variant="outline"
-                onClick={handleBack}
-                disabled={submitting}
-              >
-                Cancel
-              </Button>
               <Button
                 onClick={handleFormSubmit}
                 disabled={!formValid || submitting}
