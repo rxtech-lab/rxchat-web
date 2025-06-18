@@ -51,6 +51,7 @@ const GetDocumentsSchema = z.object({
 const SearchDocumentsSchema = z.object({
   query: z.string().min(1),
   limit: z.number().default(10),
+  includePublic: z.boolean().optional().default(false),
 });
 
 const SearchDocumentsByIdSchema = z.object({
@@ -76,6 +77,11 @@ const GetPresignedUploadUrlSchema = z.object({
 const RenameDocumentSchema = z.object({
   id: z.string().uuid(),
   newName: z.string().min(1).max(255),
+});
+
+const UpdateDocumentVisibilitySchema = z.object({
+  id: z.string().uuid(),
+  visibility: z.enum(['private', 'public']),
 });
 
 export async function getPresignedUploadUrl(
@@ -111,6 +117,7 @@ export async function getPresignedUploadUrl(
     key: fileKey,
     status: 'pending',
     sha256: null,
+    visibility: 'private', // Default to private for new documents
   });
 
   const url = await s3Client.getPresignedUploadUrl(fileKey, mimeType);
@@ -175,9 +182,11 @@ export async function listDocuments({
 export async function searchDocuments({
   query,
   limit = 10,
+  includePublic = false,
 }: {
   query: string;
   limit?: number;
+  includePublic?: boolean;
 }): Promise<VectorStoreDocument[]> {
   const session = await auth();
 
@@ -185,7 +194,11 @@ export async function searchDocuments({
     throw new ChatSDKError('unauthorized:document');
   }
 
-  const parsed = SearchDocumentsSchema.safeParse({ query, limit });
+  const parsed = SearchDocumentsSchema.safeParse({
+    query,
+    limit,
+    includePublic,
+  });
 
   if (!parsed.success) {
     throw new ChatSDKError('bad_request:api', 'Invalid search parameters');
@@ -196,6 +209,7 @@ export async function searchDocuments({
     const searchResults = await vectorStore.searchDocument(parsed.data.query, {
       userId: session.user.id,
       limit: parsed.data.limit,
+      includePublic: parsed.data.includePublic,
     });
 
     let documents = await getDocumentsByIds({
@@ -434,6 +448,7 @@ export async function completeDocumentUpload({
             uploadTimestamp: new Date().toISOString(),
             mimeType: document.mimeType,
             documentId: document.id,
+            visibility: 'private', // Default visibility for new documents
           },
         });
       });
@@ -698,5 +713,111 @@ export async function getDocumentContent({
   } catch (error) {
     console.error('Error getting document content:', error);
     return { error: 'Failed to get document content' };
+  }
+}
+
+/**
+ * Server action to update document visibility
+ */
+export async function updateDocumentVisibility({
+  id,
+  visibility,
+}: {
+  id: string;
+  visibility: 'private' | 'public';
+}): Promise<{ success: boolean } | { error: string }> {
+  const session = await auth();
+
+  if (!session?.user) {
+    return {
+      error:
+        'Unauthorized: You must be logged in to update document visibility.',
+    };
+  }
+
+  const parsed = UpdateDocumentVisibilitySchema.safeParse({ id, visibility });
+
+  if (!parsed.success) {
+    return {
+      error: 'Bad Request: Invalid document ID or visibility type.',
+    };
+  }
+
+  try {
+    await db.transaction(async (tx) => {
+      // First, get the document to check ownership
+      const documents = await getDocumentsByIds({
+        ids: [parsed.data.id],
+        dbConnection: tx,
+      });
+
+      if (documents.length === 0) {
+        return {
+          error: 'Not Found: Document not found.',
+        };
+      }
+
+      const document = documents[0];
+
+      if (document.userId !== session.user.id) {
+        return {
+          error:
+            'Forbidden: You do not have permission to update this document visibility.',
+        };
+      }
+
+      // Update document visibility in database
+      await updateVectorStoreDocument({
+        id: parsed.data.id,
+        updates: {
+          visibility: parsed.data.visibility,
+        },
+        dbConnection: tx,
+      });
+
+      // Update vector store metadata if document is completed
+      if (document.status === 'completed') {
+        try {
+          const vectorStore = createVectorStoreClient();
+          // Since we can't directly update metadata in Upstash, we need to re-add the document
+          // with updated metadata. This is necessary for the search filtering to work properly.
+          await vectorStore.deleteDocument(parsed.data.id);
+
+          // Get document content and re-add with updated visibility
+          if (document.content) {
+            const chunks = await chunkContent(document.content, CHUNK_SIZE);
+            const vectorStorePromises = chunks.map(async (chunk) => {
+              await vectorStore.addDocument({
+                id: crypto.randomUUID(),
+                content: chunk,
+                metadata: {
+                  userId: session.user.id,
+                  key: document.key || '',
+                  uploadTimestamp: document.createdAt.toISOString(),
+                  mimeType: document.mimeType,
+                  documentId: document.id,
+                  visibility: parsed.data.visibility,
+                },
+              });
+            });
+            await Promise.all(vectorStorePromises);
+          }
+        } catch (vectorError) {
+          console.error('Vector store visibility update error:', vectorError);
+          // Don't throw, document visibility is still updated in DB
+        }
+      }
+    });
+
+    return { success: true };
+  } catch (error) {
+    if (error instanceof ChatSDKError) {
+      throw error;
+    }
+    console.error('Document visibility update error:', error);
+    throw new ChatSDKError(
+      'bad_request:api',
+      'Failed to update document visibility',
+    );
   }
 }

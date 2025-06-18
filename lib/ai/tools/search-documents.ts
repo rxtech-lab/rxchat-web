@@ -15,7 +15,7 @@ interface SearchDocumentsProps {
 export const searchDocumentsTool = ({ session }: SearchDocumentsProps) =>
   tool({
     description:
-      'Search for documents using vector similarity search based on query text. If documentId is provided, search within that specific document. If user asks about what is in a document or something like that, you should query abstract about this document with the documentId parameter. Returns document metadata and content for AI to analyze.',
+      'Search for documents using vector similarity search based on query text. If documentId is provided, search within that specific document. If user asks about what is in a document or something like that, you should query abstract about this document with the documentId parameter. Set includePublic to true to also search public documents from other users. Returns document metadata and content for AI to analyze.',
     parameters: z.object({
       query: z
         .string()
@@ -31,8 +31,20 @@ export const searchDocumentsTool = ({ session }: SearchDocumentsProps) =>
         .max(MAX_K)
         .optional()
         .describe(`Maximum number of documents to return (default: ${MAX_K})`),
+      includePublic: z
+        .boolean()
+        .optional()
+        .default(false)
+        .describe(
+          'Set to true to include public documents from other users in search results',
+        ),
     }),
-    execute: async ({ query, documentId, limit = MAX_K }) => {
+    execute: async ({
+      query,
+      documentId,
+      limit = MAX_K,
+      includePublic = false,
+    }) => {
       try {
         let documents: VectorStoreDocument[];
 
@@ -48,6 +60,7 @@ export const searchDocumentsTool = ({ session }: SearchDocumentsProps) =>
           documents = await searchDocuments({
             query,
             limit,
+            includePublic,
           });
         }
 

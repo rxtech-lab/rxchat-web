@@ -53,7 +53,7 @@ export class UpstashVectorStore implements VectorStore {
   /**
    * Searches for documents similar to the query
    * @param query - The search query text
-   * @param options - Search options including limit and userId filter
+   * @param options - Search options including limit, userId filter, and includePublic flag
    * @returns Array of matching documents
    */
   async searchDocument(
@@ -69,9 +69,18 @@ export class UpstashVectorStore implements VectorStore {
       includeData: true,
     };
 
-    // Add user filter if specified
+    // Build filter based on options
     if (options?.userId) {
-      queryParams.filter = `userId = "${options.userId}"`;
+      if (options.includePublic) {
+        // Search user's own documents OR public documents from any user
+        queryParams.filter = `(userId = "${options.userId}") OR (visibility = "public")`;
+      } else {
+        // Search only user's own documents (default behavior)
+        queryParams.filter = `userId = "${options.userId}"`;
+      }
+    } else if (options?.includePublic) {
+      // Search only public documents from any user
+      queryParams.filter = `visibility = "public"`;
     }
 
     const results = await this.index.query(queryParams, {

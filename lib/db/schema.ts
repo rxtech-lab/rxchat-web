@@ -283,6 +283,10 @@ export const vectorStoreDocument = pgTable('VectorStoreDocument', {
     .default('pending'),
   // SHA256 hash field for duplicate detection, unique constraint with nulls not distinct
   sha256: text('sha256').unique('unique_sha256', { nulls: 'distinct' }),
+  // Document visibility: private (only owner can access) or public (searchable by all users)
+  visibility: varchar('visibility', { enum: ['private', 'public'] })
+    .notNull()
+    .default('private'),
 });
 
 export type VectorStoreDocument = InferSelectModel<typeof vectorStoreDocument>;

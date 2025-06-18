@@ -9,6 +9,8 @@ import {
   Loader2Icon,
   MoreHorizontalIcon,
   TrashIcon,
+  GlobeIcon,
+  LockIcon,
 } from 'lucide-react';
 import { memo, useState } from 'react';
 import { toast } from 'sonner';
@@ -46,6 +48,8 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from './ui/tooltip';
+import { DocumentVisibilitySelector } from './document-visibility-selector';
+import type { VisibilityType } from './visibility-selector';
 
 /**
  * Document action interface for shared actions between dropdown and context menu
@@ -293,6 +297,19 @@ const PureDocumentItem = ({
                             },
                           )}
                         </span>
+                        <span className="hidden sm:inline">•</span>
+                        <span className="flex items-center gap-1">
+                          {(vectorDocument.visibility as VisibilityType) ===
+                          'public' ? (
+                            <GlobeIcon className="size-3" />
+                          ) : (
+                            <LockIcon className="size-3" />
+                          )}
+                          {(vectorDocument.visibility as VisibilityType) ===
+                          'public'
+                            ? 'Public'
+                            : 'Private'}
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -314,6 +331,13 @@ const PureDocumentItem = ({
                         addSuffix: true,
                       })}
                     </div>
+                    <div>
+                      <span className="font-medium">Visibility:</span>{' '}
+                      {(vectorDocument.visibility as VisibilityType) ===
+                      'public'
+                        ? 'Public'
+                        : 'Private'}
+                    </div>
                     <div>{vectorDocument.content}</div>
                   </div>
                 </div>
@@ -325,6 +349,18 @@ const PureDocumentItem = ({
           {documentActions.map((action) =>
             renderActionItem(action, ContextMenuItem),
           )}
+          <ContextMenuItem asChild>
+            <div className="flex items-center justify-between w-full px-2 py-1.5">
+              <span className="text-sm">Visibility</span>
+              <DocumentVisibilitySelector
+                documentId={vectorDocument.id}
+                selectedVisibilityType={
+                  (vectorDocument.visibility as VisibilityType) || 'private'
+                }
+                size="sm"
+              />
+            </div>
+          </ContextMenuItem>
         </ContextMenuContent>
       </ContextMenu>
 
@@ -339,6 +375,18 @@ const PureDocumentItem = ({
           {documentActions.map((action) =>
             renderActionItem(action, DropdownMenuItem),
           )}
+          <DropdownMenuItem asChild>
+            <div className="flex items-center justify-between w-full px-2 py-1.5">
+              <span className="text-sm">Visibility</span>
+              <DocumentVisibilitySelector
+                documentId={vectorDocument.id}
+                selectedVisibilityType={
+                  (vectorDocument.visibility as VisibilityType) || 'private'
+                }
+                size="sm"
+              />
+            </div>
+          </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
 

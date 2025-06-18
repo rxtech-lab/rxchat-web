@@ -55,6 +55,7 @@ describe('searchDocumentsTool', () => {
         key: 'test-key',
         status: 'completed' as const,
         sha256: null,
+        visibility: 'private' as const,
       },
     ];
 
@@ -72,6 +73,7 @@ describe('searchDocumentsTool', () => {
     expect(mockSearchDocuments).toHaveBeenCalledWith({
       query: 'test query',
       limit: 10,
+      includePublic: false,
     });
 
     expect(result).toEqual({
@@ -102,6 +104,7 @@ describe('searchDocumentsTool', () => {
         key: 'test-key',
         status: 'completed' as const,
         sha256: null,
+        visibility: 'private' as const,
       },
     ];
 
@@ -209,6 +212,7 @@ describe('searchDocumentsTool', () => {
     expect(mockSearchDocuments).toHaveBeenCalledWith({
       query: 'test query',
       limit: 5,
+      includePublic: false,
     });
   });
 
@@ -228,6 +232,44 @@ describe('searchDocumentsTool', () => {
       documentId: 'doc-1',
       query: 'test query',
       limit: 3,
+    });
+  });
+
+  it('should include public documents when includePublic is true', async () => {
+    mockSearchDocuments.mockResolvedValue([]);
+
+    const tool = searchDocumentsTool({ session: mockSession });
+    await tool.execute(
+      { query: 'test query', includePublic: true },
+      {
+        toolCallId: '',
+        messages: [],
+      },
+    );
+
+    expect(mockSearchDocuments).toHaveBeenCalledWith({
+      query: 'test query',
+      limit: 10,
+      includePublic: true,
+    });
+  });
+
+  it('should default to excluding public documents when includePublic is not specified', async () => {
+    mockSearchDocuments.mockResolvedValue([]);
+
+    const tool = searchDocumentsTool({ session: mockSession });
+    await tool.execute(
+      { query: 'test query' },
+      {
+        toolCallId: '',
+        messages: [],
+      },
+    );
+
+    expect(mockSearchDocuments).toHaveBeenCalledWith({
+      query: 'test query',
+      limit: 10,
+      includePublic: false,
     });
   });
 });

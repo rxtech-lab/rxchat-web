@@ -21,6 +21,11 @@ export interface VectorStoreMetadata {
    * The original document ID from the database (added automatically by vector store)
    */
   documentId?: string;
+
+  /**
+   * Document visibility: 'private' (only owner can access) or 'public' (searchable by all users)
+   */
+  visibility?: 'private' | 'public';
 }
 
 /**
@@ -44,11 +49,13 @@ export interface VectorStoreDocument {
 export interface SearchOptions {
   limit?: number;
   userId?: string;
+  includePublic?: boolean;
 }
 
 export interface SearchByDocumentIdOptions {
   limit?: number;
   userId?: string;
+  includePublic?: boolean;
 }
 
 export interface VectorStore {
