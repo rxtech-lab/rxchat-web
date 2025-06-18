@@ -1,12 +1,13 @@
 import type { UIMessage } from 'ai';
 import { PreviewMessage, ThinkingMessage } from './message';
 import { Greeting } from './greeting';
-import { memo } from 'react';
+import { memo, useEffect } from 'react';
 import type { Vote } from '@/lib/db/schema';
 import equal from 'fast-deep-equal';
 import type { UseChatHelpers } from '@ai-sdk/react';
 import { motion } from 'framer-motion';
 import { useMessages } from '@/hooks/use-messages';
+import { z } from 'zod';
 
 interface MessagesProps {
   chatId: string;
@@ -17,7 +18,16 @@ interface MessagesProps {
   reload: UseChatHelpers['reload'];
   isReadonly: boolean;
   isArtifactVisible: boolean;
+  append: UseChatHelpers['append'];
 }
+
+const messageSchema = z.object({
+  messageType: z.literal('mcp-tool-call'),
+  type: z.literal('send-message'),
+  payload: z.object({
+    message: z.string(),
+  }),
+});
 
 function PureMessages({
   chatId,
@@ -27,6 +37,7 @@ function PureMessages({
   setMessages,
   reload,
   isReadonly,
+  append,
 }: MessagesProps) {
   const {
     containerRef: messagesContainerRef,
@@ -39,6 +50,28 @@ function PureMessages({
     status,
     messages,
   });
+
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      const message = messageSchema.safeParse(event.data);
+      if (!message.success) {
+        return;
+      }
+
+      if (message.data.type === 'send-message') {
+        append({
+          role: 'user',
+          content: message.data.payload.message,
+        });
+      }
+    };
+
+    window.addEventListener('message', handleMessage);
+
+    return () => {
+      window.removeEventListener('message', handleMessage);
+    };
+  }, [append]);
 
   return (
     <div
@@ -53,6 +86,7 @@ function PureMessages({
           chatId={chatId}
           message={message}
           status={status}
+          append={append}
           isLoading={status === 'streaming' && messages.length - 1 === index}
           vote={
             votes

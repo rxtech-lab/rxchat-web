@@ -1,6 +1,17 @@
 import { z } from 'zod';
 
-export const mcpToolResultSchema = z
+export const SuggestionSchema = z.object({
+  type: z.literal('suggestion'),
+  text: z.string(),
+});
+
+export const SuggestionListSchema = z.object({
+  text: z.string(),
+  value: z.string(),
+  type: z.enum(['SUGGESTION_TYPE_CHAT']),
+});
+
+export const McpToolResultSchema = z
   .object({
     output: z.string().transform((str) => {
       try {
@@ -10,7 +21,8 @@ export const mcpToolResultSchema = z
       }
     }),
     url: z.string(),
-    suggestions: z.array(z.string()).nullable(),
+    suggestions: z.array(SuggestionListSchema).nullable(),
+    suggestHeight: z.number().nullable().optional(),
   })
   .array();
 
