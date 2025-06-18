@@ -28,7 +28,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
 import {
-  mcpToolResultSchema,
+  McpToolResultSchema,
   parseMcpContent,
 } from '@/components/message.utils';
 
@@ -41,6 +41,7 @@ const PurePreviewMessage = ({
   reload,
   isReadonly,
   requiresScrollPadding,
+  append,
   status,
 }: {
   chatId: string;
@@ -49,6 +50,7 @@ const PurePreviewMessage = ({
   isLoading: boolean;
   setMessages: UseChatHelpers['setMessages'];
   reload: UseChatHelpers['reload'];
+  append: UseChatHelpers['append'];
   isReadonly: boolean;
   requiresScrollPadding: boolean;
   status: UseChatHelpers['status'];
@@ -209,7 +211,7 @@ const PurePreviewMessage = ({
                   state === 'result' ? toolInvocation.result : null;
                 const parsedResult = result ? parseMcpContent(result) : null;
                 const parsedMcpResult = parsedResult
-                  ? mcpToolResultSchema.safeParse(parsedResult)
+                  ? McpToolResultSchema.safeParse(parsedResult)
                   : { success: false };
 
                 const renderResultContent = () => {
@@ -219,8 +221,6 @@ const PurePreviewMessage = ({
                         No result data available
                       </div>
                     );
-
-                  console.log(parsedMcpResult);
 
                   if (toolName === 'createDocument') {
                     return (
@@ -280,6 +280,13 @@ const PurePreviewMessage = ({
                         toolInvocation={toolInvocation}
                         status={status}
                         iframeUrl={iframeUrl}
+                        append={append}
+                        suggestionHeight={
+                          (parsedMcpResult as any).data?.[0]?.suggestHeight
+                        }
+                        suggestions={
+                          (parsedMcpResult as any).data?.[0]?.suggestions
+                        }
                       />
                     </CollapsibleTrigger>
                     <CollapsibleContent className="mt-2">

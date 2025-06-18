@@ -1,4 +1,4 @@
-import { mcpToolResultSchema, parseMcpContent } from './message.utils';
+import { McpToolResultSchema, parseMcpContent } from './message.utils';
 
 describe('message.utils', () => {
   describe('parseMcpContent', () => {
@@ -90,20 +90,24 @@ describe('message.utils', () => {
         {
           output: '{"key": "value"}',
           url: 'https://example.com',
-          suggestions: ['suggestion1', 'suggestion2'],
+          suggestions: [
+            {
+              text: 'suggestion1',
+              value: 'value1',
+              type: 'SUGGESTION_TYPE_CHAT',
+            },
+          ],
+          suggestHeight: 500,
         },
       ];
 
-      const result = mcpToolResultSchema.safeParse(validData);
+      const result = McpToolResultSchema.safeParse(validData);
 
       expect(result.success).toBe(true);
       if (result.success) {
         expect(result.data[0].output).toEqual({ key: 'value' });
         expect(result.data[0].url).toBe('https://example.com');
-        expect(result.data[0].suggestions).toEqual([
-          'suggestion1',
-          'suggestion2',
-        ]);
+        expect(result.data[0].suggestions).toHaveLength(1);
       }
     });
 
@@ -113,10 +117,11 @@ describe('message.utils', () => {
           output: '{"key": "value"}',
           url: 'https://example.com',
           suggestions: null,
+          suggestHeight: null,
         },
       ];
 
-      const result = mcpToolResultSchema.safeParse(validData);
+      const result = McpToolResultSchema.safeParse(validData);
 
       expect(result.success).toBe(true);
       if (result.success) {
@@ -127,7 +132,7 @@ describe('message.utils', () => {
     it('should validate empty array', () => {
       const validData: any[] = [];
 
-      const result = mcpToolResultSchema.safeParse(validData);
+      const result = McpToolResultSchema.safeParse(validData);
 
       expect(result.success).toBe(true);
       if (result.success) {
@@ -140,7 +145,13 @@ describe('message.utils', () => {
         {
           output: '{"key1": "value1"}',
           url: 'https://example1.com',
-          suggestions: ['suggestion1'],
+          suggestions: [
+            {
+              text: 'suggestion1',
+              value: 'value1',
+              type: 'SUGGESTION_TYPE_CHAT',
+            },
+          ],
         },
         {
           output: '{"key2": "value2"}',
@@ -149,7 +160,7 @@ describe('message.utils', () => {
         },
       ];
 
-      const result = mcpToolResultSchema.safeParse(validData);
+      const result = McpToolResultSchema.safeParse(validData);
 
       expect(result.success).toBe(true);
       if (result.success) {
@@ -167,7 +178,7 @@ describe('message.utils', () => {
         },
       ];
 
-      const result = mcpToolResultSchema.safeParse(invalidData);
+      const result = McpToolResultSchema.safeParse(invalidData);
 
       expect(result.success).toBe(false);
     });
@@ -181,7 +192,7 @@ describe('message.utils', () => {
         },
       ];
 
-      const result = mcpToolResultSchema.safeParse(invalidData);
+      const result = McpToolResultSchema.safeParse(invalidData);
 
       expect(result.success).toBe(true);
     });
@@ -195,7 +206,7 @@ describe('message.utils', () => {
         },
       ];
 
-      const result = mcpToolResultSchema.safeParse(invalidData);
+      const result = McpToolResultSchema.safeParse(invalidData);
 
       expect(result.success).toBe(false);
     });
@@ -209,7 +220,7 @@ describe('message.utils', () => {
         },
       ];
 
-      const result = mcpToolResultSchema.safeParse(invalidData);
+      const result = McpToolResultSchema.safeParse(invalidData);
 
       expect(result.success).toBe(false);
     });
@@ -221,7 +232,7 @@ describe('message.utils', () => {
         suggestions: null,
       };
 
-      const result = mcpToolResultSchema.safeParse(invalidData);
+      const result = McpToolResultSchema.safeParse(invalidData);
 
       expect(result.success).toBe(false);
     });
@@ -235,7 +246,7 @@ describe('message.utils', () => {
         },
       ];
 
-      const result = mcpToolResultSchema.safeParse(validData);
+      const result = McpToolResultSchema.safeParse(validData);
 
       expect(result.success).toBe(true);
       if (result.success) {
@@ -260,7 +271,7 @@ describe('message.utils', () => {
 
       expect(() => {
         const parsedContent = parseMcpContent(mcpContent);
-        mcpToolResultSchema.safeParse(parsedContent);
+        McpToolResultSchema.safeParse(parsedContent);
       }).toThrow();
     });
   });

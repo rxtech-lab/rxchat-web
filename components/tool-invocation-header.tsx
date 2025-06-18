@@ -1,6 +1,9 @@
-import { CheckIcon, CircleAlertIcon } from 'lucide-react';
 import type { UseChatHelpers } from '@ai-sdk/react';
+import { CheckIcon, CircleAlertIcon } from 'lucide-react';
+import type { z } from 'zod';
+import type { SuggestionListSchema } from './message.utils';
 import Spinner from './spiner';
+import { Button } from './ui/button';
 
 interface ToolInvocationHeaderProps {
   toolName: string;
@@ -13,6 +16,9 @@ interface ToolInvocationHeaderProps {
   };
   status: UseChatHelpers['status'];
   iframeUrl?: string;
+  suggestions?: z.infer<typeof SuggestionListSchema>[];
+  suggestionHeight?: number;
+  append: UseChatHelpers['append'];
 }
 
 /**
@@ -24,6 +30,9 @@ export function ToolInvocationHeader({
   toolInvocation,
   status,
   iframeUrl,
+  suggestions,
+  suggestionHeight,
+  append,
 }: ToolInvocationHeaderProps) {
   const { args, state } = toolInvocation;
 
@@ -44,6 +53,17 @@ export function ToolInvocationHeader({
       );
     }
     return <CheckIcon size={16} className="text-green-600" />;
+  };
+
+  const handleSuggestionClick = (
+    suggestion: z.infer<typeof SuggestionListSchema>,
+  ) => {
+    if (suggestion.type === 'SUGGESTION_TYPE_CHAT') {
+      append({
+        role: 'user',
+        content: suggestion.value,
+      });
+    }
   };
 
   return (
@@ -73,10 +93,31 @@ export function ToolInvocationHeader({
           <iframe
             title="MCP Result"
             src={iframeUrl}
-            className="w-full min-h-[500px] rounded-lg border p-1"
+            className="w-full rounded-lg border p-1"
             sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-presentation"
             referrerPolicy="strict-origin-when-cross-origin"
+            style={{
+              minHeight: suggestionHeight ?? 500,
+            }}
           />
+        </div>
+      )}
+
+      {suggestions && (
+        <div className="mt-4">
+          <div className="text-sm font-medium">Suggestions</div>
+          <div className="text-sm text-muted-foreground flex flex-row gap-2 flex-wrap">
+            {suggestions.map((suggestion) => (
+              <Button
+                key={suggestion.value}
+                variant="default"
+                className="rounded-2xl !h-8 !text-xs"
+                onClick={() => handleSuggestionClick(suggestion)}
+              >
+                {suggestion.text}
+              </Button>
+            ))}
+          </div>
         </div>
       )}
     </div>

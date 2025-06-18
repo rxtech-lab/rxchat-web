@@ -174,6 +174,7 @@ export function Chat({
           votes={votes}
           messages={messages}
           setMessages={setMessages}
+          append={append}
           reload={reload}
           isReadonly={isReadonly}
           isArtifactVisible={isArtifactVisible}

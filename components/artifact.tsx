@@ -322,6 +322,7 @@ function PureArtifact({
                 <ArtifactMessages
                   chatId={chatId}
                   status={status}
+                  append={append}
                   votes={votes}
                   messages={messages}
                   setMessages={setMessages}
