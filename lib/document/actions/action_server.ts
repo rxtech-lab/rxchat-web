@@ -277,6 +277,7 @@ export async function searchDocumentsById({
     let documents = await getDocumentsByIds({
       ids: [parsed.data.documentId],
       dbConnection: db,
+      userId: session.user.id,
       status: 'completed',
     });
 
@@ -373,6 +374,7 @@ export async function completeDocumentUpload({
       // Step 1: Verify document exists and belongs to user
       const documents = await getDocumentsByIds({
         ids: [parsed.data.documentId],
+        userId: session.user.id,
         dbConnection: tx,
       });
 
@@ -496,6 +498,7 @@ export async function deleteDocument({ id }: { id: string }) {
       const documents = await getDocumentsByIds({
         ids: [parsed.data.id],
         dbConnection: tx,
+        userId: session.user.id,
       });
 
       if (documents.length === 0) {
@@ -592,6 +595,7 @@ export async function renameDocument({
       const documents = await getDocumentsByIds({
         ids: [parsed.data.id],
         dbConnection: tx,
+        userId: session.user.id,
       });
 
       if (documents.length === 0) {
