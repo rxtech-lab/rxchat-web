@@ -6,7 +6,9 @@ import {
   DownloadIcon,
   EditIcon,
   FileIcon,
+  GlobeIcon,
   Loader2Icon,
+  LockIcon,
   MoreHorizontalIcon,
   TrashIcon,
 } from 'lucide-react';
@@ -63,13 +65,18 @@ const PureDocumentItem = ({
   vectorDocument,
   onDelete,
   onRename,
+  onVisibilityChange,
+  currentUserId,
 }: {
   vectorDocument: VectorStoreDocument;
   onDelete: (documentId: string) => void;
   onRename?: (documentId: string, newName: string) => void;
+  onVisibilityChange?: (documentId: string, visibility: 'public' | 'private') => void;
+  currentUserId?: string;
 }) => {
   const [isDeleting, setIsDeleting] = useState(false);
   const [isRenaming, setIsRenaming] = useState(false);
+  const [isUpdatingVisibility, setIsUpdatingVisibility] = useState(false);
   const [showRenameDialog, setShowRenameDialog] = useState(false);
   const [newName, setNewName] = useState(vectorDocument.originalFileName);
 
@@ -193,6 +200,42 @@ const PureDocumentItem = ({
   };
 
   /**
+   * Handles document visibility toggle
+   */
+  const handleVisibilityToggle = async () => {
+    if (!onVisibilityChange) return;
+
+    const newVisibility = vectorDocument.visibility === 'public' ? 'private' : 'public';
+
+    try {
+      setIsUpdatingVisibility(true);
+      const response = await fetch(`/api/documents/${vectorDocument.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          visibility: newVisibility,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        toast.error(error.message || 'Failed to update document visibility');
+        return;
+      }
+
+      onVisibilityChange(vectorDocument.id, newVisibility);
+      toast.success(`Document is now ${newVisibility}`);
+    } catch (error) {
+      toast.error('Failed to update document visibility');
+      console.error('Error updating document visibility:', error);
+    } finally {
+      setIsUpdatingVisibility(false);
+    }
+  };
+
+  /**
    * Formats file size from bytes to human readable format
    */
   const formatFileSize = (bytes: number) => {
@@ -203,6 +246,11 @@ const PureDocumentItem = ({
     return `${Number.parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
   };
 
+  // Check if current user owns this document
+  const isOwner = currentUserId && vectorDocument.userId === currentUserId;
+  const isPublicDocument = vectorDocument.visibility === 'public';
+  const canModify = isOwner || !isPublicDocument;
+
   /**
    * Shared actions array for both dropdown menu and context menu
    */
@@ -212,14 +260,21 @@ const PureDocumentItem = ({
       label: 'Download',
       icon: DownloadIcon,
       onClick: handleDownload,
-      disabled: isDeleting || isRenaming,
+      disabled: isDeleting || isRenaming || isUpdatingVisibility,
+    },
+    {
+      id: 'visibility',
+      label: vectorDocument.visibility === 'public' ? 'Make Private' : 'Make Public',
+      icon: vectorDocument.visibility === 'public' ? LockIcon : GlobeIcon,
+      onClick: handleVisibilityToggle,
+      disabled: isDeleting || isRenaming || isUpdatingVisibility || !onVisibilityChange || !canModify,
     },
     {
       id: 'rename',
       label: 'Rename',
       icon: EditIcon,
       onClick: handleRenameDialogOpen,
-      disabled: isDeleting || isRenaming,
+      disabled: isDeleting || isRenaming || isUpdatingVisibility || !canModify,
     },
     {
       id: 'delete',
@@ -228,7 +283,7 @@ const PureDocumentItem = ({
       className:
         'text-destructive focus:bg-destructive/15 focus:text-destructive dark:text-red-500',
       onClick: handleDelete,
-      disabled: isDeleting || isRenaming,
+      disabled: isDeleting || isRenaming || isUpdatingVisibility || !canModify,
     },
   ];
 
@@ -259,7 +314,7 @@ const PureDocumentItem = ({
               <TooltipTrigger asChild>
                 <SidebarMenuButton
                   asChild
-                  className={`h-auto p-3 ${isDeleting || isRenaming ? 'opacity-50 pointer-events-none' : ''}`}
+                  className={`h-auto p-3 ${isDeleting || isRenaming || isUpdatingVisibility ? 'opacity-50 pointer-events-none' : ''}`}
                 >
                   <div className="flex items-start gap-3 w-full cursor-pointer">
                     {isDeleting ? (
@@ -268,6 +323,11 @@ const PureDocumentItem = ({
                         className="mt-0.5 shrink-0 text-muted-foreground animate-spin"
                       />
                     ) : isRenaming ? (
+                      <Loader2Icon
+                        size={20}
+                        className="mt-0.5 shrink-0 text-muted-foreground animate-spin"
+                      />
+                    ) : isUpdatingVisibility ? (
                       <Loader2Icon
                         size={20}
                         className="mt-0.5 shrink-0 text-muted-foreground animate-spin"
@@ -291,6 +351,20 @@ const PureDocumentItem = ({
                             {
                               addSuffix: true,
                             },
+                          )}
+                        </span>
+                        <span className="hidden sm:inline">•</span>
+                        <span className="flex items-center gap-1">
+                          {vectorDocument.visibility === 'public' ? (
+                            <>
+                              <GlobeIcon size={12} />
+                              Public
+                            </>
+                          ) : (
+                            <>
+                              <LockIcon size={12} />
+                              Private
+                            </>
                           )}
                         </span>
                       </div>
@@ -329,7 +403,7 @@ const PureDocumentItem = ({
       </ContextMenu>
 
       <DropdownMenu>
-        <DropdownMenuTrigger asChild disabled={isDeleting || isRenaming}>
+        <DropdownMenuTrigger asChild disabled={isDeleting || isRenaming || isUpdatingVisibility}>
           <SidebarMenuAction showOnHover>
             <MoreHorizontalIcon />
             <span className="sr-only">More actions</span>
@@ -359,7 +433,7 @@ const PureDocumentItem = ({
                 value={newName}
                 onChange={(e) => setNewName(e.target.value)}
                 placeholder="Enter document name"
-                disabled={isRenaming}
+                disabled={isRenaming || isUpdatingVisibility}
                 autoFocus
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
@@ -375,7 +449,7 @@ const PureDocumentItem = ({
               type="button"
               variant="outline"
               onClick={() => setShowRenameDialog(false)}
-              disabled={isRenaming}
+              disabled={isRenaming || isUpdatingVisibility}
             >
               Cancel
             </Button>
@@ -384,7 +458,8 @@ const PureDocumentItem = ({
               disabled={
                 !newName.trim() ||
                 newName.trim() === vectorDocument.originalFileName ||
-                isRenaming
+                isRenaming ||
+                isUpdatingVisibility
               }
             >
               {isRenaming ? 'Renaming...' : 'Rename'}

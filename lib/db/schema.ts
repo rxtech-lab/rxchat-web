@@ -275,6 +275,9 @@ export const vectorStoreDocument = pgTable('VectorStoreDocument', {
   key: text('key').unique(),
   originalFileName: text('originalFileName').notNull(),
   mimeType: text('mimeType').notNull(),
+  visibility: varchar('visibility', { enum: ['private', 'public'] })
+    .notNull()
+    .default('private'),
   size: integer('size').notNull(),
   status: varchar('status', {
     enum: ['pending', 'completed', 'failed'],

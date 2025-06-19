@@ -34,24 +34,30 @@ export const searchDocumentsTool = ({ session }: SearchDocumentsProps) =>
     }),
     execute: async ({ query, documentId, limit = MAX_K }) => {
       try {
-        let documents: VectorStoreDocument[];
+        let privateDocuments: VectorStoreDocument[] = [];
+        let publicDocuments: VectorStoreDocument[] = [];
 
         if (documentId) {
           // Search within a specific document
-          documents = await searchDocumentsById({
+          privateDocuments = await searchDocumentsById({
             documentId,
             query,
             limit,
           });
         } else {
           // Search across all documents
-          documents = await searchDocuments({
+          privateDocuments = await searchDocuments({
             query,
             limit,
           });
+          publicDocuments = await searchDocuments({
+            query,
+            limit,
+            visibility: 'public',
+          });
         }
 
-        if (documents.length === 0) {
+        if (privateDocuments.length === 0 && publicDocuments.length === 0) {
           const message = documentId
             ? `No content found in the specified document matching your search query.`
             : 'No documents found matching your search query.';
@@ -62,12 +68,12 @@ export const searchDocumentsTool = ({ session }: SearchDocumentsProps) =>
         }
 
         const message = documentId
-          ? `Found ${documents.length} relevant section(s) in the document matching your search query.`
-          : `Found ${documents.length} document(s) matching your search query.`;
+          ? `Found ${privateDocuments.length + publicDocuments.length} relevant section(s) in the document matching your search query.`
+          : `Found ${privateDocuments.length + publicDocuments.length} document(s) matching your search query.`;
 
         return {
           message,
-          results: documents.map((doc) => ({
+          results: [...privateDocuments, ...publicDocuments].map((doc) => ({
             id: doc.id,
             originalFileName: doc.originalFileName,
             mimeType: doc.mimeType,

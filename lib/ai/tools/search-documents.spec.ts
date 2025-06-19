@@ -75,8 +75,16 @@ describe('searchDocumentsTool', () => {
     });
 
     expect(result).toEqual({
-      message: 'Found 1 document(s) matching your search query.',
+      message: 'Found 2 document(s) matching your search query.',
       results: [
+        {
+          id: 'doc-1',
+          originalFileName: 'test.pdf',
+          mimeType: 'application/pdf',
+          size: 1024,
+          createdAt: mockDocuments[0].createdAt,
+          content: 'This is a test document content',
+        },
         {
           id: 'doc-1',
           originalFileName: 'test.pdf',

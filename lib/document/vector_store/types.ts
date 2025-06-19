@@ -44,6 +44,7 @@ export interface VectorStoreDocument {
 export interface SearchOptions {
   limit?: number;
   userId?: string;
+  visibility?: 'public' | 'private';
 }
 
 export interface SearchByDocumentIdOptions {

@@ -2,6 +2,7 @@ import { auth } from '@/app/(auth)/auth';
 import {
   deleteDocument,
   renameDocument,
+  toggleDocumentVisibility,
 } from '@/lib/document/actions/action_server';
 import { ChatSDKError } from '@/lib/errors';
 import type { NextRequest } from 'next/server';
@@ -11,6 +12,17 @@ import { z } from 'zod';
 const RenameDocumentSchema = z.object({
   newName: z.string().min(1).max(255),
 });
+
+// Schema for visibility update request body
+const UpdateVisibilitySchema = z.object({
+  visibility: z.enum(['public', 'private']),
+});
+
+// Combined schema for PATCH requests
+const PatchDocumentSchema = z.union([
+  RenameDocumentSchema,
+  UpdateVisibilitySchema,
+]);
 
 // DELETE - Delete a document
 export async function DELETE(
@@ -40,7 +52,7 @@ export async function DELETE(
   }
 }
 
-// PATCH - Rename a document
+// PATCH - Update document (rename or change visibility)
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
@@ -55,25 +67,47 @@ export async function PATCH(
     const { id } = await params;
     const body = await request.json();
 
-    const parsed = RenameDocumentSchema.safeParse(body);
+    const parsed = PatchDocumentSchema.safeParse(body);
 
     if (!parsed.success) {
       return new ChatSDKError(
         'bad_request:api',
-        'Invalid request body. newName is required and must be between 1-255 characters.',
+        'Invalid request body. Provide either newName (1-255 characters) or visibility (public/private).',
       ).toResponse();
     }
 
-    const result = await renameDocument({
-      id,
-      newName: parsed.data.newName,
-    });
+    // Handle rename request
+    if ('newName' in parsed.data) {
+      const result = await renameDocument({
+        id,
+        newName: parsed.data.newName,
+      });
 
-    if ('error' in result) {
-      return new ChatSDKError('bad_request:api', result.error).toResponse();
+      if ('error' in result) {
+        return new ChatSDKError('bad_request:api', result.error).toResponse();
+      }
+
+      return Response.json({ success: true }, { status: 200 });
     }
 
-    return Response.json({ success: true }, { status: 200 });
+    // Handle visibility update request
+    if ('visibility' in parsed.data) {
+      const result = await toggleDocumentVisibility({
+        id,
+        visibility: parsed.data.visibility,
+      });
+
+      if ('error' in result) {
+        return new ChatSDKError('bad_request:api', result.error).toResponse();
+      }
+
+      return Response.json({ success: true }, { status: 200 });
+    }
+
+    return new ChatSDKError(
+      'bad_request:api',
+      'Invalid request body',
+    ).toResponse();
   } catch (error) {
     if (error instanceof ChatSDKError) {
       return error.toResponse();
@@ -81,7 +115,7 @@ export async function PATCH(
 
     return new ChatSDKError(
       'bad_request:api',
-      'Failed to rename document',
+      'Failed to update document',
     ).toResponse();
   }
 }
