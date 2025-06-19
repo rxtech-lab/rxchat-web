@@ -67,13 +67,22 @@ export const searchDocumentsTool = ({ session }: SearchDocumentsProps) =>
           };
         }
 
+        // Merge private and public documents, dropping duplicates by id
+        const mergedDocuments = [
+          ...privateDocuments,
+          ...publicDocuments.filter(
+            (pubDoc) =>
+              !privateDocuments.some((privDoc) => privDoc.id === pubDoc.id),
+          ),
+        ];
+
         const message = documentId
-          ? `Found ${privateDocuments.length + publicDocuments.length} relevant section(s) in the document matching your search query.`
-          : `Found ${privateDocuments.length + publicDocuments.length} document(s) matching your search query.`;
+          ? `Found ${mergedDocuments.length} relevant section(s) in the document matching your search query.`
+          : `Found ${mergedDocuments.length} document(s) matching your search query.`;
 
         return {
           message,
-          results: [...privateDocuments, ...publicDocuments].map((doc) => ({
+          results: mergedDocuments.map((doc) => ({
             id: doc.id,
             originalFileName: doc.originalFileName,
             mimeType: doc.mimeType,

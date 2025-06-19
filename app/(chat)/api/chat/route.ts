@@ -139,32 +139,17 @@ export async function POST(request: Request) {
     const chat = await getChatById({ id });
 
     if (!chat) {
-      // Save chat immediately with a temporary title to avoid blocking
+      const title = await generateTitleFromUserMessage({
+        message,
+        titleModel: provider.languageModel('title-model'),
+      });
+
+      // Update chat with generated title
       await saveChat({
         id,
         userId: session.user.id,
-        title: 'New Chat', // Temporary title
+        title,
         visibility: selectedVisibilityType,
-      });
-
-      // Generate title in background and update chat
-      after(async () => {
-        try {
-          const title = await generateTitleFromUserMessage({
-            message,
-            titleModel: provider.languageModel('title-model'),
-          });
-
-          // Update chat with generated title
-          await saveChat({
-            id,
-            userId: session.user.id,
-            title,
-            visibility: selectedVisibilityType,
-          });
-        } catch (error) {
-          console.error('Failed to generate and update chat title:', error);
-        }
       });
     } else {
       if (chat.userId !== session.user.id) {
