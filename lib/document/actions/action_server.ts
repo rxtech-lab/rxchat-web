@@ -9,11 +9,12 @@ import { db } from '@/lib/db/queries/client';
 import {
   createVectorStoreDocument,
   deleteDocumentById,
-  getDocumentsByIds,
-  getDocumentsByUserId,
-  getVectorStoreDocumentById,
-  updateVectorStoreDocument,
   getDocumentBySha256,
+  getDocumentsByIds,
+  getDocumentsForUser,
+  getVectorStoreDocumentById,
+  updateDocumentVisibility,
+  updateVectorStoreDocument,
 } from '@/lib/db/queries/vector-store';
 import type { VectorStoreDocument } from '@/lib/db/schema';
 import { createMarkitdownClient } from '@/lib/document/markitdown';
@@ -24,10 +25,10 @@ import { S3Client } from '@/lib/s3/s3';
 import { calculateSha256FromUrl } from '@/lib/utils.server';
 import { OnStepSchema, type OnStep } from '@/lib/workflow/types';
 import { RecursiveCharacterTextSplitter } from '@langchain/textsplitters';
+import { track } from '@vercel/analytics/server';
 import { generateText } from 'ai';
 import path from 'node:path';
 import { z } from 'zod';
-import { track } from '@vercel/analytics/server';
 
 // Types
 export interface DocumentHistory {
@@ -78,6 +79,11 @@ const RenameDocumentSchema = z.object({
   newName: z.string().min(1).max(255),
 });
 
+const UpdateVisibilitySchema = z.object({
+  id: z.string().uuid(),
+  visibility: z.enum(['public', 'private']),
+});
+
 export async function getPresignedUploadUrl(
   data: z.infer<typeof GetPresignedUploadUrlSchema>,
 ): Promise<{ url: string; id: string } | { error: string }> {
@@ -111,6 +117,7 @@ export async function getPresignedUploadUrl(
     key: fileKey,
     status: 'pending',
     sha256: null,
+    visibility: 'private',
   });
 
   const url = await s3Client.getPresignedUploadUrl(fileKey, mimeType);
@@ -150,7 +157,7 @@ export async function listDocuments({
   }
 
   try {
-    const result = await getDocumentsByUserId({
+    const result = await getDocumentsForUser({
       userId: session.user.id,
       limit: parsed.data.limit,
       startingAfter: parsed.data.startingAfter || null,
@@ -175,9 +182,11 @@ export async function listDocuments({
 export async function searchDocuments({
   query,
   limit = 10,
+  visibility = 'private',
 }: {
   query: string;
   limit?: number;
+  visibility?: 'public' | 'private';
 }): Promise<VectorStoreDocument[]> {
   const session = await auth();
 
@@ -196,6 +205,7 @@ export async function searchDocuments({
     const searchResults = await vectorStore.searchDocument(parsed.data.query, {
       userId: session.user.id,
       limit: parsed.data.limit,
+      visibility,
     });
 
     let documents = await getDocumentsByIds({
@@ -203,6 +213,7 @@ export async function searchDocuments({
       ids: searchResults.map((doc) => doc.metadata.documentId!),
       dbConnection: db,
       status: 'completed',
+      userId: session.user.id,
     });
 
     // join searchresults content by id and attach to the document
@@ -419,6 +430,7 @@ export async function completeDocumentUpload({
           status: 'completed',
           sha256: sha256Hash, // Store the SHA256 hash
         },
+        userId: session.user.id,
         dbConnection: tx,
       });
 
@@ -499,7 +511,11 @@ export async function deleteDocument({ id }: { id: string }) {
       // Run all deletion operations in parallel
       const deletionPromises = [
         // Delete from database
-        deleteDocumentById({ id: parsed.data.id, dbConnection: tx }),
+        deleteDocumentById({
+          id: parsed.data.id,
+          userId: session.user.id,
+          dbConnection: tx,
+        }),
 
         // Delete from S3 if key exists
         document.key
@@ -599,6 +615,7 @@ export async function renameDocument({
         updates: {
           originalFileName: parsed.data.newName.trim(),
         },
+        userId: session.user.id,
         dbConnection: tx,
       });
     });
@@ -698,5 +715,58 @@ export async function getDocumentContent({
   } catch (error) {
     console.error('Error getting document content:', error);
     return { error: 'Failed to get document content' };
+  }
+}
+
+/**
+ * Server action to toggle document visibility
+ */
+export async function toggleDocumentVisibility({
+  id,
+  visibility,
+}: {
+  id: string;
+  visibility: 'public' | 'private';
+}): Promise<{ success: boolean } | { error: string }> {
+  const session = await auth();
+
+  if (!session?.user) {
+    return {
+      error:
+        'Unauthorized: You must be logged in to change document visibility.',
+    };
+  }
+
+  const parsed = UpdateVisibilitySchema.safeParse({ id, visibility });
+
+  if (!parsed.success) {
+    return {
+      error: 'Bad Request: Invalid document ID or visibility setting.',
+    };
+  }
+
+  try {
+    const updatedDoc = await updateDocumentVisibility({
+      id: parsed.data.id,
+      visibility: parsed.data.visibility,
+      userId: session.user.id,
+    });
+
+    if (!updatedDoc) {
+      return {
+        error: 'Not Found: Document not found or access denied.',
+      };
+    }
+
+    return { success: true };
+  } catch (error) {
+    if (error instanceof ChatSDKError) {
+      throw error;
+    }
+    console.error('Document visibility update error:', error);
+    throw new ChatSDKError(
+      'bad_request:api',
+      'Failed to update document visibility',
+    );
   }
 }

@@ -195,6 +195,32 @@ export function AppDocumentsSidebar({
   );
 
   /**
+   * Handles document visibility changes with optimistic updates
+   */
+  const handleVisibilityChange = useCallback(
+    (documentId: string, visibility: 'public' | 'private') => {
+      // Optimistically update the cache with the new visibility
+      mutate((pages) => {
+        if (!pages) return pages;
+        return pages.map((page) => ({
+          ...page,
+          documents: page.documents.map((doc) =>
+            doc.id === documentId ? { ...doc, visibility } : doc,
+          ),
+        }));
+      }, false);
+
+      // Also revalidate to ensure consistency
+      globalMutate(
+        (key) => typeof key === 'string' && key.startsWith('/api/documents'),
+        undefined,
+        { revalidate: true },
+      );
+    },
+    [mutate],
+  );
+
+  /**
    * Handles file upload with progress indication and detailed error handling
    */
   const handleFileUpload = useCallback(
@@ -356,6 +382,8 @@ export function AppDocumentsSidebar({
               vectorDocument={document}
               onDelete={handleDeleteDocument}
               onRename={handleRenameDocument}
+              onVisibilityChange={handleVisibilityChange}
+              currentUserId={user?.id}
             />
           ))}
         </div>
@@ -378,28 +406,6 @@ export function AppDocumentsSidebar({
           <SidebarGroupContent>
             <div className="px-2 text-sidebar-foreground/50 w-full flex flex-row justify-center items-center text-sm gap-2">
               Login to access your documents!
-            </div>
-          </SidebarGroupContent>
-        </SidebarGroup>
-      </RightSidebar>
-    );
-  }
-
-  if (isLoading) {
-    return (
-      <RightSidebar className="group-data-[side=right]:border-l-0">
-        <SidebarHeader>
-          <SidebarMenu>
-            <div className="flex items-center gap-2 text-lg font-semibold px-2">
-              <FileIcon size={20} />
-              Documents
-            </div>
-          </SidebarMenu>
-        </SidebarHeader>
-        <SidebarGroup>
-          <SidebarGroupContent>
-            <div className="flex items-center justify-center py-8">
-              <LoaderIcon className="animate-spin" />
             </div>
           </SidebarGroupContent>
         </SidebarGroup>
@@ -439,30 +445,28 @@ export function AppDocumentsSidebar({
                   />
                 </div>
 
-                {/* Upload Button - only show if there are documents */}
-                {!hasEmptyDocumentHistory && (
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="flex-1"
-                      disabled={isUploading}
-                      onClick={triggerFileUpload}
-                    >
-                      {isUploading ? (
-                        <>
-                          <LoaderIcon className="animate-spin" />
-                          Uploading...
-                        </>
-                      ) : (
-                        <>
-                          <PlusIcon />
-                          Upload Documents
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                )}
+                {/* Upload Button - always show for better UX */}
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex-1"
+                    disabled={isUploading}
+                    onClick={triggerFileUpload}
+                  >
+                    {isUploading ? (
+                      <>
+                        <LoaderIcon className="animate-spin" />
+                        Uploading...
+                      </>
+                    ) : (
+                      <>
+                        <PlusIcon />
+                        Upload Documents
+                      </>
+                    )}
+                  </Button>
+                </div>
                 {/* Hidden file input - always present for upload functionality */}
                 <input
                   ref={fileInputRef}
@@ -477,86 +481,72 @@ export function AppDocumentsSidebar({
           </SidebarGroup>
 
           {/* Documents List */}
-          <SidebarGroup>
-            <SidebarGroupContent>
-              <div className="flex-1 overflow-y-auto space-y-4">
-                {hasEmptyDocumentHistory ? (
-                  <div className="flex flex-col items-center justify-center py-8 text-center">
-                    <FileIcon
-                      size={48}
-                      className="text-muted-foreground mb-4"
-                    />
-                    <h3 className="text-lg font-medium mb-2">
-                      No documents found
-                    </h3>
-                    <p className="text-sm text-muted-foreground mb-4">
-                      {debouncedSearchQuery
-                        ? 'No documents match your search query.'
-                        : 'Upload your first document to get started.'}
-                    </p>
-                    {!debouncedSearchQuery && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={triggerFileUpload}
-                        disabled={isUploading}
-                      >
-                        {isUploading ? (
-                          <>
-                            <LoaderIcon className="animate-spin" />
-                            Uploading...
-                          </>
-                        ) : (
-                          <>
-                            <PlusIcon />
-                            Upload Documents
-                          </>
-                        )}
-                      </Button>
-                    )}
-                  </div>
-                ) : (
-                  <>
-                    {renderDocumentGroup('Today', groupedDocuments.today)}
-                    {renderDocumentGroup(
-                      'Yesterday',
-                      groupedDocuments.yesterday,
-                    )}
-                    {renderDocumentGroup(
-                      'Last 7 days',
-                      groupedDocuments.lastWeek,
-                    )}
-                    {renderDocumentGroup(
-                      'Last 30 days',
-                      groupedDocuments.lastMonth,
-                    )}
-                    {renderDocumentGroup('Older', groupedDocuments.older)}
+          {isLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <LoaderIcon className="animate-spin" />
+            </div>
+          ) : (
+            <SidebarGroup>
+              <SidebarGroupContent>
+                <div className="flex-1 overflow-y-auto space-y-4">
+                  {hasEmptyDocumentHistory ? (
+                    <div className="flex flex-col items-center justify-center py-8 text-center">
+                      <FileIcon
+                        size={48}
+                        className="text-muted-foreground mb-4"
+                      />
+                      <h3 className="text-lg font-medium mb-2">
+                        No documents found
+                      </h3>
+                      <p className="text-sm text-muted-foreground mb-4">
+                        {debouncedSearchQuery
+                          ? 'No documents match your search query.'
+                          : 'Upload your first document to get started.'}
+                      </p>
+                    </div>
+                  ) : (
+                    <>
+                      {renderDocumentGroup('Today', groupedDocuments.today)}
+                      {renderDocumentGroup(
+                        'Yesterday',
+                        groupedDocuments.yesterday,
+                      )}
+                      {renderDocumentGroup(
+                        'Last 7 days',
+                        groupedDocuments.lastWeek,
+                      )}
+                      {renderDocumentGroup(
+                        'Last 30 days',
+                        groupedDocuments.lastMonth,
+                      )}
+                      {renderDocumentGroup('Older', groupedDocuments.older)}
 
-                    {/* Load More Button */}
-                    {!hasReachedEnd && allDocuments.length > 0 && (
-                      <div className="flex justify-center py-4">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={loadMoreDocuments}
-                          disabled={isValidating}
-                        >
-                          {isValidating ? (
-                            <>
-                              <LoaderIcon className="animate-spin" />
-                              Loading...
-                            </>
-                          ) : (
-                            'Load More'
-                          )}
-                        </Button>
-                      </div>
-                    )}
-                  </>
-                )}
-              </div>
-            </SidebarGroupContent>
-          </SidebarGroup>
+                      {/* Load More Button */}
+                      {!hasReachedEnd && allDocuments.length > 0 && (
+                        <div className="flex justify-center py-4">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={loadMoreDocuments}
+                            disabled={isValidating}
+                          >
+                            {isValidating ? (
+                              <>
+                                <LoaderIcon className="animate-spin" />
+                                Loading...
+                              </>
+                            ) : (
+                              'Load More'
+                            )}
+                          </Button>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              </SidebarGroupContent>
+            </SidebarGroup>
+          )}
         </ContextMenuTrigger>
         <ContextMenuContent className="w-52">
           {sidebarActions.map(renderContextMenuItem)}
@@ -567,11 +557,7 @@ export function AppDocumentsSidebar({
 }
 
 // Keep the old component for backward compatibility if needed elsewhere
-export function SidebarDocuments({
-  user,
-  isOpen,
-  onOpenChange,
-}: {
+export function SidebarDocuments(_props: {
   user: User | undefined;
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;

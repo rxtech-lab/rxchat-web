@@ -69,8 +69,8 @@ export class UpstashVectorStore implements VectorStore {
       includeData: true,
     };
 
-    // Add user filter if specified
-    if (options?.userId) {
+    // only filter by userId if visibility is private
+    if (options?.userId && options.visibility === 'private') {
       queryParams.filter = `userId = "${options.userId}"`;
     }
 

@@ -1,0 +1,1 @@
+ALTER TABLE "VectorStoreDocument" ADD COLUMN "visibility" varchar DEFAULT 'private' NOT NULL;

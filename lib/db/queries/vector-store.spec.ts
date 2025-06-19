@@ -17,6 +17,7 @@ import {
   getDocumentsByIds,
   deleteDocumentsByIds,
   deleteDocumentById,
+  getDocumentsForUser,
 } from './vector-store';
 import { createUser, deleteUserAccount } from './queries';
 import { ChatSDKError } from '@/lib/errors';
@@ -39,6 +40,7 @@ const createMockVectorStoreDocument = (
   id: crypto.randomUUID(),
   createdAt: new Date(),
   status: 'completed',
+  visibility: 'private',
   sha256: null, // Add the new SHA256 field as nullable
   ...overrides,
 });
@@ -266,7 +268,10 @@ describe('Vector Store Queries', () => {
     });
 
     test('should get documents by their IDs', async () => {
-      const result = await getDocumentsByIds({ ids: documentIds });
+      const result = await getDocumentsByIds({
+        ids: documentIds,
+        userId: testUserId,
+      });
 
       expect(result).toHaveLength(2);
       expect(result.map((doc) => doc.id)).toEqual(
@@ -285,6 +290,7 @@ describe('Vector Store Queries', () => {
       const result = await getDocumentsByIds({
         ids: [...documentIds, doc3.id],
         status: 'completed',
+        userId: testUserId,
       });
 
       expect(result).toHaveLength(2);
@@ -297,7 +303,10 @@ describe('Vector Store Queries', () => {
         '550e8400-e29b-41d4-a716-446655440001',
         '550e8400-e29b-41d4-a716-446655440002',
       ];
-      const result = await getDocumentsByIds({ ids: mixedIds });
+      const result = await getDocumentsByIds({
+        ids: mixedIds,
+        userId: testUserId,
+      });
 
       expect(result).toHaveLength(2);
       expect(result.map((doc) => doc.id)).toEqual(
@@ -318,12 +327,675 @@ describe('Vector Store Queries', () => {
     });
 
     test('should order results by createdAt DESC', async () => {
-      const result = await getDocumentsByIds({ ids: documentIds });
+      const result = await getDocumentsByIds({
+        ids: documentIds,
+        userId: testUserId,
+      });
 
       expect(result).toHaveLength(2);
       // First result should be more recent (Document 2)
       expect(result[0].content).toBe('Document 2');
       expect(result[1].content).toBe('Document 1');
+    });
+  });
+
+  describe('getDocumentsByIds with visibility logic', () => {
+    let testUser2Id: string;
+    let ownPrivateDocId: string;
+    let ownPublicDocId: string;
+    let otherPrivateDocId: string;
+    let otherPublicDocId: string;
+    let allDocIds: string[] = [];
+
+    beforeEach(async () => {
+      // Create a second test user
+      const user2 = generateRandomTestUser();
+      const [testUser2] = await createUser(user2.email, user2.password);
+      testUser2Id = testUser2.id;
+
+      // Create own private document
+      const ownPrivateDoc = await createVectorStoreDocument(
+        createMockVectorStoreDocument(testUserId, {
+          content: 'Own Private Document',
+          visibility: 'private',
+        }),
+      );
+      ownPrivateDocId = ownPrivateDoc.id;
+
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
+      // Create own public document
+      const ownPublicDoc = await createVectorStoreDocument(
+        createMockVectorStoreDocument(testUserId, {
+          content: 'Own Public Document',
+          visibility: 'public',
+        }),
+      );
+      ownPublicDocId = ownPublicDoc.id;
+
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
+      // Create other user's private document
+      const otherPrivateDoc = await createVectorStoreDocument(
+        createMockVectorStoreDocument(testUser2Id, {
+          content: 'Other Private Document',
+          visibility: 'private',
+        }),
+      );
+      otherPrivateDocId = otherPrivateDoc.id;
+
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
+      // Create other user's public document
+      const otherPublicDoc = await createVectorStoreDocument(
+        createMockVectorStoreDocument(testUser2Id, {
+          content: 'Other Public Document',
+          visibility: 'public',
+        }),
+      );
+      otherPublicDocId = otherPublicDoc.id;
+
+      allDocIds = [
+        ownPrivateDocId,
+        ownPublicDocId,
+        otherPrivateDocId,
+        otherPublicDocId,
+      ];
+    });
+
+    afterEach(async () => {
+      // Clean up all created documents and users
+      if (allDocIds.length > 0) {
+        await deleteDocumentsByIds({ ids: allDocIds });
+        allDocIds = [];
+      }
+      if (testUser2Id) {
+        await deleteUserAccount({ id: testUser2Id });
+      }
+    });
+
+    test('should return own documents (both private and public) when userId provided', async () => {
+      const result = await getDocumentsByIds({
+        ids: [ownPrivateDocId, ownPublicDocId],
+        userId: testUserId,
+      });
+
+      expect(result).toHaveLength(2);
+      const contents = result.map((doc) => doc.content);
+      expect(contents).toContain('Own Private Document');
+      expect(contents).toContain('Own Public Document');
+    });
+
+    test('should return only public documents from other users when userId provided', async () => {
+      const result = await getDocumentsByIds({
+        ids: [otherPrivateDocId, otherPublicDocId],
+        userId: testUserId,
+      });
+
+      expect(result).toHaveLength(1);
+      expect(result[0].content).toBe('Other Public Document');
+      expect(result[0].visibility).toBe('public');
+    });
+
+    test('should return mix of own documents and public documents from others', async () => {
+      const result = await getDocumentsByIds({
+        ids: allDocIds,
+        userId: testUserId,
+      });
+
+      expect(result).toHaveLength(3);
+      const contents = result.map((doc) => doc.content).sort();
+      expect(contents).toEqual([
+        'Other Public Document',
+        'Own Private Document',
+        'Own Public Document',
+      ]);
+    });
+
+    test('should return only public documents when no userId provided', async () => {
+      const result = await getDocumentsByIds({
+        ids: allDocIds,
+      });
+
+      expect(result).toHaveLength(2);
+      const contents = result.map((doc) => doc.content).sort();
+      expect(contents).toEqual([
+        'Other Public Document',
+        'Own Public Document',
+      ]);
+      expect(result.every((doc) => doc.visibility === 'public')).toBe(true);
+    });
+
+    test('should respect status filter along with visibility logic', async () => {
+      // Create a pending public document
+      const pendingPublicDoc = await createVectorStoreDocument(
+        createMockVectorStoreDocument(testUserId, {
+          content: 'Pending Public Document',
+          visibility: 'public',
+          status: 'pending',
+        }),
+      );
+
+      const testIds = [ownPublicDocId, otherPublicDocId, pendingPublicDoc.id];
+
+      // Should only return completed documents
+      const result = await getDocumentsByIds({
+        ids: testIds,
+        status: 'completed',
+        userId: testUserId,
+      });
+
+      expect(result).toHaveLength(2);
+      const contents = result.map((doc) => doc.content).sort();
+      expect(contents).toEqual([
+        'Other Public Document',
+        'Own Public Document',
+      ]);
+      expect(result.every((doc) => doc.status === 'completed')).toBe(true);
+
+      // Clean up
+      await deleteDocumentById({ id: pendingPublicDoc.id });
+    });
+
+    test('should return empty array when user has no access to any documents', async () => {
+      // Test with documents that belong to another user and are private
+      const result = await getDocumentsByIds({
+        ids: [otherPrivateDocId],
+        userId: testUserId,
+      });
+
+      expect(result).toHaveLength(0);
+    });
+
+    test('should handle mixed scenarios with status and visibility filters', async () => {
+      // Create additional test documents with different statuses
+      const ownPendingPrivateDoc = await createVectorStoreDocument(
+        createMockVectorStoreDocument(testUserId, {
+          content: 'Own Pending Private Document',
+          visibility: 'private',
+          status: 'pending',
+        }),
+      );
+
+      const otherFailedPublicDoc = await createVectorStoreDocument(
+        createMockVectorStoreDocument(testUser2Id, {
+          content: 'Other Failed Public Document',
+          visibility: 'public',
+          status: 'failed',
+        }),
+      );
+
+      const testIds = [
+        ownPrivateDocId, // completed, private, own
+        ownPublicDocId, // completed, public, own
+        otherPublicDocId, // completed, public, other
+        ownPendingPrivateDoc.id, // pending, private, own
+        otherFailedPublicDoc.id, // failed, public, other
+      ];
+
+      // Test with completed status
+      const completedResult = await getDocumentsByIds({
+        ids: testIds,
+        status: 'completed',
+        userId: testUserId,
+      });
+
+      expect(completedResult).toHaveLength(3);
+      expect(completedResult.every((doc) => doc.status === 'completed')).toBe(
+        true,
+      );
+
+      // Test with pending status
+      const pendingResult = await getDocumentsByIds({
+        ids: testIds,
+        status: 'pending',
+        userId: testUserId,
+      });
+
+      expect(pendingResult).toHaveLength(1);
+      expect(pendingResult[0].content).toBe('Own Pending Private Document');
+
+      // Test with failed status
+      const failedResult = await getDocumentsByIds({
+        ids: testIds,
+        status: 'failed',
+        userId: testUserId,
+      });
+
+      expect(failedResult).toHaveLength(1);
+      expect(failedResult[0].content).toBe('Other Failed Public Document');
+
+      // Clean up additional documents
+      await deleteDocumentsByIds({
+        ids: [ownPendingPrivateDoc.id, otherFailedPublicDoc.id],
+      });
+    });
+
+    test('should maintain proper ordering with visibility logic', async () => {
+      // All documents should still be ordered by createdAt DESC
+      const result = await getDocumentsByIds({
+        ids: allDocIds,
+        userId: testUserId,
+      });
+
+      expect(result).toHaveLength(3);
+      // Should be ordered by creation time (newest first)
+      expect(result[0].content).toBe('Other Public Document'); // Created last
+      expect(result[1].content).toBe('Own Public Document');
+      expect(result[2].content).toBe('Own Private Document'); // Created first
+    });
+  });
+
+  describe('getDocumentsForUser', () => {
+    let testUser2Id: string;
+    let ownPrivateDocId: string;
+    let ownPublicDocId: string;
+    let ownPendingDocId: string;
+    let otherPrivateDocId: string;
+    let otherPublicDocId: string;
+    let otherPendingDocId: string;
+    let allDocIds: string[] = [];
+
+    beforeEach(async () => {
+      // Create a second test user
+      const user2 = generateRandomTestUser();
+      const [testUser2] = await createUser(user2.email, user2.password);
+      testUser2Id = testUser2.id;
+
+      // Create own private document
+      const ownPrivateDoc = await createVectorStoreDocument(
+        createMockVectorStoreDocument(testUserId, {
+          content: 'Own Private Document',
+          visibility: 'private',
+          status: 'completed',
+        }),
+      );
+      ownPrivateDocId = ownPrivateDoc.id;
+
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
+      // Create own public document
+      const ownPublicDoc = await createVectorStoreDocument(
+        createMockVectorStoreDocument(testUserId, {
+          content: 'Own Public Document',
+          visibility: 'public',
+          status: 'completed',
+        }),
+      );
+      ownPublicDocId = ownPublicDoc.id;
+
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
+      // Create own pending document (should be excluded)
+      const ownPendingDoc = await createVectorStoreDocument(
+        createMockVectorStoreDocument(testUserId, {
+          content: 'Own Pending Document',
+          visibility: 'public',
+          status: 'pending',
+        }),
+      );
+      ownPendingDocId = ownPendingDoc.id;
+
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
+      // Create other user's private document (should be excluded)
+      const otherPrivateDoc = await createVectorStoreDocument(
+        createMockVectorStoreDocument(testUser2Id, {
+          content: 'Other Private Document',
+          visibility: 'private',
+          status: 'completed',
+        }),
+      );
+      otherPrivateDocId = otherPrivateDoc.id;
+
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
+      // Create other user's public document (should be included)
+      const otherPublicDoc = await createVectorStoreDocument(
+        createMockVectorStoreDocument(testUser2Id, {
+          content: 'Other Public Document',
+          visibility: 'public',
+          status: 'completed',
+        }),
+      );
+      otherPublicDocId = otherPublicDoc.id;
+
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
+      // Create other user's pending public document (should be excluded)
+      const otherPendingDoc = await createVectorStoreDocument(
+        createMockVectorStoreDocument(testUser2Id, {
+          content: 'Other Pending Public Document',
+          visibility: 'public',
+          status: 'pending',
+        }),
+      );
+      otherPendingDocId = otherPendingDoc.id;
+
+      allDocIds = [
+        ownPrivateDocId,
+        ownPublicDocId,
+        ownPendingDocId,
+        otherPrivateDocId,
+        otherPublicDocId,
+        otherPendingDocId,
+      ];
+    });
+
+    afterEach(async () => {
+      // Clean up all created documents and users
+      if (allDocIds.length > 0) {
+        await deleteDocumentsByIds({ ids: allDocIds });
+        allDocIds = [];
+      }
+      if (testUser2Id) {
+        await deleteUserAccount({ id: testUser2Id });
+      }
+    });
+
+    test('should return own documents and public documents from others', async () => {
+      const result = await getDocumentsForUser({
+        userId: testUserId,
+        limit: 10,
+        startingAfter: null,
+        endingBefore: null,
+      });
+
+      // Should include: own private, own public, other public
+      // Should exclude: own pending, other private, other pending
+      expect(result.docs).toHaveLength(3);
+      expect(result.hasMore).toBe(false);
+
+      const contents = result.docs.map((doc) => doc.content).sort();
+      expect(contents).toEqual([
+        'Other Public Document',
+        'Own Private Document',
+        'Own Public Document',
+      ]);
+
+      // Verify no pending documents are included
+      expect(result.docs.every((doc) => doc.status !== 'pending')).toBe(true);
+    });
+
+    test('should order results by createdAt DESC', async () => {
+      const result = await getDocumentsForUser({
+        userId: testUserId,
+        limit: 10,
+        startingAfter: null,
+        endingBefore: null,
+      });
+
+      expect(result.docs).toHaveLength(3);
+      // Should be ordered by creation time (newest first)
+      expect(result.docs[0].content).toBe('Other Public Document'); // Created last
+      expect(result.docs[1].content).toBe('Own Public Document');
+      expect(result.docs[2].content).toBe('Own Private Document'); // Created first
+    });
+
+    test('should limit results correctly', async () => {
+      const result = await getDocumentsForUser({
+        userId: testUserId,
+        limit: 2,
+        startingAfter: null,
+        endingBefore: null,
+      });
+
+      expect(result.docs).toHaveLength(2);
+      expect(result.hasMore).toBe(true);
+      expect(result.docs[0].content).toBe('Other Public Document');
+      expect(result.docs[1].content).toBe('Own Public Document');
+    });
+
+    test('should handle pagination with endingBefore', async () => {
+      // Get the first document (most recent)
+      const firstResult = await getDocumentsForUser({
+        userId: testUserId,
+        limit: 1,
+        startingAfter: null,
+        endingBefore: null,
+      });
+
+      expect(firstResult.docs).toHaveLength(1);
+      expect(firstResult.docs[0].content).toBe('Other Public Document');
+
+      // Get documents before the first one
+      const secondResult = await getDocumentsForUser({
+        userId: testUserId,
+        limit: 10,
+        startingAfter: null,
+        endingBefore: firstResult.docs[0].id,
+      });
+
+      expect(secondResult.docs).toHaveLength(2);
+      expect(secondResult.hasMore).toBe(false);
+      expect(secondResult.docs[0].content).toBe('Own Public Document');
+      expect(secondResult.docs[1].content).toBe('Own Private Document');
+      expect(
+        secondResult.docs.every((doc) => doc.id !== firstResult.docs[0].id),
+      ).toBe(true);
+    });
+
+    test('should handle pagination with startingAfter', async () => {
+      // Get the first document (newest)
+      const firstResult = await getDocumentsForUser({
+        userId: testUserId,
+        limit: 1,
+        startingAfter: null,
+        endingBefore: null,
+      });
+
+      expect(firstResult.docs).toHaveLength(1);
+      expect(firstResult.docs[0].content).toBe('Other Public Document');
+
+      // Get documents after the first one (older documents)
+      const afterResult = await getDocumentsForUser({
+        userId: testUserId,
+        limit: 10,
+        startingAfter: firstResult.docs[0].id,
+        endingBefore: null,
+      });
+
+      // Since startingAfter looks for documents created AFTER the specified doc,
+      // and we're using the newest doc, there should be no newer documents
+      expect(afterResult.docs).toHaveLength(0);
+      expect(afterResult.hasMore).toBe(false);
+    });
+
+    test('should return only public documents for user with no own documents', async () => {
+      // Create a third user with no documents
+      const user3 = generateRandomTestUser();
+      const [testUser3] = await createUser(user3.email, user3.password);
+
+      const result = await getDocumentsForUser({
+        userId: testUser3.id,
+        limit: 10,
+        startingAfter: null,
+        endingBefore: null,
+      });
+
+      // Should only see public documents from other users (at least 1, could be more from other tests)
+      expect(result.docs.length).toBeGreaterThanOrEqual(1);
+      expect(result.docs.every((doc) => doc.visibility === 'public')).toBe(
+        true,
+      );
+      expect(result.docs.every((doc) => doc.userId !== testUser3.id)).toBe(
+        true,
+      );
+
+      // Verify we can see our test public documents
+      const contents = result.docs.map((doc) => doc.content);
+      expect(contents).toContain('Other Public Document');
+
+      // Clean up third user
+      await deleteUserAccount({ id: testUser3.id });
+    });
+
+    test('should throw error for invalid endingBefore document id', async () => {
+      await expect(
+        getDocumentsForUser({
+          userId: testUserId,
+          limit: 10,
+          startingAfter: null,
+          endingBefore: 'invalid-document-id',
+        }),
+      ).rejects.toThrow(ChatSDKError);
+    });
+
+    test('should throw error for invalid startingAfter document id', async () => {
+      await expect(
+        getDocumentsForUser({
+          userId: testUserId,
+          limit: 10,
+          startingAfter: 'invalid-document-id',
+          endingBefore: null,
+        }),
+      ).rejects.toThrow(ChatSDKError);
+    });
+
+    test('should exclude all pending documents regardless of ownership', async () => {
+      const result = await getDocumentsForUser({
+        userId: testUserId,
+        limit: 10,
+        startingAfter: null,
+        endingBefore: null,
+      });
+
+      expect(result.docs).toHaveLength(3);
+      // Verify none of the pending documents are included
+      const docIds = result.docs.map((doc) => doc.id);
+      expect(docIds).not.toContain(ownPendingDocId);
+      expect(docIds).not.toContain(otherPendingDocId);
+      expect(result.docs.every((doc) => doc.status !== 'pending')).toBe(true);
+    });
+
+    test('should handle complex pagination scenarios', async () => {
+      // Test pagination in the middle of results
+      const firstResult = await getDocumentsForUser({
+        userId: testUserId,
+        limit: 1,
+        startingAfter: null,
+        endingBefore: null,
+      });
+
+      const middleResult = await getDocumentsForUser({
+        userId: testUserId,
+        limit: 1,
+        startingAfter: null,
+        endingBefore: firstResult.docs[0].id,
+      });
+
+      const lastResult = await getDocumentsForUser({
+        userId: testUserId,
+        limit: 1,
+        startingAfter: null,
+        endingBefore: middleResult.docs[0].id,
+      });
+
+      expect(firstResult.docs).toHaveLength(1);
+      expect(middleResult.docs).toHaveLength(1);
+      expect(lastResult.docs).toHaveLength(1);
+
+      expect(firstResult.docs[0].content).toBe('Other Public Document');
+      expect(middleResult.docs[0].content).toBe('Own Public Document');
+      expect(lastResult.docs[0].content).toBe('Own Private Document');
+
+      // All should have hasMore true except potentially the last one depending on total count
+      expect(firstResult.hasMore).toBe(true);
+      expect(middleResult.hasMore).toBe(true);
+      expect(lastResult.hasMore).toBe(false);
+    });
+
+    test('should include documents from multiple users correctly', async () => {
+      // Create a third user with public documents
+      const user3 = generateRandomTestUser();
+      const [testUser3] = await createUser(user3.email, user3.password);
+
+      const user3PublicDoc = await createVectorStoreDocument(
+        createMockVectorStoreDocument(testUser3.id, {
+          content: 'User3 Public Document',
+          visibility: 'public',
+          status: 'completed',
+        }),
+      );
+
+      const result = await getDocumentsForUser({
+        userId: testUserId,
+        limit: 10,
+        startingAfter: null,
+        endingBefore: null,
+      });
+
+      expect(result.docs).toHaveLength(4);
+      const contents = result.docs.map((doc) => doc.content).sort();
+      expect(contents).toEqual([
+        'Other Public Document',
+        'Own Private Document',
+        'Own Public Document',
+        'User3 Public Document',
+      ]);
+
+      // Clean up
+      await deleteDocumentById({ id: user3PublicDoc.id });
+      await deleteUserAccount({ id: testUser3.id });
+    });
+
+    test('should handle edge case with exact limit matching available documents', async () => {
+      const result = await getDocumentsForUser({
+        userId: testUserId,
+        limit: 3, // Exactly the number of available documents
+        startingAfter: null,
+        endingBefore: null,
+      });
+
+      expect(result.docs).toHaveLength(3);
+      expect(result.hasMore).toBe(false);
+    });
+
+    test('should be consistent with visibility rules across different users', async () => {
+      // Test from testUser2's perspective
+      const user2Result = await getDocumentsForUser({
+        userId: testUser2Id,
+        limit: 10,
+        startingAfter: null,
+        endingBefore: null,
+      });
+
+      // Should include: testUser2's own documents (both private and public) + public docs from others
+      // Should exclude: testUser's private documents, all pending documents
+      expect(user2Result.docs.length).toBeGreaterThanOrEqual(2);
+
+      // Filter to only our test documents to avoid interference from other tests
+      const testDocuments = user2Result.docs.filter(
+        (doc) =>
+          [testUserId, testUser2Id].includes(doc.userId) &&
+          [
+            'Own Private Document',
+            'Own Public Document',
+            'Other Public Document',
+            'Other Private Document',
+          ].includes(doc.content || ''),
+      );
+
+      expect(testDocuments).toHaveLength(3);
+
+      const contents = testDocuments.map((doc) => doc.content).sort();
+      expect(contents).toEqual([
+        'Other Private Document', // testUser2's own private document
+        'Other Public Document', // testUser2's own public document
+        'Own Public Document', // testUser's public document (visible to testUser2)
+      ]);
+
+      // Verify visibility rules: testUser2 can see own documents + public docs from others
+      const ownDocs = testDocuments.filter((doc) => doc.userId === testUser2Id);
+      const otherPublicDocs = testDocuments.filter(
+        (doc) => doc.userId !== testUser2Id,
+      );
+
+      expect(ownDocs).toHaveLength(2); // Own private + own public
+      expect(otherPublicDocs).toHaveLength(1); // Only public from testUser
+      expect(otherPublicDocs.every((doc) => doc.visibility === 'public')).toBe(
+        true,
+      );
     });
   });
 
@@ -346,7 +1018,10 @@ describe('Vector Store Queries', () => {
       await deleteDocumentsByIds({ ids: idsToDelete });
 
       // Verify documents were deleted
-      const remainingDocs = await getDocumentsByIds({ ids: documentIds });
+      const remainingDocs = await getDocumentsByIds({
+        ids: documentIds,
+        userId: testUserId,
+      });
       expect(remainingDocs).toHaveLength(1);
       expect(remainingDocs[0].id).toBe(documentIds[2]);
     });
@@ -355,7 +1030,10 @@ describe('Vector Store Queries', () => {
       await expect(deleteDocumentsByIds({ ids: [] })).resolves.toBeUndefined();
 
       // Verify no documents were deleted
-      const allDocs = await getDocumentsByIds({ ids: documentIds });
+      const allDocs = await getDocumentsByIds({
+        ids: documentIds,
+        userId: testUserId,
+      });
       expect(allDocs).toHaveLength(3);
     });
 
@@ -372,7 +1050,10 @@ describe('Vector Store Queries', () => {
       ).resolves.toBeDefined();
 
       // Verify only the valid document was deleted
-      const remainingDocs = await getDocumentsByIds({ ids: documentIds });
+      const remainingDocs = await getDocumentsByIds({
+        ids: documentIds,
+        userId: testUserId,
+      });
       expect(remainingDocs).toHaveLength(2);
       expect(remainingDocs.map((doc) => doc.id)).not.toContain(documentIds[0]);
     });
@@ -413,20 +1094,29 @@ describe('Vector Store Queries', () => {
       ).resolves.toBeUndefined();
 
       // Verify original document still exists
-      const docs = await getDocumentsByIds({ ids: [documentId] });
+      const docs = await getDocumentsByIds({
+        ids: [documentId],
+        userId: testUserId,
+      });
       expect(docs).toHaveLength(1);
     });
 
     test('should verify document deletion completely', async () => {
       // First verify document exists
-      const beforeDeletion = await getDocumentsByIds({ ids: [documentId] });
+      const beforeDeletion = await getDocumentsByIds({
+        ids: [documentId],
+        userId: testUserId,
+      });
       expect(beforeDeletion).toHaveLength(1);
 
       // Delete the document
       await deleteDocumentById({ id: documentId });
 
       // Verify document no longer exists
-      const afterDeletion = await getDocumentsByIds({ ids: [documentId] });
+      const afterDeletion = await getDocumentsByIds({
+        ids: [documentId],
+        userId: testUserId,
+      });
       expect(afterDeletion).toHaveLength(0);
 
       // Also verify via user query
@@ -489,7 +1179,10 @@ describe('Vector Store Queries', () => {
       expect(userDocs.docs[0].id).toBe(createdDoc.id);
 
       // Retrieve by ID
-      const docsById = await getDocumentsByIds({ ids: [createdDoc.id] });
+      const docsById = await getDocumentsByIds({
+        ids: [createdDoc.id],
+        userId: testUserId,
+      });
       expect(docsById).toHaveLength(1);
       expect(docsById[0]).toEqual(createdDoc);
 

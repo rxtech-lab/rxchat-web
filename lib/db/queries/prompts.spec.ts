@@ -10,18 +10,18 @@ jest.mock('bcrypt-ts', () => ({
   compareSync: jest.fn(() => true),
 }));
 
+import { ChatSDKError } from '@/lib/errors';
+import { generateRandomTestUser } from '@/tests/helpers';
+import type { Prompt } from '../schema';
+import { userPrompt } from '../schema';
 import {
+  createPrompt,
+  deletePrompt,
   getPromptsByUserId,
   getUserPromptByUserId,
-  createPrompt,
   updatePrompt,
-  deletePrompt,
 } from './prompts';
 import { createUser, deleteUserAccount } from './queries';
-import { ChatSDKError } from '@/lib/errors';
-import type { Prompt } from '../schema';
-import { generateRandomTestUser } from '@/tests/helpers';
-import { userPrompt } from '../schema';
 
 /**
  * Test utilities for creating mock data
@@ -42,6 +42,10 @@ const createMockPrompt = (
   updatedAt: new Date(),
   ...overrides,
 });
+
+const cleanupDatabase = async () => {
+  db.delete(userPrompt);
+};
 
 describe('Prompts Queries', () => {
   let testUserId: string;
@@ -69,6 +73,8 @@ describe('Prompts Queries', () => {
     if (secondTestUserId) {
       await deleteUserAccount({ id: secondTestUserId });
     }
+
+    await cleanupDatabase();
   });
 
   afterAll(() => {
@@ -78,6 +84,13 @@ describe('Prompts Queries', () => {
   });
 
   describe('createPrompt', () => {
+    beforeEach(() => {
+      // Reset any mocks or state before each test
+      jest.clearAllMocks();
+      // delete any existing prompts for the test user
+      db.delete(userPrompt);
+    });
+
     test('should create a prompt successfully', async () => {
       const mockPrompt = createMockPrompt(testUserId, {
         title: 'My Test Prompt',
@@ -135,10 +148,12 @@ describe('Prompts Queries', () => {
   });
 
   describe('getPromptsByUserId', () => {
-    let promptIds: string[] = [];
-
     beforeEach(async () => {
       // Create test prompts with different visibilities
+      await db.delete(userPrompt);
+
+      const results = await db.select().from(userPrompt);
+
       const privatePrompt = createMockPrompt(testUserId, {
         title: 'Private Prompt',
         code: 'Private code',
@@ -181,19 +196,11 @@ describe('Prompts Queries', () => {
         prompt: otherUserPrivatePrompt,
         userId: secondTestUserId,
       });
-
-      promptIds = [
-        privatePrompt.id,
-        publicPrompt.id,
-        otherUserPublicPrompt.id,
-        otherUserPrivatePrompt.id,
-      ];
     });
 
     test('should get user prompts and public prompts', async () => {
       const result = await getPromptsByUserId({ userId: testUserId });
 
-      // Should get: user's private + user's public + other user's public (3 total)
       expect(result).toHaveLength(3);
 
       const titles = result.map((p) => p.title);
