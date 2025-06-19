@@ -1,10 +1,17 @@
 import { redirect } from 'next/navigation';
 import { auth } from '@/app/(auth)/auth';
-import { ProfileTabs } from '@/components/profile-tabs';
 import { AccountTab } from '@/components/profile/account-tab';
 import { LinkingTab } from '@/components/profile/linking-tab';
 import { ProfileHeader } from '@/components/profile-header';
 import { getUserTelegramLink } from '@/lib/db/queries/link/telegram';
+import dynamic from 'next/dynamic';
+
+const ProfileTabs = dynamic(
+  () => import('@/components/profile-tabs').then((mod) => mod.ProfileTabs),
+  {
+    ssr: !!false,
+  },
+);
 
 interface ProfilePageProps {
   searchParams: Promise<{ tab?: string }>;

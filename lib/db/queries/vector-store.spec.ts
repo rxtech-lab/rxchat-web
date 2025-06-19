@@ -21,7 +21,7 @@ import {
 } from './vector-store';
 import { createUser, deleteUserAccount } from './queries';
 import { ChatSDKError } from '@/lib/errors';
-import type { VectorStoreDocument } from '../schema';
+import { vectorStoreDocument, VectorStoreDocument } from '../schema';
 import { generateRandomTestUser } from '@/tests/helpers';
 
 /**
@@ -45,6 +45,10 @@ const createMockVectorStoreDocument = (
   ...overrides,
 });
 
+async function cleanUpDatabase() {
+  await db.delete(vectorStoreDocument);
+}
+
 describe('Vector Store Queries', () => {
   let testUserId: string;
 
@@ -52,6 +56,7 @@ describe('Vector Store Queries', () => {
    * Creates a test user before each test
    */
   beforeEach(async () => {
+    await cleanUpDatabase();
     const user = generateRandomTestUser();
     const [testUser] = await createUser(user.email, user.password);
     testUserId = testUser.id;
@@ -683,14 +688,7 @@ describe('Vector Store Queries', () => {
     });
 
     afterEach(async () => {
-      // Clean up all created documents and users
-      if (allDocIds.length > 0) {
-        await deleteDocumentsByIds({ ids: allDocIds });
-        allDocIds = [];
-      }
-      if (testUser2Id) {
-        await deleteUserAccount({ id: testUser2Id });
-      }
+      await cleanUpDatabase();
     });
 
     test('should return own documents and public documents from others', async () => {
