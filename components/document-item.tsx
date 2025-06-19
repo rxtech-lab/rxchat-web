@@ -71,7 +71,10 @@ const PureDocumentItem = ({
   vectorDocument: VectorStoreDocument;
   onDelete: (documentId: string) => void;
   onRename?: (documentId: string, newName: string) => void;
-  onVisibilityChange?: (documentId: string, visibility: 'public' | 'private') => void;
+  onVisibilityChange?: (
+    documentId: string,
+    visibility: 'public' | 'private',
+  ) => void;
   currentUserId?: string;
 }) => {
   const [isDeleting, setIsDeleting] = useState(false);
@@ -205,7 +208,8 @@ const PureDocumentItem = ({
   const handleVisibilityToggle = async () => {
     if (!onVisibilityChange) return;
 
-    const newVisibility = vectorDocument.visibility === 'public' ? 'private' : 'public';
+    const newVisibility =
+      vectorDocument.visibility === 'public' ? 'private' : 'public';
 
     try {
       setIsUpdatingVisibility(true);
@@ -264,10 +268,16 @@ const PureDocumentItem = ({
     },
     {
       id: 'visibility',
-      label: vectorDocument.visibility === 'public' ? 'Make Private' : 'Make Public',
+      label:
+        vectorDocument.visibility === 'public' ? 'Make Private' : 'Make Public',
       icon: vectorDocument.visibility === 'public' ? LockIcon : GlobeIcon,
       onClick: handleVisibilityToggle,
-      disabled: isDeleting || isRenaming || isUpdatingVisibility || !onVisibilityChange || !canModify,
+      disabled:
+        isDeleting ||
+        isRenaming ||
+        isUpdatingVisibility ||
+        !onVisibilityChange ||
+        !canModify,
     },
     {
       id: 'rename',
@@ -403,7 +413,10 @@ const PureDocumentItem = ({
       </ContextMenu>
 
       <DropdownMenu>
-        <DropdownMenuTrigger asChild disabled={isDeleting || isRenaming || isUpdatingVisibility}>
+        <DropdownMenuTrigger
+          asChild
+          disabled={isDeleting || isRenaming || isUpdatingVisibility}
+        >
           <SidebarMenuAction showOnHover>
             <MoreHorizontalIcon />
             <span className="sr-only">More actions</span>

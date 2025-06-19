@@ -1,5 +1,55 @@
+/**
+ * @jest-environment jsdom
+ */
+
 import { addToolResultToMessage } from './ai/utils';
-import { getBrandName } from './utils';
+import { ChatSDKError } from './errors';
+import {
+  getBrandName,
+  cn,
+  fetcher,
+  fetchWithErrorHandlers,
+  getLocalStorage,
+  generateUUID,
+  getMostRecentUserMessage,
+  getDocumentTimestampByIndex,
+  getTrailingMessageId,
+  sanitizeText,
+} from './utils';
+import type { Document } from '@/lib/db/schema';
+import type { CoreAssistantMessage, CoreToolMessage, UIMessage } from 'ai';
+
+// Mock fetch globally
+global.fetch = jest.fn();
+const mockFetch = fetch as jest.MockedFunction<typeof fetch>;
+
+// Mock localStorage
+const localStorageMock = {
+  getItem: jest.fn(),
+  setItem: jest.fn(),
+  removeItem: jest.fn(),
+  clear: jest.fn(),
+};
+Object.defineProperty(window, 'localStorage', {
+  value: localStorageMock,
+  writable: true,
+});
+
+// Mock navigator.onLine
+Object.defineProperty(navigator, 'onLine', {
+  writable: true,
+  value: true,
+});
+
+// Mock console.error
+const originalConsoleError = console.error;
+beforeAll(() => {
+  console.error = jest.fn();
+});
+
+afterAll(() => {
+  console.error = originalConsoleError;
+});
 
 describe('getBrandName', () => {
   const originalEnv = process.env;
@@ -35,6 +85,340 @@ describe('getBrandName', () => {
       process.env.NEXT_PUBLIC_BRAND_NAME = brand;
       expect(getBrandName()).toBe(brand);
     });
+  });
+});
+
+describe('cn', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  test('should merge class names using clsx and tailwind-merge', () => {
+    const result = cn('px-2 py-1', 'bg-red-500', 'px-4'); // px-4 should override px-2
+    expect(result).toBe('py-1 bg-red-500 px-4');
+  });
+
+  test('should handle conditional classes', () => {
+    const result = cn(
+      'base-class',
+      true && 'conditional-class',
+      false && 'hidden-class',
+    );
+    expect(result).toBe('base-class conditional-class');
+  });
+
+  test('should handle arrays of classes', () => {
+    const result = cn(['class1', 'class2'], 'class3');
+    expect(result).toBe('class1 class2 class3');
+  });
+
+  test('should handle empty input', () => {
+    const result = cn();
+    expect(result).toBe('');
+  });
+
+  test('should handle undefined and null values', () => {
+    const result = cn('valid-class', undefined, null, 'another-class');
+    expect(result).toBe('valid-class another-class');
+  });
+});
+
+describe('fetcher', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockFetch.mockClear();
+  });
+
+  test('should return parsed JSON on successful response', async () => {
+    const mockData = { message: 'success' };
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: jest.fn().mockResolvedValue(mockData),
+    } as any);
+
+    const result = await fetcher('/api/test');
+
+    expect(result).toEqual(mockData);
+    expect(mockFetch).toHaveBeenCalledWith('/api/test');
+  });
+
+  test('should throw ChatSDKError on unsuccessful response', async () => {
+    const errorResponse = { code: 'bad_request:api', cause: 'Invalid input' };
+    mockFetch.mockResolvedValue({
+      ok: false,
+      json: jest.fn().mockResolvedValue(errorResponse),
+    } as any);
+
+    await expect(fetcher('/api/test')).rejects.toThrow(ChatSDKError);
+    await expect(fetcher('/api/test')).rejects.toThrow('Invalid input');
+  });
+
+  test('should handle fetch errors', async () => {
+    mockFetch.mockRejectedValue(new Error('Network error'));
+
+    await expect(fetcher('/api/test')).rejects.toThrow('Network error');
+  });
+});
+
+describe('fetchWithErrorHandlers', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockFetch.mockClear();
+    (navigator as any).onLine = true;
+  });
+
+  test('should return response on successful fetch', async () => {
+    const mockResponse = {
+      ok: true,
+      json: jest.fn().mockResolvedValue({ data: 'success' }),
+    };
+    mockFetch.mockResolvedValue(mockResponse as any);
+
+    const result = await fetchWithErrorHandlers('/api/test');
+
+    expect(result).toBe(mockResponse);
+    expect(mockFetch).toHaveBeenCalledWith('/api/test', undefined);
+  });
+
+  test('should throw offline error when navigator is offline', async () => {
+    (navigator as any).onLine = false;
+    mockFetch.mockRejectedValue(new Error('Network error'));
+
+    await expect(fetchWithErrorHandlers('/api/test')).rejects.toThrow(
+      ChatSDKError,
+    );
+  });
+
+  test('should throw stream error when online but fetch fails', async () => {
+    (navigator as any).onLine = true;
+    mockFetch.mockRejectedValue(new Error('Network error'));
+
+    await expect(fetchWithErrorHandlers('/api/test')).rejects.toThrow(
+      ChatSDKError,
+    );
+  });
+});
+
+describe('getLocalStorage', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    localStorageMock.getItem.mockClear();
+  });
+
+  test('should return parsed data from localStorage when window is defined', () => {
+    const testData = ['item1', 'item2'];
+    localStorageMock.getItem.mockReturnValue(JSON.stringify(testData));
+
+    const result = getLocalStorage('test-key');
+
+    expect(result).toEqual(testData);
+    expect(localStorageMock.getItem).toHaveBeenCalledWith('test-key');
+  });
+
+  test('should return empty array when localStorage item is null', () => {
+    localStorageMock.getItem.mockReturnValue(null);
+
+    const result = getLocalStorage('test-key');
+
+    expect(result).toEqual([]);
+  });
+
+  test('should return empty array when localStorage item is empty string', () => {
+    localStorageMock.getItem.mockReturnValue('');
+
+    const result = getLocalStorage('test-key');
+
+    expect(result).toEqual([]);
+  });
+});
+
+describe('generateUUID', () => {
+  test('should generate valid UUID format', () => {
+    const uuid = generateUUID();
+    const uuidRegex =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+    expect(uuid).toMatch(uuidRegex);
+  });
+
+  test('should generate different UUIDs on multiple calls', () => {
+    const uuid1 = generateUUID();
+    const uuid2 = generateUUID();
+
+    expect(uuid1).not.toBe(uuid2);
+  });
+
+  test('should have correct length', () => {
+    const uuid = generateUUID();
+    expect(uuid.length).toBe(36);
+  });
+
+  test('should always have 4 as the version number', () => {
+    const uuid = generateUUID();
+    const versionChar = uuid.charAt(14); // Version is at position 14
+
+    expect(versionChar).toBe('4');
+  });
+});
+
+describe('getMostRecentUserMessage', () => {
+  test('should return the most recent user message', () => {
+    const messages: UIMessage[] = [
+      { id: '1', role: 'user', content: 'First message' },
+      { id: '2', role: 'assistant', content: 'Assistant response' },
+      { id: '3', role: 'user', content: 'Second message' },
+      { id: '4', role: 'user', content: 'Most recent message' },
+    ];
+
+    const result = getMostRecentUserMessage(messages);
+
+    expect(result).toEqual({
+      id: '4',
+      role: 'user',
+      content: 'Most recent message',
+    });
+  });
+
+  test('should return undefined when there are no user messages', () => {
+    const messages: UIMessage[] = [
+      { id: '1', role: 'assistant', content: 'Assistant message' },
+      { id: '2', role: 'system', content: 'System message' },
+    ];
+
+    const result = getMostRecentUserMessage(messages);
+
+    expect(result).toBeUndefined();
+  });
+
+  test('should return undefined when messages array is empty', () => {
+    const result = getMostRecentUserMessage([]);
+
+    expect(result).toBeUndefined();
+  });
+});
+
+describe('getDocumentTimestampByIndex', () => {
+  const mockDocuments: Document[] = [
+    {
+      id: '1',
+      createdAt: new Date('2023-01-01'),
+      content: 'Doc 1',
+      title: 'Title 1',
+      kind: 'text',
+    },
+    {
+      id: '2',
+      createdAt: new Date('2023-01-02'),
+      content: 'Doc 2',
+      title: 'Title 2',
+      kind: 'text',
+    },
+    {
+      id: '3',
+      createdAt: new Date('2023-01-03'),
+      content: 'Doc 3',
+      title: 'Title 3',
+      kind: 'text',
+    },
+  ];
+
+  test('should return timestamp of document at given index', () => {
+    const result = getDocumentTimestampByIndex(mockDocuments, 1);
+
+    expect(result).toEqual(new Date('2023-01-02'));
+  });
+
+  test('should return first document timestamp for index 0', () => {
+    const result = getDocumentTimestampByIndex(mockDocuments, 0);
+
+    expect(result).toEqual(new Date('2023-01-01'));
+  });
+
+  test('should return current date when documents is null', () => {
+    const beforeCall = new Date();
+    const result = getDocumentTimestampByIndex(null as any, 0);
+    const afterCall = new Date();
+
+    expect(result.getTime()).toBeGreaterThanOrEqual(beforeCall.getTime());
+    expect(result.getTime()).toBeLessThanOrEqual(afterCall.getTime());
+  });
+
+  test('should return current date when index is greater than documents length', () => {
+    const beforeCall = new Date();
+    const result = getDocumentTimestampByIndex(mockDocuments, 10);
+    const afterCall = new Date();
+
+    expect(result.getTime()).toBeGreaterThanOrEqual(beforeCall.getTime());
+    expect(result.getTime()).toBeLessThanOrEqual(afterCall.getTime());
+  });
+});
+
+describe('getTrailingMessageId', () => {
+  type ResponseMessage = (CoreToolMessage | CoreAssistantMessage) & {
+    id: string;
+  };
+
+  test('should return ID of the last message', () => {
+    const messages: ResponseMessage[] = [
+      { id: '1', role: 'assistant', content: 'First message' },
+      { id: '2', role: 'assistant', content: 'Second message' },
+      { id: '3', role: 'assistant', content: 'Last message' },
+    ];
+
+    const result = getTrailingMessageId({ messages });
+
+    expect(result).toBe('3');
+  });
+
+  test('should return null when messages array is empty', () => {
+    const result = getTrailingMessageId({ messages: [] });
+
+    expect(result).toBeNull();
+  });
+
+  test('should handle single message', () => {
+    const messages: ResponseMessage[] = [
+      { id: '1', role: 'assistant', content: 'Only message' },
+    ];
+
+    const result = getTrailingMessageId({ messages });
+
+    expect(result).toBe('1');
+  });
+});
+
+describe('sanitizeText', () => {
+  test('should remove function call marker from text', () => {
+    const text = 'This is some text <has_function_call> with a marker';
+    const result = sanitizeText(text);
+
+    expect(result).toBe('This is some text  with a marker');
+  });
+
+  test('should handle multiple function call markers', () => {
+    const text = 'Start <has_function_call> middle <has_function_call> end';
+    const result = sanitizeText(text);
+
+    expect(result).toBe('Start  middle  end');
+  });
+
+  test('should return original text when no markers present', () => {
+    const text = 'This is clean text without any markers';
+    const result = sanitizeText(text);
+
+    expect(result).toBe(text);
+  });
+
+  test('should handle empty string', () => {
+    const result = sanitizeText('');
+
+    expect(result).toBe('');
+  });
+
+  test('should handle text that only contains the marker', () => {
+    const result = sanitizeText('<has_function_call>');
+
+    expect(result).toBe('');
   });
 });
 

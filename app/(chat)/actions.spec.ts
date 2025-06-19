@@ -66,7 +66,11 @@ import { auth } from '@/app/(auth)/auth';
 import { createPromptRunner } from '@/lib/agent/prompt-runner/runner';
 import { createMCPClient } from '@/lib/ai/mcp';
 import { db } from '@/lib/db/queries/client';
-import { createJob, getJobByDocumentId, updateJobRunningStatus } from '@/lib/db/queries/job';
+import {
+  createJob,
+  getJobByDocumentId,
+  updateJobRunningStatus,
+} from '@/lib/db/queries/job';
 import {
   deleteMessagesByChatIdAfterTimestamp,
   getDocumentById,
@@ -94,23 +98,56 @@ import {
 } from './actions';
 
 const mockAuth = auth as jest.MockedFunction<typeof auth>;
-const mockCreatePromptRunner = createPromptRunner as jest.MockedFunction<typeof createPromptRunner>;
-const mockCreateMCPClient = createMCPClient as jest.MockedFunction<typeof createMCPClient>;
+const mockCreatePromptRunner = createPromptRunner as jest.MockedFunction<
+  typeof createPromptRunner
+>;
+const mockCreateMCPClient = createMCPClient as jest.MockedFunction<
+  typeof createMCPClient
+>;
 const mockCreateJob = createJob as jest.MockedFunction<typeof createJob>;
-const mockGetJobByDocumentId = getJobByDocumentId as jest.MockedFunction<typeof getJobByDocumentId>;
-const mockUpdateJobRunningStatus = updateJobRunningStatus as jest.MockedFunction<typeof updateJobRunningStatus>;
-const mockDeleteMessagesByChatIdAfterTimestamp = deleteMessagesByChatIdAfterTimestamp as jest.MockedFunction<typeof deleteMessagesByChatIdAfterTimestamp>;
-const mockGetDocumentById = getDocumentById as jest.MockedFunction<typeof getDocumentById>;
-const mockGetMessageById = getMessageById as jest.MockedFunction<typeof getMessageById>;
-const mockSelectPromptById = selectPromptById as jest.MockedFunction<typeof selectPromptById>;
-const mockUpdateChatVisiblityById = updateChatVisiblityById as jest.MockedFunction<typeof updateChatVisiblityById>;
-const mockGetUserContext = getUserContext as jest.MockedFunction<typeof getUserContext>;
-const mockCreateJSExecutionEngine = createJSExecutionEngine as jest.MockedFunction<typeof createJSExecutionEngine>;
-const mockCreateTestToolExecutionEngine = createTestToolExecutionEngine as jest.MockedFunction<typeof createTestToolExecutionEngine>;
-const mockGetWorkflowWebhookUrl = getWorkflowWebhookUrl as jest.MockedFunction<typeof getWorkflowWebhookUrl>;
-const mockWorkflowEngine = WorkflowEngine as jest.MockedFunction<typeof WorkflowEngine>;
+const mockGetJobByDocumentId = getJobByDocumentId as jest.MockedFunction<
+  typeof getJobByDocumentId
+>;
+const mockUpdateJobRunningStatus =
+  updateJobRunningStatus as jest.MockedFunction<typeof updateJobRunningStatus>;
+const mockDeleteMessagesByChatIdAfterTimestamp =
+  deleteMessagesByChatIdAfterTimestamp as jest.MockedFunction<
+    typeof deleteMessagesByChatIdAfterTimestamp
+  >;
+const mockGetDocumentById = getDocumentById as jest.MockedFunction<
+  typeof getDocumentById
+>;
+const mockGetMessageById = getMessageById as jest.MockedFunction<
+  typeof getMessageById
+>;
+const mockSelectPromptById = selectPromptById as jest.MockedFunction<
+  typeof selectPromptById
+>;
+const mockUpdateChatVisiblityById =
+  updateChatVisiblityById as jest.MockedFunction<
+    typeof updateChatVisiblityById
+  >;
+const mockGetUserContext = getUserContext as jest.MockedFunction<
+  typeof getUserContext
+>;
+const mockCreateJSExecutionEngine =
+  createJSExecutionEngine as jest.MockedFunction<
+    typeof createJSExecutionEngine
+  >;
+const mockCreateTestToolExecutionEngine =
+  createTestToolExecutionEngine as jest.MockedFunction<
+    typeof createTestToolExecutionEngine
+  >;
+const mockGetWorkflowWebhookUrl = getWorkflowWebhookUrl as jest.MockedFunction<
+  typeof getWorkflowWebhookUrl
+>;
+const mockWorkflowEngine = WorkflowEngine as jest.MockedFunction<
+  typeof WorkflowEngine
+>;
 const mockQStashClient = Client as jest.MockedFunction<typeof Client>;
-const mockGenerateText = generateText as jest.MockedFunction<typeof generateText>;
+const mockGenerateText = generateText as jest.MockedFunction<
+  typeof generateText
+>;
 const mockCookies = cookies as jest.MockedFunction<typeof cookies>;
 
 // Mock session object
@@ -145,16 +182,18 @@ const mockExecutionEngine = {
 describe('Chat Server Actions', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    
+
     // Setup default mocks
     mockAuth.mockResolvedValue(mockSession as any);
     mockCookies.mockResolvedValue(mockCookieStore as any);
     mockCreateMCPClient.mockResolvedValue(mockMCPClient as any);
     mockCreatePromptRunner.mockReturnValue(mockPromptRunnerInstance as any);
     mockCreateJSExecutionEngine.mockReturnValue(mockExecutionEngine as any);
-    mockCreateTestToolExecutionEngine.mockReturnValue(mockExecutionEngine as any);
+    mockCreateTestToolExecutionEngine.mockReturnValue(
+      mockExecutionEngine as any,
+    );
     mockGetWorkflowWebhookUrl.mockReturnValue('https://test-webhook-url.com');
-    
+
     // Mock database transaction
     (db.transaction as jest.Mock).mockImplementation((fn) => fn(db));
   });
@@ -164,14 +203,23 @@ describe('Chat Server Actions', () => {
       await saveChatModelAsCookie('gpt-4', 'openAI');
 
       expect(mockCookieStore.set).toHaveBeenCalledWith('chat-model', 'gpt-4');
-      expect(mockCookieStore.set).toHaveBeenCalledWith('chat-model-provider', 'openAI');
+      expect(mockCookieStore.set).toHaveBeenCalledWith(
+        'chat-model-provider',
+        'openAI',
+      );
     });
 
     test('should handle different model providers', async () => {
       await saveChatModelAsCookie('claude-3', 'anthropic');
 
-      expect(mockCookieStore.set).toHaveBeenCalledWith('chat-model', 'claude-3');
-      expect(mockCookieStore.set).toHaveBeenCalledWith('chat-model-provider', 'anthropic');
+      expect(mockCookieStore.set).toHaveBeenCalledWith(
+        'chat-model',
+        'claude-3',
+      );
+      expect(mockCookieStore.set).toHaveBeenCalledWith(
+        'chat-model-provider',
+        'anthropic',
+      );
     });
   });
 
@@ -218,10 +266,12 @@ describe('Chat Server Actions', () => {
 
       mockGenerateText.mockRejectedValue(new Error('Generation failed'));
 
-      await expect(generateTitleFromUserMessage({
-        message: mockMessage,
-        titleModel: mockTitleModel,
-      })).rejects.toThrow('Generation failed');
+      await expect(
+        generateTitleFromUserMessage({
+          message: mockMessage,
+          titleModel: mockTitleModel,
+        }),
+      ).rejects.toThrow('Generation failed');
     });
   });
 
@@ -238,7 +288,9 @@ describe('Chat Server Actions', () => {
 
       await deleteTrailingMessages({ id: 'test-message-id' });
 
-      expect(mockGetMessageById).toHaveBeenCalledWith({ id: 'test-message-id' });
+      expect(mockGetMessageById).toHaveBeenCalledWith({
+        id: 'test-message-id',
+      });
       expect(mockDeleteMessagesByChatIdAfterTimestamp).toHaveBeenCalledWith({
         chatId: 'test-chat-id',
         timestamp: mockMessage.createdAt,
@@ -248,8 +300,9 @@ describe('Chat Server Actions', () => {
     test('should handle message not found', async () => {
       mockGetMessageById.mockResolvedValue([]);
 
-      await expect(deleteTrailingMessages({ id: 'non-existent-id' }))
-        .rejects.toThrow();
+      await expect(
+        deleteTrailingMessages({ id: 'non-existent-id' }),
+      ).rejects.toThrow();
     });
   });
 
@@ -294,12 +347,13 @@ describe('Chat Server Actions', () => {
 
     test('should return MCP tools in non-test environment', async () => {
       // Temporarily override test environment check
-      const originalIsTestEnvironment = require('@/lib/constants').isTestEnvironment;
+      const originalIsTestEnvironment =
+        require('@/lib/constants').isTestEnvironment;
       require('@/lib/constants').isTestEnvironment = false;
 
       const mockTools = {
-        'tool1': { description: 'Tool 1 description' },
-        'tool2': { description: 'Tool 2 description' },
+        tool1: { description: 'Tool 1 description' },
+        tool2: { description: 'Tool 2 description' },
       };
 
       mockMCPClient.tools.mockResolvedValue(mockTools);
@@ -354,7 +408,9 @@ describe('Chat Server Actions', () => {
     test('should handle execution exceptions', async () => {
       const testCode = 'invalid code';
 
-      mockExecutionEngine.execute.mockRejectedValue(new Error('Execution failed'));
+      mockExecutionEngine.execute.mockRejectedValue(
+        new Error('Execution failed'),
+      );
 
       const result = await testPrompt(testCode);
 
@@ -447,7 +503,9 @@ describe('Chat Server Actions', () => {
 
       const result = await createWorkflowJob('test-doc-id');
 
-      expect(result.error).toBe('Unauthorized: You do not have access to this document');
+      expect(result.error).toBe(
+        'Unauthorized: You do not have access to this document',
+      );
       expect(result.job).toBeUndefined();
     });
 

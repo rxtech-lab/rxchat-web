@@ -35,11 +35,17 @@ import {
 
 const mockAuth = auth as jest.MockedFunction<typeof auth>;
 const mockSignOut = signOut as jest.MockedFunction<typeof signOut>;
-const mockDeleteUserAccount = deleteUserAccount as jest.MockedFunction<typeof deleteUserAccount>;
-const mockUpdateUserPassword = updateUserPassword as jest.MockedFunction<typeof updateUserPassword>;
+const mockDeleteUserAccount = deleteUserAccount as jest.MockedFunction<
+  typeof deleteUserAccount
+>;
+const mockUpdateUserPassword = updateUserPassword as jest.MockedFunction<
+  typeof updateUserPassword
+>;
 const mockGetUserById = getUserById as jest.MockedFunction<typeof getUserById>;
 const mockCompare = compare as jest.MockedFunction<typeof compare>;
-const mockRevalidatePath = revalidatePath as jest.MockedFunction<typeof revalidatePath>;
+const mockRevalidatePath = revalidatePath as jest.MockedFunction<
+  typeof revalidatePath
+>;
 
 // Mock session object
 const mockSession = {
@@ -59,7 +65,7 @@ const mockUser = {
 describe('Profile Server Actions', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    
+
     // Setup default mocks
     mockAuth.mockResolvedValue(mockSession as any);
     mockGetUserById.mockResolvedValue(mockUser as any);
@@ -72,7 +78,7 @@ describe('Profile Server Actions', () => {
 
   describe('resetPassword', () => {
     const validFormData = new FormData();
-    
+
     beforeEach(() => {
       validFormData.set('currentPassword', 'current123');
       validFormData.set('newPassword', 'newPassword123');
@@ -121,7 +127,9 @@ describe('Profile Server Actions', () => {
       const result = await resetPassword(null, invalidFormData);
 
       expect(result.success).toBe(false);
-      expect(result.errors?.newPassword).toContain('Password must be at least 6 characters');
+      expect(result.errors?.newPassword).toContain(
+        'Password must be at least 6 characters',
+      );
     });
 
     test('should verify current password', async () => {
@@ -154,7 +162,7 @@ describe('Profile Server Actions', () => {
 
   describe('deleteAccount', () => {
     const validFormData = new FormData();
-    
+
     beforeEach(() => {
       validFormData.set('password', 'current123');
       validFormData.set('confirmation', 'DELETE');
@@ -165,7 +173,9 @@ describe('Profile Server Actions', () => {
 
       expect(result.success).toBe(true);
       expect(result.message).toBe('Account deleted successfully');
-      expect(mockDeleteUserAccount).toHaveBeenCalledWith({ id: 'test-user-id' });
+      expect(mockDeleteUserAccount).toHaveBeenCalledWith({
+        id: 'test-user-id',
+      });
       expect(mockSignOut).toHaveBeenCalled();
     });
 
@@ -186,7 +196,9 @@ describe('Profile Server Actions', () => {
       const result = await deleteAccount(null, invalidFormData);
 
       expect(result.success).toBe(false);
-      expect(result.errors?.confirmation).toContain('Please type DELETE to confirm');
+      expect(result.errors?.confirmation).toContain(
+        'Please type DELETE to confirm',
+      );
     });
 
     test('should verify password before deletion', async () => {
@@ -219,7 +231,7 @@ describe('Profile Server Actions', () => {
 
   describe('registerPasskey', () => {
     const validFormData = new FormData();
-    
+
     beforeEach(() => {
       validFormData.set('name', 'My Passkey');
       validFormData.set('credentialId', 'credential-123');

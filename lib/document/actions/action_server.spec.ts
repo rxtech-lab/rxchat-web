@@ -52,13 +52,24 @@ import {
 } from './action_server';
 
 const mockAuth = auth as jest.MockedFunction<typeof auth>;
-const mockGetModelProvider = getModelProvider as jest.MockedFunction<typeof getModelProvider>;
-const mockCreateMarkitdownClient = createMarkitdownClient as jest.MockedFunction<typeof createMarkitdownClient>;
-const mockCreateVectorStoreClient = createVectorStoreClient as jest.MockedFunction<typeof createVectorStoreClient>;
-const mockCreateS3Client = createS3Client as jest.MockedFunction<typeof createS3Client>;
-const mockCalculateSha256FromUrl = calculateSha256FromUrl as jest.MockedFunction<typeof calculateSha256FromUrl>;
+const mockGetModelProvider = getModelProvider as jest.MockedFunction<
+  typeof getModelProvider
+>;
+const mockCreateMarkitdownClient =
+  createMarkitdownClient as jest.MockedFunction<typeof createMarkitdownClient>;
+const mockCreateVectorStoreClient =
+  createVectorStoreClient as jest.MockedFunction<
+    typeof createVectorStoreClient
+  >;
+const mockCreateS3Client = createS3Client as jest.MockedFunction<
+  typeof createS3Client
+>;
+const mockCalculateSha256FromUrl =
+  calculateSha256FromUrl as jest.MockedFunction<typeof calculateSha256FromUrl>;
 const mockTrack = track as jest.MockedFunction<typeof track>;
-const mockGenerateText = generateText as jest.MockedFunction<typeof generateText>;
+const mockGenerateText = generateText as jest.MockedFunction<
+  typeof generateText
+>;
 
 // Mock session object
 const mockSession = {
@@ -79,7 +90,7 @@ const mockMarkitdownClient = {
   convertUrl: jest.fn(),
 };
 
-// Mock vector store client  
+// Mock vector store client
 const mockVectorStoreClient = {
   similaritySearch: jest.fn(),
   addDocuments: jest.fn(),
@@ -89,7 +100,7 @@ const mockVectorStoreClient = {
 describe('Document Server Actions', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    
+
     // Setup default mocks
     mockAuth.mockResolvedValue(mockSession as any);
     mockCreateS3Client.mockReturnValue(mockS3Client as any);
@@ -109,7 +120,11 @@ describe('Document Server Actions', () => {
       const mockUploadUrl = 'https://s3.amazonaws.com/presigned-upload-url';
       mockS3Client.generatePresignedUrl.mockResolvedValue(mockUploadUrl);
 
-      const result = await getPresignedUploadUrl('test.pdf', 'application/pdf', 1024);
+      const result = await getPresignedUploadUrl(
+        'test.pdf',
+        'application/pdf',
+        1024,
+      );
 
       expect(result.error).toBeUndefined();
       expect(result.uploadUrl).toBe(mockUploadUrl);
@@ -121,9 +136,15 @@ describe('Document Server Actions', () => {
     test('should return error when user not authenticated', async () => {
       mockAuth.mockResolvedValue(null);
 
-      const result = await getPresignedUploadUrl('test.pdf', 'application/pdf', 1024);
+      const result = await getPresignedUploadUrl(
+        'test.pdf',
+        'application/pdf',
+        1024,
+      );
 
-      expect(result.error).toBe('Unauthorized: You must be logged in to upload documents.');
+      expect(result.error).toBe(
+        'Unauthorized: You must be logged in to upload documents.',
+      );
       expect(result.uploadUrl).toBeUndefined();
     });
 
@@ -134,11 +155,19 @@ describe('Document Server Actions', () => {
     });
 
     test('should handle S3 errors', async () => {
-      mockS3Client.generatePresignedUrl.mockRejectedValue(new Error('S3 Error'));
+      mockS3Client.generatePresignedUrl.mockRejectedValue(
+        new Error('S3 Error'),
+      );
 
-      const result = await getPresignedUploadUrl('test.pdf', 'application/pdf', 1024);
+      const result = await getPresignedUploadUrl(
+        'test.pdf',
+        'application/pdf',
+        1024,
+      );
 
-      expect(result.error).toBe('Internal Server Error: Failed to generate presigned URL.');
+      expect(result.error).toBe(
+        'Internal Server Error: Failed to generate presigned URL.',
+      );
     });
   });
 
@@ -164,7 +193,9 @@ describe('Document Server Actions', () => {
         endingBefore: null,
       });
 
-      expect(result.error).toBe('Unauthorized: You must be logged in to list documents.');
+      expect(result.error).toBe(
+        'Unauthorized: You must be logged in to list documents.',
+      );
     });
 
     test('should validate pagination parameters', async () => {
@@ -174,7 +205,9 @@ describe('Document Server Actions', () => {
         endingBefore: null,
       });
 
-      expect(result.error).toBe('Bad Request: Invalid document listing parameters.');
+      expect(result.error).toBe(
+        'Bad Request: Invalid document listing parameters.',
+      );
     });
   });
 
@@ -197,28 +230,36 @@ describe('Document Server Actions', () => {
         10,
         expect.objectContaining({
           filter: expect.any(Object),
-        })
+        }),
       );
     });
 
     test('should return error when user not authenticated', async () => {
       mockAuth.mockResolvedValue(null);
 
-      await expect(searchDocuments({
-        query: 'test query',
-        limit: 10,
-        visibility: 'private',
-      })).rejects.toThrow('Unauthorized: You must be logged in to search documents.');
+      await expect(
+        searchDocuments({
+          query: 'test query',
+          limit: 10,
+          visibility: 'private',
+        }),
+      ).rejects.toThrow(
+        'Unauthorized: You must be logged in to search documents.',
+      );
     });
 
     test('should handle vector store errors', async () => {
-      mockVectorStoreClient.similaritySearch.mockRejectedValue(new Error('Vector store error'));
+      mockVectorStoreClient.similaritySearch.mockRejectedValue(
+        new Error('Vector store error'),
+      );
 
-      await expect(searchDocuments({
-        query: 'test query',
-        limit: 10,
-        visibility: 'private',
-      })).rejects.toThrow('Internal Server Error: Failed to search documents.');
+      await expect(
+        searchDocuments({
+          query: 'test query',
+          limit: 10,
+          visibility: 'private',
+        }),
+      ).rejects.toThrow('Internal Server Error: Failed to search documents.');
     });
   });
 
@@ -241,18 +282,22 @@ describe('Document Server Actions', () => {
         10,
         expect.objectContaining({
           filter: expect.any(Object),
-        })
+        }),
       );
     });
 
     test('should return error when user not authenticated', async () => {
       mockAuth.mockResolvedValue(null);
 
-      await expect(searchDocumentsById({
-        documentId: 'test-doc-id',
-        query: 'test query',
-        limit: 10,
-      })).rejects.toThrow('Unauthorized: You must be logged in to search documents.');
+      await expect(
+        searchDocumentsById({
+          documentId: 'test-doc-id',
+          query: 'test query',
+          limit: 10,
+        }),
+      ).rejects.toThrow(
+        'Unauthorized: You must be logged in to search documents.',
+      );
     });
   });
 
@@ -280,7 +325,9 @@ describe('Document Server Actions', () => {
         documentId: 'test-doc-id',
       });
 
-      expect(result.error).toBe('Unauthorized: You must be logged in to complete document uploads.');
+      expect(result.error).toBe(
+        'Unauthorized: You must be logged in to complete document uploads.',
+      );
     });
 
     test('should validate document ID parameter', async () => {
@@ -288,17 +335,23 @@ describe('Document Server Actions', () => {
         documentId: 'invalid-id',
       });
 
-      expect(result.error).toBe('Bad Request: Invalid document upload parameters.');
+      expect(result.error).toBe(
+        'Bad Request: Invalid document upload parameters.',
+      );
     });
 
     test('should handle markitdown conversion errors', async () => {
-      mockMarkitdownClient.convertUrl.mockRejectedValue(new Error('Conversion failed'));
+      mockMarkitdownClient.convertUrl.mockRejectedValue(
+        new Error('Conversion failed'),
+      );
 
       const result = await completeDocumentUpload({
         documentId: 'test-doc-id',
       });
 
-      expect(result.error).toBe('Internal Server Error: Failed to process document.');
+      expect(result.error).toBe(
+        'Internal Server Error: Failed to process document.',
+      );
     });
   });
 
@@ -316,7 +369,9 @@ describe('Document Server Actions', () => {
 
       const result = await deleteDocument({ id: 'test-doc-id' });
 
-      expect(result.error).toBe('Unauthorized: You must be logged in to delete documents.');
+      expect(result.error).toBe(
+        'Unauthorized: You must be logged in to delete documents.',
+      );
     });
 
     test('should validate document ID parameter', async () => {
@@ -326,11 +381,15 @@ describe('Document Server Actions', () => {
     });
 
     test('should handle deletion errors', async () => {
-      mockS3Client.deleteObject.mockRejectedValue(new Error('S3 deletion failed'));
+      mockS3Client.deleteObject.mockRejectedValue(
+        new Error('S3 deletion failed'),
+      );
 
       const result = await deleteDocument({ id: 'test-doc-id' });
 
-      expect(result.error).toBe('Internal Server Error: Failed to delete document.');
+      expect(result.error).toBe(
+        'Internal Server Error: Failed to delete document.',
+      );
     });
   });
 
@@ -353,7 +412,9 @@ describe('Document Server Actions', () => {
         title: 'New Document Title',
       });
 
-      expect(result.error).toBe('Unauthorized: You must be logged in to rename documents.');
+      expect(result.error).toBe(
+        'Unauthorized: You must be logged in to rename documents.',
+      );
     });
 
     test('should validate rename parameters', async () => {
@@ -362,7 +423,9 @@ describe('Document Server Actions', () => {
         title: '',
       });
 
-      expect(result.error).toBe('Bad Request: Invalid document rename parameters.');
+      expect(result.error).toBe(
+        'Bad Request: Invalid document rename parameters.',
+      );
     });
   });
 
@@ -383,7 +446,9 @@ describe('Document Server Actions', () => {
 
       const result = await getPresignedDownloadUrl({ id: 'test-doc-id' });
 
-      expect(result.error).toBe('Unauthorized: You must be logged in to download documents.');
+      expect(result.error).toBe(
+        'Unauthorized: You must be logged in to download documents.',
+      );
     });
 
     test('should validate document ID parameter', async () => {
@@ -406,7 +471,9 @@ describe('Document Server Actions', () => {
 
       const result = await getDocumentContent({ id: 'test-doc-id' });
 
-      expect(result.error).toBe('Unauthorized: You must be logged in to access document content.');
+      expect(result.error).toBe(
+        'Unauthorized: You must be logged in to access document content.',
+      );
     });
 
     test('should validate document ID parameter', async () => {
@@ -435,7 +502,9 @@ describe('Document Server Actions', () => {
         visibility: 'public',
       });
 
-      expect(result.error).toBe('Unauthorized: You must be logged in to change document visibility.');
+      expect(result.error).toBe(
+        'Unauthorized: You must be logged in to change document visibility.',
+      );
     });
 
     test('should validate toggle parameters', async () => {
@@ -444,7 +513,9 @@ describe('Document Server Actions', () => {
         visibility: 'invalid' as any,
       });
 
-      expect(result.error).toBe('Bad Request: Invalid document visibility parameters.');
+      expect(result.error).toBe(
+        'Bad Request: Invalid document visibility parameters.',
+      );
     });
   });
 });

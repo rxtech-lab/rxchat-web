@@ -26,35 +26,23 @@ import {
   getMessagesByChatId,
   voteMessage,
   getVotesByChatId,
-  saveDocument,
-  getDocumentsById,
-  getDocumentById,
-  deleteDocumentsByIdAfterTimestamp,
-  saveSuggestions,
-  getSuggestionsByDocumentId,
   getMessageById,
   deleteMessagesByChatIdAfterTimestamp,
   updateChatVisiblityById,
   getMessageCountByUserId,
-  createStreamId,
-  getStreamIdsByChatId,
-  selectPromptById,
   updateUserPassword,
-  createPasskeyAuthenticator,
-  getPasskeyAuthenticatorsByUserId,
-  getPasskeyAuthenticatorByCredentialId,
-  updatePasskeyAuthenticatorCounter,
-  deletePasskeyAuthenticator,
-  getPasskeyAuthenticatorsByEmail,
 } from './queries';
 import { generateRandomTestUser } from '@/tests/helpers';
-import type { User, Chat, DBMessage, Document, Suggestion } from '../schema';
+import type { Chat, DBMessage, Document, Suggestion } from '../schema';
 import { ChatSDKError } from '@/lib/errors';
 
 /**
  * Test utilities for creating mock data
  */
-const createMockChat = (userId: string, overrides: Partial<Chat> = {}): Chat => ({
+const createMockChat = (
+  userId: string,
+  overrides: Partial<Chat> = {},
+): Chat => ({
   id: crypto.randomUUID(),
   title: `Test Chat ${generateId()}`,
   userId,
@@ -64,7 +52,10 @@ const createMockChat = (userId: string, overrides: Partial<Chat> = {}): Chat => 
   ...overrides,
 });
 
-const createMockMessage = (chatId: string, overrides: Partial<DBMessage> = {}): DBMessage => ({
+const createMockMessage = (
+  chatId: string,
+  overrides: Partial<DBMessage> = {},
+): DBMessage => ({
   id: crypto.randomUUID(),
   chatId,
   role: 'user',
@@ -83,7 +74,10 @@ const createMockDocument = (overrides: Partial<Document> = {}): Document => ({
   ...overrides,
 });
 
-const createMockSuggestion = (documentId: string, overrides: Partial<Suggestion> = {}): Suggestion => ({
+const createMockSuggestion = (
+  documentId: string,
+  overrides: Partial<Suggestion> = {},
+): Suggestion => ({
   id: crypto.randomUUID(),
   documentId,
   originalText: `Original text ${generateId()}`,
@@ -180,7 +174,9 @@ describe('Extended Database Queries', () => {
       });
 
       test('should return null for non-existent user ID', async () => {
-        const result = await getUserById('550e8400-e29b-41d4-a716-446655440000');
+        const result = await getUserById(
+          '550e8400-e29b-41d4-a716-446655440000',
+        );
         expect(result).toBeNull();
       });
 
@@ -212,11 +208,15 @@ describe('Extended Database Queries', () => {
         const testUser = generateRandomTestUser();
         await createUser(testUser.email, testUser.password);
 
-        await expect(createUserWithoutPassword(testUser.email)).rejects.toThrow(ChatSDKError);
+        await expect(createUserWithoutPassword(testUser.email)).rejects.toThrow(
+          ChatSDKError,
+        );
       });
 
       test('should throw ChatSDKError on database error', async () => {
-        await expect(createUserWithoutPassword(null as any)).rejects.toThrow(ChatSDKError);
+        await expect(createUserWithoutPassword(null as any)).rejects.toThrow(
+          ChatSDKError,
+        );
       });
     });
 
@@ -235,10 +235,12 @@ describe('Extended Database Queries', () => {
       });
 
       test('should throw ChatSDKError on database error', async () => {
-        await expect(updateUserPassword({
-          userId: 'invalid-uuid',
-          password: 'newPassword',
-        })).rejects.toThrow(ChatSDKError);
+        await expect(
+          updateUserPassword({
+            userId: 'invalid-uuid',
+            password: 'newPassword',
+          }),
+        ).rejects.toThrow(ChatSDKError);
       });
     });
   });
@@ -261,7 +263,7 @@ describe('Extended Database Queries', () => {
     describe('saveChat', () => {
       test('should save a new chat', async () => {
         const newChatId = crypto.randomUUID();
-        
+
         await saveChat({
           id: newChatId,
           userId: testUserId,
@@ -276,7 +278,7 @@ describe('Extended Database Queries', () => {
 
       test('should update existing chat on conflict', async () => {
         const updatedTitle = 'Updated Chat Title';
-        
+
         await saveChat({
           id: testChatId,
           userId: testUserId,
@@ -290,12 +292,14 @@ describe('Extended Database Queries', () => {
       });
 
       test('should throw ChatSDKError on database error', async () => {
-        await expect(saveChat({
-          id: 'invalid-uuid',
-          userId: testUserId,
-          title: 'Test',
-          visibility: 'private',
-        })).rejects.toThrow(ChatSDKError);
+        await expect(
+          saveChat({
+            id: 'invalid-uuid',
+            userId: testUserId,
+            title: 'Test',
+            visibility: 'private',
+          }),
+        ).rejects.toThrow(ChatSDKError);
       });
     });
 
@@ -309,12 +313,16 @@ describe('Extended Database Queries', () => {
       });
 
       test('should return null for non-existent chat', async () => {
-        const result = await getChatById({ id: '550e8400-e29b-41d4-a716-446655440000' });
+        const result = await getChatById({
+          id: '550e8400-e29b-41d4-a716-446655440000',
+        });
         expect(result).toBeNull();
       });
 
       test('should throw ChatSDKError on database error', async () => {
-        await expect(getChatById({ id: 'invalid-uuid' })).rejects.toThrow(ChatSDKError);
+        await expect(getChatById({ id: 'invalid-uuid' })).rejects.toThrow(
+          ChatSDKError,
+        );
       });
     });
 
@@ -345,12 +353,14 @@ describe('Extended Database Queries', () => {
       });
 
       test('should throw ChatSDKError on database error', async () => {
-        await expect(getChatsByUserId({
-          id: 'invalid-uuid',
-          limit: 10,
-          startingAfter: null,
-          endingBefore: null,
-        })).rejects.toThrow(ChatSDKError);
+        await expect(
+          getChatsByUserId({
+            id: 'invalid-uuid',
+            limit: 10,
+            startingAfter: null,
+            endingBefore: null,
+          }),
+        ).rejects.toThrow(ChatSDKError);
       });
     });
 
@@ -374,7 +384,9 @@ describe('Extended Database Queries', () => {
       });
 
       test('should throw ChatSDKError on database error', async () => {
-        await expect(deleteChatById({ id: 'invalid-uuid' })).rejects.toThrow(ChatSDKError);
+        await expect(deleteChatById({ id: 'invalid-uuid' })).rejects.toThrow(
+          ChatSDKError,
+        );
       });
     });
 
@@ -390,10 +402,12 @@ describe('Extended Database Queries', () => {
       });
 
       test('should throw ChatSDKError on database error', async () => {
-        await expect(updateChatVisiblityById({
-          chatId: 'invalid-uuid',
-          visibility: 'public',
-        })).rejects.toThrow(ChatSDKError);
+        await expect(
+          updateChatVisiblityById({
+            chatId: 'invalid-uuid',
+            visibility: 'public',
+          }),
+        ).rejects.toThrow(ChatSDKError);
       });
     });
   });
@@ -436,8 +450,10 @@ describe('Extended Database Queries', () => {
 
       test('should throw ChatSDKError on database error', async () => {
         const invalidMessage = createMockMessage('invalid-chat-id');
-        
-        await expect(saveMessages({ messages: [invalidMessage] })).rejects.toThrow(ChatSDKError);
+
+        await expect(
+          saveMessages({ messages: [invalidMessage] }),
+        ).rejects.toThrow(ChatSDKError);
       });
     });
 
@@ -464,7 +480,9 @@ describe('Extended Database Queries', () => {
       });
 
       test('should throw ChatSDKError on database error', async () => {
-        await expect(getMessagesByChatId({ id: 'invalid-uuid' })).rejects.toThrow(ChatSDKError);
+        await expect(
+          getMessagesByChatId({ id: 'invalid-uuid' }),
+        ).rejects.toThrow(ChatSDKError);
       });
     });
 
@@ -478,24 +496,30 @@ describe('Extended Database Queries', () => {
       });
 
       test('should return empty array for non-existent message', async () => {
-        const result = await getMessageById({ id: '550e8400-e29b-41d4-a716-446655440000' });
+        const result = await getMessageById({
+          id: '550e8400-e29b-41d4-a716-446655440000',
+        });
         expect(result).toHaveLength(0);
       });
 
       test('should throw ChatSDKError on database error', async () => {
-        await expect(getMessageById({ id: 'invalid-uuid' })).rejects.toThrow(ChatSDKError);
+        await expect(getMessageById({ id: 'invalid-uuid' })).rejects.toThrow(
+          ChatSDKError,
+        );
       });
     });
 
     describe('deleteMessagesByChatIdAfterTimestamp', () => {
       test('should delete messages after specified timestamp', async () => {
         const timestamp = new Date();
-        
+
         // Add some delay to ensure timestamp difference
         await new Promise((resolve) => setTimeout(resolve, 10));
-        
+
         // Add a new message after timestamp
-        const newMessage = createMockMessage(testChatId, { content: 'After timestamp' });
+        const newMessage = createMockMessage(testChatId, {
+          content: 'After timestamp',
+        });
         await saveMessages({ messages: [newMessage] });
 
         await deleteMessagesByChatIdAfterTimestamp({
@@ -509,10 +533,12 @@ describe('Extended Database Queries', () => {
       });
 
       test('should throw ChatSDKError on database error', async () => {
-        await expect(deleteMessagesByChatIdAfterTimestamp({
-          chatId: 'invalid-uuid',
-          timestamp: new Date(),
-        })).rejects.toThrow(ChatSDKError);
+        await expect(
+          deleteMessagesByChatIdAfterTimestamp({
+            chatId: 'invalid-uuid',
+            timestamp: new Date(),
+          }),
+        ).rejects.toThrow(ChatSDKError);
       });
     });
 
@@ -536,7 +562,9 @@ describe('Extended Database Queries', () => {
       });
 
       test('should throw ChatSDKError on database error', async () => {
-        await expect(getMessageCountByUserId({ userId: 'invalid-uuid' })).rejects.toThrow(ChatSDKError);
+        await expect(
+          getMessageCountByUserId({ userId: 'invalid-uuid' }),
+        ).rejects.toThrow(ChatSDKError);
       });
     });
   });
@@ -596,11 +624,13 @@ describe('Extended Database Queries', () => {
       });
 
       test('should throw ChatSDKError on database error', async () => {
-        await expect(voteMessage({
-          chatId: 'invalid-uuid',
-          messageId: testMessageId,
-          type: 'up',
-        })).rejects.toThrow(ChatSDKError);
+        await expect(
+          voteMessage({
+            chatId: 'invalid-uuid',
+            messageId: testMessageId,
+            type: 'up',
+          }),
+        ).rejects.toThrow(ChatSDKError);
       });
     });
 
@@ -633,7 +663,9 @@ describe('Extended Database Queries', () => {
       });
 
       test('should throw ChatSDKError on database error', async () => {
-        await expect(getVotesByChatId({ id: 'invalid-uuid' })).rejects.toThrow(ChatSDKError);
+        await expect(getVotesByChatId({ id: 'invalid-uuid' })).rejects.toThrow(
+          ChatSDKError,
+        );
       });
     });
   });

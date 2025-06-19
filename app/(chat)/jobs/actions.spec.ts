@@ -48,13 +48,24 @@ import {
 
 const mockAuth = auth as jest.MockedFunction<typeof auth>;
 const mockDeleteJob = deleteJob as jest.MockedFunction<typeof deleteJob>;
-const mockDeleteJobsByIds = deleteJobsByIds as jest.MockedFunction<typeof deleteJobsByIds>;
-const mockUpdateJobRunningStatus = updateJobRunningStatus as jest.MockedFunction<typeof updateJobRunningStatus>;
-const mockGetJobsByUserId = getJobsByUserId as jest.MockedFunction<typeof getJobsByUserId>;
+const mockDeleteJobsByIds = deleteJobsByIds as jest.MockedFunction<
+  typeof deleteJobsByIds
+>;
+const mockUpdateJobRunningStatus =
+  updateJobRunningStatus as jest.MockedFunction<typeof updateJobRunningStatus>;
+const mockGetJobsByUserId = getJobsByUserId as jest.MockedFunction<
+  typeof getJobsByUserId
+>;
 const mockGetJobById = getJobById as jest.MockedFunction<typeof getJobById>;
-const mockQStashClient = QStashClient as jest.MockedFunction<typeof QStashClient>;
-const mockWorkflowClient = WorkflowClient as jest.MockedFunction<typeof WorkflowClient>;
-const mockRevalidatePath = revalidatePath as jest.MockedFunction<typeof revalidatePath>;
+const mockQStashClient = QStashClient as jest.MockedFunction<
+  typeof QStashClient
+>;
+const mockWorkflowClient = WorkflowClient as jest.MockedFunction<
+  typeof WorkflowClient
+>;
+const mockRevalidatePath = revalidatePath as jest.MockedFunction<
+  typeof revalidatePath
+>;
 
 // Mock session object
 const mockSession = {
@@ -89,7 +100,7 @@ const mockWorkflowInstance = {
 describe('Jobs Server Actions', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    
+
     // Setup default mocks
     mockAuth.mockResolvedValue(mockSession as any);
     mockQStashClient.mockReturnValue(mockQStashInstance as any);
@@ -146,7 +157,7 @@ describe('Jobs Server Actions', () => {
       expect(mockGetJobsByUserId).toHaveBeenCalledWith(
         expect.objectContaining({
           status: 'completed',
-        })
+        }),
       );
     });
 
@@ -170,30 +181,34 @@ describe('Jobs Server Actions', () => {
       expect(mockGetJobsByUserId).toHaveBeenCalledWith(
         expect.objectContaining({
           runningStatus: 'running',
-        })
+        }),
       );
     });
 
     test('should return error when user not authenticated', async () => {
       mockAuth.mockResolvedValue(null);
 
-      await expect(getJobs({
-        limit: 20,
-        startingAfter: null,
-        endingBefore: null,
-        status: undefined,
-        runningStatus: undefined,
-      })).rejects.toThrow('Unauthorized');
+      await expect(
+        getJobs({
+          limit: 20,
+          startingAfter: null,
+          endingBefore: null,
+          status: undefined,
+          runningStatus: undefined,
+        }),
+      ).rejects.toThrow('Unauthorized');
     });
 
     test('should validate pagination parameters', async () => {
-      await expect(getJobs({
-        limit: -1, // Invalid limit
-        startingAfter: null,
-        endingBefore: null,
-        status: undefined,
-        runningStatus: undefined,
-      })).rejects.toThrow();
+      await expect(
+        getJobs({
+          limit: -1, // Invalid limit
+          startingAfter: null,
+          endingBefore: null,
+          status: undefined,
+          runningStatus: undefined,
+        }),
+      ).rejects.toThrow();
     });
   });
 
@@ -218,7 +233,9 @@ describe('Jobs Server Actions', () => {
     test('should return error when user not authenticated', async () => {
       mockAuth.mockResolvedValue(null);
 
-      await expect(getJob({ id: 'test-job-id' })).rejects.toThrow('Unauthorized');
+      await expect(getJob({ id: 'test-job-id' })).rejects.toThrow(
+        'Unauthorized',
+      );
     });
 
     test('should validate job ID parameter', async () => {
@@ -272,7 +289,9 @@ describe('Jobs Server Actions', () => {
 
       expect(result.success).toBe(true);
       expect(result.message).toBe('Jobs deleted successfully');
-      expect(mockDeleteJobsByIds).toHaveBeenCalledWith({ ids: ['job-1', 'job-2'] });
+      expect(mockDeleteJobsByIds).toHaveBeenCalledWith({
+        ids: ['job-1', 'job-2'],
+      });
       expect(mockRevalidatePath).toHaveBeenCalledWith('/jobs');
     });
 
@@ -379,7 +398,9 @@ describe('Jobs Server Actions', () => {
 
   describe('triggerJobAction', () => {
     test('should trigger job successfully', async () => {
-      mockQStashInstance.publishJSON.mockResolvedValue({ messageId: 'msg-123' });
+      mockQStashInstance.publishJSON.mockResolvedValue({
+        messageId: 'msg-123',
+      });
 
       const result = await triggerJobAction({ id: 'test-job-id' });
 
@@ -406,7 +427,9 @@ describe('Jobs Server Actions', () => {
     });
 
     test('should handle QStash errors', async () => {
-      mockQStashInstance.publishJSON.mockRejectedValue(new Error('QStash error'));
+      mockQStashInstance.publishJSON.mockRejectedValue(
+        new Error('QStash error'),
+      );
 
       const result = await triggerJobAction({ id: 'test-job-id' });
 

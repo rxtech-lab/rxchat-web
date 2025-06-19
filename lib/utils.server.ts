@@ -7,9 +7,8 @@ import {
 
 import { createOpenRouter } from '@openrouter/ai-sdk-provider';
 import {
-  CoreUserMessage,
   generateText,
-  UIMessage,
+  type UIMessage,
   type TextPart,
   type ToolCallPart,
   type ToolResultPart,
