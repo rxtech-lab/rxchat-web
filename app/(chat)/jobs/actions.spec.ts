@@ -3,7 +3,9 @@ jest.mock('@/app/(auth)/auth', () => ({
 }));
 
 jest.mock('@/lib/db/queries/client', () => ({
-  db: jest.fn(),
+  db: {
+    transaction: jest.fn(),
+  },
 }));
 
 jest.mock('@/lib/db/queries/job', () => ({
@@ -27,6 +29,7 @@ jest.mock('next/cache', () => ({
 }));
 
 import { auth } from '@/app/(auth)/auth';
+import { db } from '@/lib/db/queries/client';
 import {
   deleteJob,
   deleteJobsByIds,
@@ -47,6 +50,7 @@ import {
 } from './actions';
 
 const mockAuth = auth as jest.MockedFunction<typeof auth>;
+const mockDb = db as jest.Mocked<typeof db>;
 const mockDeleteJob = deleteJob as jest.MockedFunction<typeof deleteJob>;
 const mockDeleteJobsByIds = deleteJobsByIds as jest.MockedFunction<
   typeof deleteJobsByIds
@@ -77,7 +81,7 @@ const mockSession = {
 
 // Mock job object
 const mockJob = {
-  id: 'test-job-id',
+  id: '123e4567-e89b-12d3-a456-426614174000', // Valid UUID
   userId: 'test-user-id',
   documentId: 'test-doc-id',
   status: 'pending' as const,
@@ -90,6 +94,9 @@ const mockJob = {
 const mockQStashInstance = {
   publishJSON: jest.fn(),
   cancel: jest.fn(),
+  schedules: {
+    delete: jest.fn(),
+  },
 };
 
 // Mock Workflow client instance
@@ -104,6 +111,10 @@ describe('Jobs Server Actions', () => {
 
     // Setup default mocks
     mockAuth.mockResolvedValue(mockSession as any);
+    mockDb.transaction.mockImplementation(async (callback) => {
+      // Mock transaction - just call the callback with a mock transaction object
+      return await callback({} as any);
+    });
     mockQStashClient.mockReturnValue(mockQStashInstance as any);
     mockWorkflowClient.mockReturnValue(mockWorkflowInstance as any);
     mockRevalidatePath.mockReturnValue(undefined);
@@ -249,11 +260,11 @@ describe('Jobs Server Actions', () => {
       mockGetJobById.mockResolvedValue(mockJob as any);
       mockDeleteJob.mockResolvedValue(undefined);
 
-      const result = await deleteJobAction({ id: 'test-job-id' });
+      const result = await deleteJobAction({ id: mockJob.id });
 
       expect(result.success).toBe(true);
       expect(result.message).toBe('Job deleted successfully');
-      expect(mockDeleteJob).toHaveBeenCalledWith({ id: 'test-job-id' });
+      expect(mockDeleteJob).toHaveBeenCalledWith({ id: mockJob.id });
       expect(mockRevalidatePath).toHaveBeenCalledWith('/jobs');
     });
 
