@@ -103,7 +103,7 @@ describe('Profile Server Actions', () => {
       const result = await resetPassword(null, validFormData);
 
       expect(result.success).toBe(false);
-      expect(result.message).toBe('Unauthorized');
+      expect(result.message).toBe('Not authenticated');
     });
 
     test('should validate password confirmation', async () => {
@@ -147,7 +147,7 @@ describe('Profile Server Actions', () => {
       const result = await resetPassword(null, validFormData);
 
       expect(result.success).toBe(false);
-      expect(result.message).toBe('User not found');
+      expect(result.message).toBe('User not found or invalid account');
     });
 
     test('should handle database errors', async () => {
@@ -185,7 +185,7 @@ describe('Profile Server Actions', () => {
       const result = await deleteAccount(null, validFormData);
 
       expect(result.success).toBe(false);
-      expect(result.message).toBe('Unauthorized');
+      expect(result.message).toBe('Not authenticated');
     });
 
     test('should validate confirmation text', async () => {
@@ -207,7 +207,7 @@ describe('Profile Server Actions', () => {
       const result = await deleteAccount(null, validFormData);
 
       expect(result.success).toBe(false);
-      expect(result.message).toBe('Incorrect password');
+      expect(result.message).toBe('Current password is incorrect');
     });
 
     test('should handle user not found', async () => {
@@ -216,7 +216,7 @@ describe('Profile Server Actions', () => {
       const result = await deleteAccount(null, validFormData);
 
       expect(result.success).toBe(false);
-      expect(result.message).toBe('User not found');
+      expect(result.message).toBe('User not found or invalid account');
     });
 
     test('should handle deletion errors', async () => {
@@ -225,7 +225,7 @@ describe('Profile Server Actions', () => {
       const result = await deleteAccount(null, validFormData);
 
       expect(result.success).toBe(false);
-      expect(result.message).toBe('Failed to delete account');
+      expect(result.message).toBe('Failed to delete account. Please try again.');
     });
   });
 
@@ -243,7 +243,7 @@ describe('Profile Server Actions', () => {
       const result = await registerPasskey(null, validFormData);
 
       expect(result.success).toBe(true);
-      expect(result.message).toBe('Passkey registered successfully');
+      expect(result.message).toBe('Ready for passkey registration');
     });
 
     test('should return error when user not authenticated', async () => {
@@ -252,7 +252,7 @@ describe('Profile Server Actions', () => {
       const result = await registerPasskey(null, validFormData);
 
       expect(result.success).toBe(false);
-      expect(result.message).toBe('Unauthorized');
+      expect(result.message).toBe('Not authenticated');
     });
 
     test('should validate required fields', async () => {
@@ -304,7 +304,7 @@ describe('Profile Server Actions', () => {
       const result = await getUserPasskeys();
 
       expect(result.success).toBe(false);
-      expect(result.message).toBe('Unauthorized');
+      expect(result.message).toBe('Not authenticated');
     });
 
     test('should handle passkey retrieval errors', async () => {
@@ -329,7 +329,7 @@ describe('Profile Server Actions', () => {
       const result = await deletePasskey('credential-123');
 
       expect(result.success).toBe(false);
-      expect(result.message).toBe('Unauthorized');
+      expect(result.message).toBe('Not authenticated');
     });
 
     test('should validate credential ID', async () => {

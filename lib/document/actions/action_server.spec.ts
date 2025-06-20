@@ -2,6 +2,15 @@ jest.mock('@/app/(auth)/auth', () => ({
   auth: jest.fn(),
 }));
 
+jest.mock('@/lib/db/utils', () => ({
+  generateHashedPassword: jest.fn(),
+  generateDummyPassword: jest.fn(),
+}));
+
+jest.mock('nanoid', () => ({
+  nanoid: jest.fn(() => 'mock-nanoid'),
+}));
+
 jest.mock('@/lib/ai/providers', () => ({
   getModelProvider: jest.fn(),
 }));

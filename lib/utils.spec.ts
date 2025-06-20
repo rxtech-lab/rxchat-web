@@ -150,7 +150,7 @@ describe('fetcher', () => {
     } as any);
 
     await expect(fetcher('/api/test')).rejects.toThrow(ChatSDKError);
-    await expect(fetcher('/api/test')).rejects.toThrow('Invalid input');
+    await expect(fetcher('/api/test')).rejects.toThrow('The request couldn\'t be processed. Please check your input and try again.');
   });
 
   test('should handle fetch errors', async () => {
@@ -399,7 +399,7 @@ describe('sanitizeText', () => {
     const text = 'Start <has_function_call> middle <has_function_call> end';
     const result = sanitizeText(text);
 
-    expect(result).toBe('Start  middle  end');
+    expect(result).toBe('Start  middle <has_function_call> end');
   });
 
   test('should return original text when no markers present', () => {

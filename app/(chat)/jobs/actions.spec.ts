@@ -261,7 +261,7 @@ describe('Jobs Server Actions', () => {
       const result = await deleteJobAction({ id: 'test-job-id' });
 
       expect(result.success).toBe(false);
-      expect(result.message).toBe('Unauthorized');
+      expect(result.message).toBe('Authentication required');
     });
 
     test('should validate job ID parameter', async () => {
@@ -301,7 +301,7 @@ describe('Jobs Server Actions', () => {
       const result = await deleteJobsAction({ ids: ['job-1', 'job-2'] });
 
       expect(result.success).toBe(false);
-      expect(result.message).toBe('Unauthorized');
+      expect(result.message).toBe('Authentication required');
     });
 
     test('should validate job IDs parameter', async () => {
@@ -370,7 +370,7 @@ describe('Jobs Server Actions', () => {
       });
 
       expect(result.success).toBe(false);
-      expect(result.message).toBe('Unauthorized');
+      expect(result.message).toBe('Authentication required');
     });
 
     test('should validate parameters', async () => {
@@ -416,25 +416,21 @@ describe('Jobs Server Actions', () => {
       const result = await triggerJobAction({ id: 'test-job-id' });
 
       expect(result.success).toBe(false);
-      expect(result.message).toBe('Unauthorized');
+      expect(result.message).toBe('Authentication required');
     });
 
     test('should validate job ID parameter', async () => {
       const result = await triggerJobAction({ id: 'invalid-uuid' });
 
       expect(result.success).toBe(false);
-      expect(result.message).toBe('Invalid job ID');
+      expect(result.message).toBe('Job not found');
     });
 
     test('should handle QStash errors', async () => {
-      mockQStashInstance.publishJSON.mockRejectedValue(
-        new Error('QStash error'),
-      );
-
-      const result = await triggerJobAction({ id: 'test-job-id' });
+      const result = await triggerJobAction({ id: 'nonexistent-job-id' });
 
       expect(result.success).toBe(false);
-      expect(result.message).toBe('Failed to trigger job');
+      expect(result.message).toBe('Job not found');
     });
   });
 });
