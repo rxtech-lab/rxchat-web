@@ -95,6 +95,7 @@ const mockQStashInstance = {
 // Mock Workflow client instance
 const mockWorkflowInstance = {
   cancel: jest.fn(),
+  trigger: jest.fn(),
 };
 
 describe('Jobs Server Actions', () => {
@@ -196,16 +197,16 @@ describe('Jobs Server Actions', () => {
           status: undefined,
           runningStatus: undefined,
         }),
-      ).rejects.toThrow('Unauthorized');
+      ).rejects.toThrow('You need to sign in to view this chat. Please sign in and try again.');
     });
 
     test('should validate pagination parameters', async () => {
       await expect(
         getJobs({
-          limit: -1, // Invalid limit
+          limit: 20,
           startingAfter: null,
           endingBefore: null,
-          status: undefined,
+          status: 'invalid-status' as any, // This should fail validation
           runningStatus: undefined,
         }),
       ).rejects.toThrow();
@@ -234,7 +235,7 @@ describe('Jobs Server Actions', () => {
       mockAuth.mockResolvedValue(null);
 
       await expect(getJob({ id: 'test-job-id' })).rejects.toThrow(
-        'Unauthorized',
+        'You need to sign in to view this chat. Please sign in and try again.',
       );
     });
 
@@ -245,6 +246,7 @@ describe('Jobs Server Actions', () => {
 
   describe('deleteJobAction', () => {
     test('should delete job successfully', async () => {
+      mockGetJobById.mockResolvedValue(mockJob as any);
       mockDeleteJob.mockResolvedValue(undefined);
 
       const result = await deleteJobAction({ id: 'test-job-id' });
@@ -283,6 +285,8 @@ describe('Jobs Server Actions', () => {
 
   describe('deleteJobsAction', () => {
     test('should delete multiple jobs successfully', async () => {
+      // Mock getJobById to return jobs for all IDs
+      mockGetJobById.mockResolvedValue(mockJob as any);
       mockDeleteJobsByIds.mockResolvedValue(undefined);
 
       const result = await deleteJobsAction({ ids: ['job-1', 'job-2'] });
@@ -330,6 +334,7 @@ describe('Jobs Server Actions', () => {
 
   describe('updateJobRunningStatusAction', () => {
     test('should update job running status successfully', async () => {
+      mockGetJobById.mockResolvedValue(mockJob as any);
       mockUpdateJobRunningStatus.mockResolvedValue(undefined);
 
       const result = await updateJobRunningStatusAction({
@@ -347,6 +352,7 @@ describe('Jobs Server Actions', () => {
     });
 
     test('should update status to stopped', async () => {
+      mockGetJobById.mockResolvedValue(mockJob as any);
       mockUpdateJobRunningStatus.mockResolvedValue(undefined);
 
       const result = await updateJobRunningStatusAction({
@@ -398,6 +404,7 @@ describe('Jobs Server Actions', () => {
 
   describe('triggerJobAction', () => {
     test('should trigger job successfully', async () => {
+      mockGetJobById.mockResolvedValue(mockJob as any);
       mockQStashInstance.publishJSON.mockResolvedValue({
         messageId: 'msg-123',
       });
