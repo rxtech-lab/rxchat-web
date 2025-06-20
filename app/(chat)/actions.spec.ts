@@ -179,6 +179,19 @@ const mockExecutionEngine = {
   execute: jest.fn(),
 };
 
+// Mock WorkflowEngine instance
+const mockWorkflowEngineInstance = {
+  execute: jest.fn(),
+};
+
+// Mock QStash workflow client instance  
+const mockQStashWorkflowClient = {
+  schedules: {
+    delete: jest.fn(),
+    create: jest.fn(),
+  },
+};
+
 describe('Chat Server Actions', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -193,6 +206,16 @@ describe('Chat Server Actions', () => {
       mockExecutionEngine as any,
     );
     mockGetWorkflowWebhookUrl.mockReturnValue('https://test-webhook-url.com');
+    
+    // Mock WorkflowEngine constructor
+    mockWorkflowEngine.mockImplementation(() => mockWorkflowEngineInstance as any);
+    
+    // Mock QStash Client constructor
+    mockQStashClient.mockImplementation(() => mockQStashWorkflowClient as any);
+    
+    // Setup missing function mocks
+    mockGetUserContext.mockResolvedValue({ userId: 'test-user-id' } as any);
+    mockUpdateJobRunningStatus.mockResolvedValue(undefined);
 
     // Mock database transaction
     (db.transaction as jest.Mock).mockImplementation((fn) => fn(db));
@@ -249,6 +272,7 @@ describe('Chat Server Actions', () => {
       expect(mockGenerateText).toHaveBeenCalledWith({
         model: mockTitleModel,
         prompt: expect.stringContaining('Hello, how are you?'),
+        system: expect.stringContaining('generate a short title'),
       });
     });
 
@@ -377,27 +401,20 @@ describe('Chat Server Actions', () => {
       const testCode = 'console.log("Hello, World!");';
       const expectedResult = 'Hello, World!';
 
-      mockExecutionEngine.execute.mockResolvedValue({
-        success: true,
-        result: expectedResult,
-      });
+      mockCreatePromptRunner.mockReturnValue(expectedResult);
 
       const result = await testPrompt(testCode);
 
       expect(result.result).toBe(expectedResult);
       expect(result.error).toBeUndefined();
-      expect(mockCreateTestToolExecutionEngine).toHaveBeenCalled();
-      expect(mockExecutionEngine.execute).toHaveBeenCalledWith(testCode);
+      expect(mockCreatePromptRunner).toHaveBeenCalledWith(testCode);
     });
 
     test('should handle execution errors', async () => {
       const testCode = 'throw new Error("Test error");';
       const expectedError = 'Test error';
 
-      mockExecutionEngine.execute.mockResolvedValue({
-        success: false,
-        error: expectedError,
-      });
+      mockCreatePromptRunner.mockRejectedValue(new Error(expectedError));
 
       const result = await testPrompt(testCode);
 
@@ -408,9 +425,7 @@ describe('Chat Server Actions', () => {
     test('should handle execution exceptions', async () => {
       const testCode = 'invalid code';
 
-      mockExecutionEngine.execute.mockRejectedValue(
-        new Error('Execution failed'),
-      );
+      mockCreatePromptRunner.mockRejectedValue(new Error('Execution failed'));
 
       const result = await testPrompt(testCode);
 
@@ -453,6 +468,25 @@ describe('Chat Server Actions', () => {
         id: 'test-doc-id',
         userId: 'test-user-id',
         createdAt: new Date(),
+        content: JSON.stringify({
+          title: 'Test Workflow',
+          type: 'info',
+          error: null,
+          toolDiscovery: {
+            selectedTools: ['tool1', 'tool2'],
+            reasoning: 'These tools are needed for the workflow',
+          },
+          suggestion: {
+            modifications: ['Add error handling'],
+            skipToolDiscovery: false,
+          },
+          workflow: { 
+            steps: [],
+            trigger: {
+              cron: '0 0 * * *'
+            }
+          },
+        }),
       };
 
       const mockCreatedJob = {
@@ -497,6 +531,25 @@ describe('Chat Server Actions', () => {
         id: 'test-doc-id',
         userId: 'different-user-id', // Different from session user
         createdAt: new Date(),
+        content: JSON.stringify({
+          title: 'Test Workflow',
+          type: 'info',
+          error: null,
+          toolDiscovery: {
+            selectedTools: ['tool1', 'tool2'],
+            reasoning: 'These tools are needed for the workflow',
+          },
+          suggestion: {
+            modifications: ['Add error handling'],
+            skipToolDiscovery: false,
+          },
+          workflow: { 
+            steps: [],
+            trigger: {
+              cron: '0 0 * * *'
+            }
+          },
+        }),
       };
 
       mockGetDocumentById.mockResolvedValue(mockDocument as any);
@@ -514,6 +567,25 @@ describe('Chat Server Actions', () => {
         id: 'test-doc-id',
         userId: 'test-user-id',
         createdAt: new Date(),
+        content: JSON.stringify({
+          title: 'Test Workflow',
+          type: 'info',
+          error: null,
+          toolDiscovery: {
+            selectedTools: ['tool1', 'tool2'],
+            reasoning: 'These tools are needed for the workflow',
+          },
+          suggestion: {
+            modifications: ['Add error handling'],
+            skipToolDiscovery: false,
+          },
+          workflow: { 
+            steps: [],
+            trigger: {
+              cron: '0 0 * * *'
+            }
+          },
+        }),
       };
 
       const mockExistingJob = {
@@ -538,6 +610,25 @@ describe('Chat Server Actions', () => {
         id: 'test-doc-id',
         userId: 'test-user-id',
         createdAt: new Date(),
+        content: JSON.stringify({
+          title: 'Test Workflow',
+          type: 'info',
+          error: null,
+          toolDiscovery: {
+            selectedTools: ['tool1', 'tool2'],
+            reasoning: 'These tools are needed for the workflow',
+          },
+          suggestion: {
+            modifications: ['Add error handling'],
+            skipToolDiscovery: false,
+          },
+          workflow: { 
+            steps: [],
+            trigger: {
+              cron: '0 0 * * *'
+            }
+          },
+        }),
       };
 
       mockGetDocumentById.mockResolvedValue(mockDocument as any);
