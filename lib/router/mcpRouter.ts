@@ -145,6 +145,4 @@ export class McpRouter implements McpRouterInterface {
       return { missingTools: tools };
     }
   }
-
-  
 }
