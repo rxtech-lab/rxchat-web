@@ -10,6 +10,7 @@ import { Textarea } from '../ui/textarea';
 import { AttachmentsButton } from './attachment-button';
 import { MCPButton } from './mcp-button';
 import { SendButton, StopButton } from './send-button';
+import { WebSearchButton } from './websearch-button';
 
 interface InputAreaProps {
   input: UseChatHelpers['input'];
@@ -22,6 +23,9 @@ interface InputAreaProps {
   uploadQueue: Array<string>;
   className?: string;
   mcpTools?: any[];
+  // WebSearch functionality props
+  isWebSearchEnabled?: boolean;
+  onWebSearchToggle?: () => void;
 }
 
 /**
@@ -40,6 +44,9 @@ export function InputArea({
   uploadQueue,
   className,
   mcpTools = [],
+  // WebSearch props with defaults
+  isWebSearchEnabled = false,
+  onWebSearchToggle = () => {},
 }: InputAreaProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { width } = useWindowSize();
@@ -152,6 +159,11 @@ export function InputArea({
       <div className="absolute bottom-0 p-2 w-fit flex flex-row justify-start gap-2 items-center">
         <AttachmentsButton fileInputRef={fileInputRef} status={status} />
         <MCPButton mcpTools={mcpTools} />
+        <WebSearchButton
+          isWebSearchEnabled={isWebSearchEnabled}
+          onToggle={onWebSearchToggle}
+          status={status}
+        />
       </div>
 
       <div className="absolute bottom-0 right-0 p-2 w-fit flex flex-row justify-end">

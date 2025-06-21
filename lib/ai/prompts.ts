@@ -99,20 +99,29 @@ export const systemPrompt = async ({
   requestHints,
   isModelSupportedForDocuments,
   documentAttachments,
+  useWebSearch = false,
 }: {
   selectedChatModel: string;
   requestHints: RequestHints;
   isModelSupportedForDocuments: boolean;
   documentAttachments: Attachment[];
+  useWebSearch?: boolean;
 }) => {
   const requestPrompt = getRequestPromptFromHints(requestHints);
   const documentPrompt = await getDocumentPrompt(documentAttachments);
 
+  // WebSearch instruction prompt
+  const webSearchPrompt = useWebSearch
+    ? `
+
+IMPORTANT: The user has enabled web search for this message. You MUST use the searchWeb tool to search for current, relevant information to answer their question. Always prioritize using web search when this feature is enabled, even for questions you might know the answer to, as the user specifically wants current web-based information.`
+    : '';
+
   if (selectedChatModel === 'chat-model-reasoning') {
-    return `${documentPrompt}\n\n${regularPrompt}\n\n${requestPrompt}`;
+    return `${documentPrompt}\n\n${regularPrompt}\n\n${requestPrompt}${webSearchPrompt}`;
   }
 
-  return `${documentPrompt}\n\n${regularPrompt}\n\n${requestPrompt}\n\n${artifactsPrompt}`;
+  return `${documentPrompt}\n\n${regularPrompt}\n\n${requestPrompt}\n\n${artifactsPrompt}${webSearchPrompt}`;
 };
 
 export const codePrompt = `
