@@ -94,13 +94,22 @@ export function Chat({
     sendExtraMessageFields: true,
     generateId: generateUUID,
     fetch: fetchWithErrorHandlers,
-    experimental_prepareRequestBody: (body) => ({
-      id,
-      message: body.messages.at(-1),
-      selectedChatModel: initialChatModel,
-      selectedVisibilityType: visibilityType,
-      selectedChatModelProvider: selectedChatModelProvider,
-    }),
+    experimental_prepareRequestBody: (body) => {
+      const lastMessage = body.messages.at(-1);
+      // Get the websearch flag from the temporary storage
+      const useWebSearch = (window as any).__webSearchEnabled || false;
+      // Clear the temporary storage
+      (window as any).__webSearchEnabled = undefined;
+
+      return {
+        id,
+        message: lastMessage,
+        selectedChatModel: initialChatModel,
+        selectedVisibilityType: visibilityType,
+        selectedChatModelProvider: selectedChatModelProvider,
+        useWebSearch,
+      };
+    },
     onFinish: () => {
       setTimeout(() => {
         mutate(unstable_serialize(getChatHistoryPaginationKey));

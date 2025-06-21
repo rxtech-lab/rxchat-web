@@ -21,7 +21,7 @@ import {
 } from './vector-store';
 import { createUser, deleteUserAccount } from './queries';
 import { ChatSDKError } from '@/lib/errors';
-import { vectorStoreDocument, VectorStoreDocument } from '../schema';
+import { vectorStoreDocument, type VectorStoreDocument } from '../schema';
 import { generateRandomTestUser } from '@/tests/helpers';
 
 /**

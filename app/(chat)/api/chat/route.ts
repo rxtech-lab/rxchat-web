@@ -118,6 +118,7 @@ export async function POST(request: Request) {
       selectedChatModel,
       selectedVisibilityType,
       selectedChatModelProvider,
+      useWebSearch = false,
     } = requestBody;
 
     const provider = getModelProvider(
@@ -262,6 +263,7 @@ export async function POST(request: Request) {
         selectedChatModel,
       ),
       documentAttachments: message.experimental_attachments ?? [],
+      useWebSearch,
     });
 
     const userPrompt = await getUserPromptByUserId({
