@@ -30,9 +30,7 @@ function PureWebSearchButton({
       }
     >
       <SearchIcon size={14} />
-      <span className="text-xs font-medium">
-        {isWebSearchEnabled ? 'Web Search On' : 'Web Search'}
-      </span>
+      <span className="text-xs font-medium">Web Search</span>
     </Button>
   );
 }

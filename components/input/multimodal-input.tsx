@@ -102,8 +102,7 @@ function PureMultimodalInput({
 
       setAttachments([]);
       setUploadedDocuments([]);
-      // Reset websearch state after submission
-      setIsWebSearchEnabled(false);
+      // Note: websearch state will be reset when status returns to 'ready'
     } catch (error) {
       toast.error('Failed to send message. Please try again.');
       console.error('Error submitting form:', error);
@@ -121,6 +120,17 @@ function PureMultimodalInput({
       scrollToBottom();
     }
   }, [status, scrollToBottom]);
+
+  // Reset websearch state when status returns to ready after submission
+  useEffect(() => {
+    if (status === 'ready' && isWebSearchEnabled) {
+      // Add a small delay to ensure the user sees the completion
+      const timer = setTimeout(() => {
+        setIsWebSearchEnabled(false);
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [status, isWebSearchEnabled]);
 
   // Get MCP tools
   const { data: mcpTools } = useSWR('/api/mcp-tools', getMCPTools, {
