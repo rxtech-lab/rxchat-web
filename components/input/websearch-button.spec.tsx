@@ -29,7 +29,7 @@ describe('WebSearchButton', () => {
 
     const button = screen.getByTestId('websearch-button');
     expect(button).toHaveClass('bg-blue-100');
-    expect(screen.getByText('Web Search On')).toBeInTheDocument();
+    expect(screen.getByText('Web Search')).toBeInTheDocument();
   });
 
   it('should call onToggle when clicked', () => {
