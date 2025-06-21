@@ -132,7 +132,7 @@ export async function selectPrompt({
   }
 
   const userId = session.user.id;
-  await selectPromptById({ id: promptId, userId });
+  return await selectPromptById({ id: promptId, userId });
 }
 
 export async function createWorkflowJob(documentId: string): Promise<{
@@ -160,81 +160,96 @@ export async function createWorkflowJob(documentId: string): Promise<{
   );
 
   const userId = session.user.id;
-  return await db.transaction(async (tx) => {
-    const document = await getDocumentById({
-      id: documentId,
-    });
+  try {
+    return await db.transaction(async (tx) => {
+      const document = await getDocumentById({
+        id: documentId,
+      });
 
-    if (!document) {
-      throw new Error('Document not found');
-    }
-
-    const parsedContent = OnStepSchema.parse(
-      JSON.parse(document.content ?? '{}'),
-    );
-
-    // get job by documentId
-    const previousJob = await getJobByDocumentId({
-      documentId,
-    });
-
-    try {
-      await engine.execute(parsedContent.workflow, userContext);
-    } catch (error) {
-      if (error instanceof WorkflowReferenceError) {
+      if (!document) {
         return {
-          error: `${error.humanReadableMessage}`,
+          error: 'Document not found',
         };
       }
-      return {
-        error: error instanceof Error ? error.message : 'Unknown error',
-      };
-    }
 
-    if (previousJob) {
-      await workflowClient.schedules.delete(previousJob.id);
-      await updateJobRunningStatus({
-        id: previousJob.id,
-        runningStatus: previousJob.runningStatus,
-        dbConnection: tx,
+      // Check if user owns the document
+      if (document.userId !== userId) {
+        return {
+          error: 'Unauthorized: You do not have access to this document',
+        };
+      }
+
+      const parsedContent = OnStepSchema.parse(
+        JSON.parse(document.content ?? '{}'),
+      );
+
+      // get job by documentId
+      const previousJob = await getJobByDocumentId({
+        documentId,
       });
+
+      try {
+        await engine.execute(parsedContent.workflow, userContext);
+      } catch (error) {
+        if (error instanceof WorkflowReferenceError) {
+          return {
+            error: `${error.humanReadableMessage}`,
+          };
+        }
+        return {
+          error: error instanceof Error ? error.message : 'Unknown error',
+        };
+      }
+
+      if (previousJob) {
+        await workflowClient.schedules.delete(previousJob.id);
+        await updateJobRunningStatus({
+          id: previousJob.id,
+          runningStatus: previousJob.runningStatus,
+          dbConnection: tx,
+        });
+        await workflowClient.schedules.create({
+          destination: url.toString(),
+          scheduleId: previousJob.id,
+          body: JSON.stringify({
+            jobId: previousJob.id,
+          }),
+          cron: parsedContent.workflow.trigger.cron ?? '0 0 * * *',
+          retries: MAX_WORKFLOW_RETRIES,
+        });
+        return { job: previousJob };
+      }
+
+      const job = await createJob(
+        {
+          documentId,
+          userId,
+          status: 'pending',
+          documentCreatedAt: document.createdAt,
+          runningStatus: 'running',
+          jobTriggerType: 'cronjob',
+          cron: parsedContent.workflow.trigger.cron ?? '0 0 * * *',
+        },
+        tx,
+      );
+
       await workflowClient.schedules.create({
         destination: url.toString(),
-        scheduleId: previousJob.id,
+        scheduleId: job.id,
         body: JSON.stringify({
-          jobId: previousJob.id,
+          jobId: job.id,
         }),
+        // run every day
         cron: parsedContent.workflow.trigger.cron ?? '0 0 * * *',
-        retries: MAX_WORKFLOW_RETRIES,
       });
-      return { job: previousJob };
-    }
 
-    const job = await createJob(
-      {
-        documentId,
-        userId,
-        status: 'pending',
-        documentCreatedAt: document.createdAt,
-        runningStatus: 'running',
-        jobTriggerType: 'cronjob',
-        cron: parsedContent.workflow.trigger.cron ?? '0 0 * * *',
-      },
-      tx,
-    );
-
-    await workflowClient.schedules.create({
-      destination: url.toString(),
-      scheduleId: job.id,
-      body: JSON.stringify({
-        jobId: job.id,
-      }),
-      // run every day
-      cron: parsedContent.workflow.trigger.cron ?? '0 0 * * *',
+      return {
+        job,
+      };
     });
-
+  } catch (error) {
     return {
-      job,
+      error: 'Failed to create workflow job',
     };
-  });
+  }
 }

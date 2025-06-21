@@ -449,7 +449,8 @@ describe('Chat Server Actions', () => {
 
       expect(result).toEqual(mockPrompt);
       expect(mockSelectPromptById).toHaveBeenCalledWith({
-        promptId: 'test-prompt-id',
+        id: 'test-prompt-id',
+        userId: 'test-user-id',
       });
     });
 

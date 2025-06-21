@@ -63,8 +63,9 @@ export async function getUserById(id: string): Promise<User | null> {
           'test',
         ];
       }
+      return result;
     }
-    return result;
+    return null;
   } catch (error) {
     throw new ChatSDKError('bad_request:database', 'Failed to get user by id');
   }
@@ -242,7 +243,7 @@ export async function getChatsByUserId({
 export async function getChatById({ id }: { id: string }) {
   try {
     const [selectedChat] = await db.select().from(chat).where(eq(chat.id, id));
-    return selectedChat;
+    return selectedChat || null;
   } catch (error) {
     throw new ChatSDKError('bad_request:database', 'Failed to get chat by id');
   }
