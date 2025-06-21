@@ -23,7 +23,7 @@ interface MessagesProps {
 
 const messageSchema = z.object({
   messageType: z.literal('mcp-tool-call'),
-  type: z.literal('send-message'),
+  type: z.enum(['send-message', 'copy']),
   payload: z.object({
     message: z.string(),
   }),
@@ -63,6 +63,10 @@ function PureMessages({
           role: 'user',
           content: message.data.payload.message,
         });
+      }
+
+      if (message.data.type === 'copy') {
+        navigator.clipboard.writeText(message.data.payload.message);
       }
     };
 
