@@ -56,6 +56,8 @@ function PureMultimodalInput({
     Array<UploadedDocument>
   >([]);
   const [uploadQueue, setUploadQueue] = useState<Array<string>>([]);
+  // WebSearch state
+  const [isWebSearchEnabled, setIsWebSearchEnabled] = useState<boolean>(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Custom hooks for functionality
@@ -86,22 +88,32 @@ function PureMultimodalInput({
     [setAttachments],
   );
 
-  // Submit form handler
+  // Submit form handler with websearch flag
   const submitForm = useCallback(() => {
     window.history.replaceState({}, '', `/chat/${chatId}`);
 
     try {
+      // Store the websearch flag in a temporary way that can be accessed during request preparation
+      (window as any).__webSearchEnabled = isWebSearchEnabled;
+
       handleSubmit(undefined, {
         experimental_attachments: attachments,
       });
 
       setAttachments([]);
       setUploadedDocuments([]);
+      // Reset websearch state after submission
+      setIsWebSearchEnabled(false);
     } catch (error) {
       toast.error('Failed to send message. Please try again.');
       console.error('Error submitting form:', error);
     }
-  }, [attachments, handleSubmit, setAttachments, chatId]);
+  }, [attachments, handleSubmit, setAttachments, chatId, isWebSearchEnabled]);
+
+  // Handle websearch toggle
+  const handleWebSearchToggle = useCallback(() => {
+    setIsWebSearchEnabled((prev) => !prev);
+  }, []);
 
   // Scroll to bottom when message is submitted
   useEffect(() => {
@@ -159,6 +171,8 @@ function PureMultimodalInput({
           uploadQueue={uploadQueue}
           className={className}
           mcpTools={mcpTools ?? []}
+          isWebSearchEnabled={isWebSearchEnabled}
+          onWebSearchToggle={handleWebSearchToggle}
         />
       </div>
     ),
@@ -179,6 +193,8 @@ function PureMultimodalInput({
       submitForm,
       className,
       mcpTools,
+      isWebSearchEnabled,
+      handleWebSearchToggle,
     ],
   );
 
