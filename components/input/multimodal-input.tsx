@@ -8,6 +8,7 @@ import { useScrollToBottom } from '@/hooks/use-scroll-to-bottom';
 import type { UseChatHelpers } from '@ai-sdk/react';
 import equal from 'fast-deep-equal';
 import useSWR from 'swr';
+import { useLocalStorage } from '@uidotdev/usehooks';
 import { getMCPTools } from '@/app/(chat)/actions';
 import { SuggestedActions } from '../suggested-actions';
 import { AttachmentsPreview } from './attachments-preview';
@@ -56,8 +57,11 @@ function PureMultimodalInput({
     Array<UploadedDocument>
   >([]);
   const [uploadQueue, setUploadQueue] = useState<Array<string>>([]);
-  // WebSearch state
-  const [isWebSearchEnabled, setIsWebSearchEnabled] = useState<boolean>(false);
+  // WebSearch state managed with localStorage
+  const [isWebSearchEnabled, setIsWebSearchEnabled] = useLocalStorage(
+    'websearch-enabled',
+    false,
+  );
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Custom hooks for functionality
@@ -112,7 +116,7 @@ function PureMultimodalInput({
   // Handle websearch toggle
   const handleWebSearchToggle = useCallback(() => {
     setIsWebSearchEnabled((prev) => !prev);
-  }, []);
+  }, [setIsWebSearchEnabled]);
 
   // Scroll to bottom when message is submitted
   useEffect(() => {
@@ -130,7 +134,7 @@ function PureMultimodalInput({
       }, 500);
       return () => clearTimeout(timer);
     }
-  }, [status, isWebSearchEnabled]);
+  }, [status, isWebSearchEnabled, setIsWebSearchEnabled]);
 
   // Get MCP tools
   const { data: mcpTools } = useSWR('/api/mcp-tools', getMCPTools, {
