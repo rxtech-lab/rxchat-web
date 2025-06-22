@@ -116,7 +116,7 @@ describe('release-notes', () => {
 
   describe('fetchReleaseNotes', () => {
     it('should throw error when NEXT_PUBLIC_RELEASE_NOTE_URL is not configured', async () => {
-      delete process.env.NEXT_PUBLIC_RELEASE_NOTE_URL;
+      process.env.NEXT_PUBLIC_RELEASE_NOTE_URL = undefined;
 
       await expect(fetchReleaseNotes()).rejects.toThrow(
         'NEXT_PUBLIC_RELEASE_NOTE_URL environment variable is not configured',

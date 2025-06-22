@@ -96,7 +96,7 @@ export function WhatsNewDialog({ open, onOpenChange }: WhatsNewDialogProps) {
         <div className="flex-1 overflow-y-auto px-1">
           {isLoading ? (
             <div className="flex items-center justify-center py-8">
-              <div className="animate-spin rounded-full size-8 border-b-2 border-primary"></div>
+              <div className="animate-spin rounded-full size-8 border-b-2 border-primary" />
             </div>
           ) : error ? (
             <div className="text-center py-8 text-muted-foreground">
