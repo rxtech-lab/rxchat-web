@@ -103,7 +103,7 @@ export function ToolInvocationHeader({
         </div>
       )}
 
-      {suggestions && (
+      {suggestions && suggestions.length > 0 && (
         <div className="mt-4">
           <div className="text-sm font-medium">Suggestions</div>
           <div className="text-sm text-muted-foreground flex flex-row gap-2 flex-wrap">

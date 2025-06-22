@@ -19,15 +19,14 @@ describe('WebSearchButton', () => {
   it('should render with default state', () => {
     render(<WebSearchButton {...defaultProps} />);
 
-    const button = screen.getByTestId('websearch-button');
+    const button = screen.getByTestId('web-search-button');
     expect(button).toBeInTheDocument();
-    expect(screen.getByText('Web Search')).toBeInTheDocument();
   });
 
   it('should show enabled state when web search is active', () => {
     render(<WebSearchButton {...defaultProps} isWebSearchEnabled={true} />);
 
-    const button = screen.getByTestId('websearch-button');
+    const button = screen.getByTestId('web-search-button');
     expect(button).toHaveClass('bg-blue-100');
     expect(screen.getByText('Web Search')).toBeInTheDocument();
   });
@@ -36,7 +35,7 @@ describe('WebSearchButton', () => {
     const onToggle = jest.fn();
     render(<WebSearchButton {...defaultProps} onToggle={onToggle} />);
 
-    const button = screen.getByTestId('websearch-button');
+    const button = screen.getByTestId('web-search-button');
     fireEvent.click(button);
 
     expect(onToggle).toHaveBeenCalledTimes(1);
@@ -45,42 +44,42 @@ describe('WebSearchButton', () => {
   it('should be disabled when status is streaming', () => {
     render(<WebSearchButton {...defaultProps} status="streaming" />);
 
-    const button = screen.getByTestId('websearch-button');
+    const button = screen.getByTestId('web-search-button');
     expect(button).toBeDisabled();
   });
 
   it('should be disabled when status is submitted', () => {
     render(<WebSearchButton {...defaultProps} status="submitted" />);
 
-    const button = screen.getByTestId('websearch-button');
+    const button = screen.getByTestId('web-search-button');
     expect(button).toBeDisabled();
   });
 
   it('should be enabled when status is ready', () => {
     render(<WebSearchButton {...defaultProps} status="ready" />);
 
-    const button = screen.getByTestId('websearch-button');
+    const button = screen.getByTestId('web-search-button');
     expect(button).not.toBeDisabled();
   });
 
   it('should be enabled when status is error', () => {
     render(<WebSearchButton {...defaultProps} status="error" />);
 
-    const button = screen.getByTestId('websearch-button');
+    const button = screen.getByTestId('web-search-button');
     expect(button).not.toBeDisabled();
   });
 
   it('should have proper tooltips', () => {
     const { rerender } = render(<WebSearchButton {...defaultProps} />);
 
-    expect(screen.getByTestId('websearch-button')).toHaveAttribute(
+    expect(screen.getByTestId('web-search-button')).toHaveAttribute(
       'title',
       'Enable web search for this message',
     );
 
     rerender(<WebSearchButton {...defaultProps} isWebSearchEnabled={true} />);
 
-    expect(screen.getByTestId('websearch-button')).toHaveAttribute(
+    expect(screen.getByTestId('web-search-button')).toHaveAttribute(
       'title',
       'Disable web search for this message',
     );

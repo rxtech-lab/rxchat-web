@@ -56,6 +56,7 @@ export function Chat({
   providers,
   selectedChatModelProvider,
   selectedPrompt,
+  initialWebSearchEnabled = false,
 }: {
   id: string;
   initialMessages: Array<UIMessage>;
@@ -67,6 +68,7 @@ export function Chat({
   providers: Providers;
   selectedChatModelProvider: ProviderType;
   selectedPrompt: Prompt | null;
+  initialWebSearchEnabled?: boolean;
 }) {
   const { mutate } = useSWRConfig();
 
@@ -205,6 +207,7 @@ export function Chat({
               append={append}
               selectedVisibilityType={visibilityType}
               selectedPrompt={selectedPrompt}
+              initialWebSearchEnabled={initialWebSearchEnabled}
             />
           )}
         </form>
