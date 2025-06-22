@@ -12,6 +12,7 @@ import { CodeView } from './code-view';
 import { DocumentToolCall, DocumentToolResult } from './document';
 import { DocumentPreview } from './document-preview';
 import { DocumentSearchResult } from './document-search-result';
+import { WebSearchResult } from './web-search-result';
 import { PencilEditIcon, SparklesIcon } from './icons';
 import { Markdown } from './markdown';
 import { MessageActions } from './message-actions';
@@ -248,6 +249,13 @@ const PurePreviewMessage = ({
                   } else if (toolName === 'searchDocuments') {
                     return (
                       <DocumentSearchResult
+                        result={result}
+                        isReadonly={isReadonly}
+                      />
+                    );
+                  } else if (toolName === 'searchWeb') {
+                    return (
+                      <WebSearchResult
                         result={result}
                         isReadonly={isReadonly}
                       />

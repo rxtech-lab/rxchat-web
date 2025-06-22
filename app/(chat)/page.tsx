@@ -27,6 +27,7 @@ export default async function Page() {
   const cookieStore = await cookies();
   const modelIdFromCookie = cookieStore.get('chat-model');
   const providerTypeFromCookie = cookieStore.get('chat-model-provider');
+  const webSearchEnabledFromCookie = cookieStore.get('websearch-enabled');
   const selectedPrompt = await getUserPromptByUserId({
     userId: session.user.id,
   });
@@ -67,6 +68,7 @@ export default async function Page() {
           providers={providerWithModels}
           selectedChatModelProvider={defaultProvider}
           selectedPrompt={selectedPrompt}
+          initialWebSearchEnabled={webSearchEnabledFromCookie?.value === 'true'}
         />
         <DataStreamHandler id={id} />
       </>
@@ -103,6 +105,7 @@ export default async function Page() {
           providers={providerWithModels}
           selectedChatModelProvider={defaultProvider}
           selectedPrompt={selectedPrompt}
+          initialWebSearchEnabled={webSearchEnabledFromCookie?.value === 'true'}
         />
         <DataStreamHandler id={id} />
       </>
@@ -123,6 +126,7 @@ export default async function Page() {
         providers={providerWithModels}
         selectedChatModelProvider={providerTypeFromCookie.value as ProviderType}
         selectedPrompt={selectedPrompt}
+        initialWebSearchEnabled={webSearchEnabledFromCookie?.value === 'true'}
       />
       <DataStreamHandler id={id} />
     </>

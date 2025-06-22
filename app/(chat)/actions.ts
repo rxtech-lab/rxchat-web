@@ -40,6 +40,11 @@ export async function saveChatModelAsCookie(
   cookieStore.set('chat-model-provider', provider);
 }
 
+export async function saveWebSearchPreferenceAsCookie(enabled: boolean) {
+  const cookieStore = await cookies();
+  cookieStore.set('websearch-enabled', enabled.toString());
+}
+
 export async function generateTitleFromUserMessage({
   message,
   titleModel,
