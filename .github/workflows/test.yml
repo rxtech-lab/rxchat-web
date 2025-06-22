@@ -67,8 +67,8 @@ jobs:
       fail-fast: false
       matrix:
         node-version: [22.x]
-        shardIndex: [1, 2]
-        shardTotal: [2]
+        shardIndex: [1, 2, 3]
+        shardTotal: [3]
     services:
       postgres:
         image: postgres:17

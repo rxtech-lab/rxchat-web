@@ -38,14 +38,23 @@ A workflow consists of:
 - **Connections**: Has one parent, one child
 - **Code Format**: JavaScript function that takes input and returns transformed output
 
-### 4. ConditionNode (Conditional Logic)
+### 4. BooleanNode (Boolean Conditional Logic)
+- **Type**: "boolean"
+- **Properties**: runtime ("js"), code, identifier, trueChild, falseChild
+- **Purpose**: Simple true/false conditional branching based on input data
+- **Connections**: Has one parent, exactly two children (true and false paths)
+- **Code Format**: JavaScript function returning boolean value (true or false)
+- **Usage**: Simpler alternative to ConditionNode for binary decisions
+
+### 5. ConditionNode (Advanced Conditional Logic)
 - **Type**: "condition"
 - **Properties**: runtime ("js"), code, identifier, children (array)
-- **Purpose**: Conditional branching based on input data
+- **Purpose**: Multi-way conditional branching based on input data
 - **Connections**: Has one parent, multiple children
 - **Code Format**: JavaScript function returning child node identifier or null
+- **Usage**: Use when you need more than two execution paths
 
-### 5. FixedInput (Static Data Provider)
+### 6. FixedInput (Static Data Provider)
 - **Type**: "fixed-input"
 - **Properties**: identifier, output (object), child
 - **Purpose**: Provides static or templated data to child nodes
@@ -53,6 +62,7 @@ A workflow consists of:
 - **Template Support**: Use Jinja2 syntax for dynamic values:
   - Use {{input.fieldName}} to access parent node output
   - Use {{context.fieldName}} to access global workflow context
+  - Use {{state.fieldName}} to access state values
 - **Note** Fixed input should always be a parent of a tool node.
 
 
@@ -66,8 +76,9 @@ A workflow consists of:
 ### Node Connection Strategy
 1. **Start with trigger**: Every workflow begins with a cronjob-trigger
 2. **Linear flow**: Use regular nodes (tool, converter, fixed-input) for sequential execution
-3. **Branching**: Use condition nodes when workflow needs conditional logic
-4. **Data flow**: Ensure each node receives correctly formatted input from its parent
+3. **Simple branching**: Use boolean nodes for simple true/false decisions (e.g., price > threshold)
+4. **Complex branching**: Use condition nodes for multi-way branching or complex logic
+5. **Data flow**: Ensure each node receives correctly formatted input from its parent
 
 ### Tool Integration
 1. **Get tool schema first**: Use schema tools to understand input/output requirements
@@ -106,11 +117,11 @@ A workflow consists of:
     symbol: 'BTCUSDT',
 }
 \`\`\`
-- Add a converter node to convert the output of the fixed-input node to a string:
+- Add a converter node to convert the output of the fixed-input node to a string (note: you need to access input.input.price to get the output from the parent node. input.price will result in undefined)
   \`\`\`js
   async function handle(input) {
     return {
-      message: \`BTCUSDT price is \${input.price}\`,
+      message: \`BTCUSDT price is \${input.input.price}\`,
     };
   }
   \`\`\`
@@ -143,11 +154,17 @@ The final result should look like this:
 - Next tool node receives transformed input
 - Use "async function handle(input) { return transformed; }" pattern
 
-### Conditional Branching Pattern
+### Boolean Conditional Branching Pattern
+- Boolean node evaluates input to true/false
+- Has exactly two execution paths: trueChild and falseChild
+- Use "async function handle(input) { return true; }" pattern for simple binary decisions
+- Automatically routes to appropriate child based on boolean result
+
+### Advanced Conditional Branching Pattern
 - Condition node evaluates input
 - Returns child node identifier to execute next
 - Multiple children possible for different paths
-- Use "async function handle(input) { return childId; }" pattern
+- Use "async function handle(input) { return childId; }" pattern for complex multi-way branching
 
 ## INSTRUCTIONS
 1. **Follow suggestions** if provided to modify the workflow appropriately
@@ -236,6 +253,9 @@ export const WorkflowBuilderSystemPrompt = (
 
   - addNodeTool: Add a new node as a child of the parent node.
   - addAfterNodeTool: Add a new node after the specified node. If the specified node has a child, the new node will be added as a child of the specified node's child.
+  - addBooleanNodeTool: Add a boolean node for simple true/false conditional branching.
+  - addBooleanTrueChildTool: Add a child node to the true path of a boolean node.
+  - addBooleanFalseChildTool: Add a child node to the false path of a boolean node.
   - modifyNodeTool: Modify the node.
   - deleteNodeTool: Delete the node.
   - swapNodesTool: Swap the position of two nodes.

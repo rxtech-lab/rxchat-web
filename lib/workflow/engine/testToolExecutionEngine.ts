@@ -163,12 +163,7 @@ export class TestToolExecutionEngine extends McpToolExecutionEngine {
     await new Promise((resolve) => setTimeout(resolve, 100));
 
     return {
-      result,
-      metadata: {
-        tool,
-        timestamp: new Date().toISOString(),
-        isTestExecution: true,
-      },
+      ...result,
     };
   }
 }

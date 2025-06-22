@@ -150,7 +150,9 @@ describe('fetcher', () => {
     } as any);
 
     await expect(fetcher('/api/test')).rejects.toThrow(ChatSDKError);
-    await expect(fetcher('/api/test')).rejects.toThrow('The request couldn\'t be processed. Please check your input and try again.');
+    await expect(fetcher('/api/test')).rejects.toThrow(
+      "The request couldn't be processed. Please check your input and try again.",
+    );
   });
 
   test('should handle fetch errors', async () => {

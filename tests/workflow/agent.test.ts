@@ -4,6 +4,7 @@ import {
   createToolExecutionEngine,
 } from '@/lib/workflow/engine';
 import { createTestToolExecutionEngine } from '@/lib/workflow/engine/testToolExecutionEngine';
+import { createTestStateClient } from '@/lib/workflow/state/test';
 import { WorkflowEngine } from '@/lib/workflow/workflow-engine';
 import { expect, test } from '@playwright/test';
 
@@ -26,6 +27,7 @@ test.describe('agent integration test', () => {
     const workflowEngine = new WorkflowEngine(
       createJSExecutionEngine(),
       createToolExecutionEngine(),
+      createTestStateClient('e2e'),
     );
 
     const result = await workflowEngine.execute(workflow.workflow);
@@ -42,6 +44,7 @@ test.describe('agent integration test', () => {
     const workflowEngine = new WorkflowEngine(
       createJSExecutionEngine(),
       createToolExecutionEngine(),
+      createTestStateClient('e2e'),
     );
 
     const cron = workflow.workflow.trigger.cron;
@@ -76,6 +79,7 @@ test.describe('agent integration test', () => {
     const workflowEngine = new WorkflowEngine(
       createJSExecutionEngine(),
       testToolExecutionEngine,
+      createTestStateClient('e2e'),
     );
 
     await workflowEngine.execute(workflow.workflow, {

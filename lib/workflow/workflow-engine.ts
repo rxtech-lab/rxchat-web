@@ -1,5 +1,9 @@
 import { WorkflowEngineError, WorkflowReferenceError } from './errors';
+import type { StateClient } from './state';
 import {
+  type BooleanNode,
+  type BooleanNodeExecutionResult,
+  BooleanNodeExecutionResultSchema,
   type ConditionNode,
   type ConditionNodeExecutionResult,
   ConditionNodeExecutionResultSchema,
@@ -8,8 +12,11 @@ import {
   type ConverterNodeExecutionResult,
   ConverterNodeExecutionResultSchema,
   type CronjobTriggerNode,
+  type ExtraContext,
   type FixedInput,
+  type SkipNode,
   type ToolNode,
+  type UpsertStateNode,
   type Workflow,
 } from './types';
 import { Environment } from 'nunjucks';
@@ -20,7 +27,10 @@ type WorkflowNode =
   | ConverterNode
   | CronjobTriggerNode
   | ConditionNode
-  | FixedInput;
+  | BooleanNode
+  | FixedInput
+  | SkipNode
+  | UpsertStateNode;
 
 interface WorkflowEngineInterface {
   /**
@@ -46,7 +56,7 @@ export interface ToolExecutionEngine {
 }
 
 export interface JSCodeExecutionEngine {
-  execute(input: any, code: string, context: any): unknown;
+  execute(input: ExtraContext, code: string, context: any): unknown;
 }
 
 export class WorkflowEngine implements WorkflowEngineInterface {
@@ -59,15 +69,18 @@ export class WorkflowEngine implements WorkflowEngineInterface {
 
   private jsCodeExecutionEngine: JSCodeExecutionEngine;
   private toolExecutionEngine: ToolExecutionEngine;
+  private stateClient: StateClient;
 
   private workflowContext: Record<string, any> = {};
 
   constructor(
     jsCodeExecutionEngine: JSCodeExecutionEngine,
     toolExecutionEngine: ToolExecutionEngine,
+    stateClient: StateClient,
   ) {
     this.jsCodeExecutionEngine = jsCodeExecutionEngine;
     this.toolExecutionEngine = toolExecutionEngine;
+    this.stateClient = stateClient;
   }
 
   async execute(
@@ -160,6 +173,12 @@ export class WorkflowEngine implements WorkflowEngineInterface {
           context.context,
         );
         break;
+      case 'boolean':
+        output = await this.executeBooleanNode(
+          node as BooleanNode,
+          context.context,
+        );
+        break;
       case 'converter':
         output = await this.executeConverterNode(
           node as ConverterNode,
@@ -171,6 +190,15 @@ export class WorkflowEngine implements WorkflowEngineInterface {
           node as FixedInput,
           context.context || {},
         );
+        break;
+      case 'upsert-state':
+        output = await this.executeUpsertStateNode(
+          node as UpsertStateNode,
+          context.context,
+        );
+        break;
+      case 'skip':
+        output = await this.executeSkipNode(node as SkipNode, context.context);
         break;
       default:
         throw new WorkflowEngineError(
@@ -210,7 +238,25 @@ export class WorkflowEngine implements WorkflowEngineInterface {
     }
 
     // Search in children based on node type
-    if (this.isConditionalNode(node)) {
+    if (node.type === 'boolean') {
+      const booleanNode = node as BooleanNode;
+      // Search in trueChild
+      if (booleanNode.trueChild && 'type' in booleanNode.trueChild) {
+        const found = this.searchNodeRecursively(
+          nodeId,
+          booleanNode.trueChild as WorkflowNode,
+        );
+        if (found) return found;
+      }
+      // Search in falseChild
+      if (booleanNode.falseChild && 'type' in booleanNode.falseChild) {
+        const found = this.searchNodeRecursively(
+          nodeId,
+          booleanNode.falseChild as WorkflowNode,
+        );
+        if (found) return found;
+      }
+    } else if (this.isConditionalNode(node)) {
       const conditionNode = node as ConditionNode;
       for (const child of conditionNode.children) {
         // Check if child is a full node object (has 'type' property) or just a reference
@@ -223,7 +269,13 @@ export class WorkflowEngine implements WorkflowEngineInterface {
         }
       }
     } else if (this.hasRegularNodeStructure(node)) {
-      const regularNode = node as ToolNode | ConverterNode | CronjobTriggerNode;
+      const regularNode = node as
+        | ToolNode
+        | ConverterNode
+        | CronjobTriggerNode
+        | FixedInput
+        | SkipNode
+        | UpsertStateNode;
       if (regularNode.child) {
         // Check if child is a full node object (has 'type' property) or just a reference
         if ('type' in regularNode.child) {
@@ -240,7 +292,7 @@ export class WorkflowEngine implements WorkflowEngineInterface {
   }
 
   private isConditionalNode(node: WorkflowNode): boolean {
-    return node.type === 'condition';
+    return node.type === 'condition' || node.type === 'boolean';
   }
 
   private isTriggerNode(node: WorkflowNode): boolean {
@@ -294,6 +346,7 @@ export class WorkflowEngine implements WorkflowEngineInterface {
     const renderContext = {
       input: inputContext,
       context: this.workflowContext,
+      state: await this.getStates(),
     };
 
     /**
@@ -328,6 +381,7 @@ export class WorkflowEngine implements WorkflowEngineInterface {
                     throw new WorkflowReferenceError(
                       field as 'input' | 'context',
                       path.join('.'),
+                      node.identifier,
                     );
                   }
                 }
@@ -356,6 +410,7 @@ export class WorkflowEngine implements WorkflowEngineInterface {
       const renderedOutput = renderRecursively(node.output);
       return renderedOutput;
     } catch (error) {
+      console.dir(inputContext);
       if (error instanceof WorkflowReferenceError) {
         throw error;
       }
@@ -427,7 +482,10 @@ export class WorkflowEngine implements WorkflowEngineInterface {
       }
 
       const result = this.jsCodeExecutionEngine.execute(
-        parentInput,
+        {
+          input: parentInput?.input,
+          state: await this.getStates(),
+        },
         node.code,
         {
           nodeId: node.identifier,
@@ -438,6 +496,52 @@ export class WorkflowEngine implements WorkflowEngineInterface {
     } catch (error) {
       throw new WorkflowEngineError(
         `Condition node '${node.identifier}' execution failed: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+  }
+
+  private async executeBooleanNode(
+    node: BooleanNode,
+    input?: any,
+  ): Promise<BooleanNodeExecutionResult> {
+    console.log(`Boolean node executed: ${node.identifier}`);
+
+    try {
+      // Collect inputs from all parent nodes (similar to condition node)
+      let parentInput: ConditionNodeInput | null = null;
+
+      const parentNodes = this.findParentNodes(
+        node.identifier,
+        this.workflow,
+      ).filter((parent) => !this.isTriggerNode(parent));
+
+      // boolean node can only have one parent node
+      if (parentNodes.length > 0) {
+        const firstParent = parentNodes[0];
+        const parentOutput = this.nodeOutputs.get(firstParent.identifier);
+        if (parentOutput !== undefined) {
+          parentInput = {
+            input: parentOutput,
+            nodeId: firstParent.identifier,
+          };
+        }
+      }
+
+      const result = await this.jsCodeExecutionEngine.execute(
+        {
+          input: parentInput?.input,
+          state: await this.getStates(),
+        },
+        node.code,
+        {
+          nodeId: node.identifier,
+        },
+      );
+
+      return BooleanNodeExecutionResultSchema.parse(result);
+    } catch (error) {
+      throw new WorkflowEngineError(
+        `Boolean node '${node.identifier}' execution failed: ${error instanceof Error ? error.message : String(error)}`,
       );
     }
   }
@@ -454,7 +558,10 @@ export class WorkflowEngine implements WorkflowEngineInterface {
     try {
       // Execute the JavaScript code for conversion
       const result = await this.jsCodeExecutionEngine.execute(
-        input,
+        {
+          input,
+          state: await this.getStates(),
+        },
         node.code,
         {
           input,
@@ -471,19 +578,83 @@ export class WorkflowEngine implements WorkflowEngineInterface {
     }
   }
 
+  private async executeUpsertStateNode(
+    node: UpsertStateNode,
+    input?: any,
+  ): Promise<any> {
+    console.log(
+      `Upsert state node executed: ${node.identifier} with key: ${node.key}, value: ${JSON.stringify(node.value)}`,
+    );
+
+    try {
+      // Store the value in state using the key
+      await this.stateClient.setState(node.key, node.value);
+
+      // Return the value that was stored
+      return node.value;
+    } catch (error) {
+      throw new WorkflowEngineError(
+        `Upsert state node '${node.identifier}' execution failed: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+  }
+
+  private async executeSkipNode(node: SkipNode, input?: any): Promise<any> {
+    console.log(
+      `Skip node executed: ${node.identifier} - terminating workflow execution`,
+    );
+
+    // Skip node terminates workflow execution and returns whatever input it receives
+    // This will be the final output of the workflow
+    return input;
+  }
+
   private queueNextNodes(
     node: WorkflowNode,
     output: any,
     workflow: Workflow,
   ): void {
+    // Skip nodes terminate workflow execution, so don't queue any children
+    if (node.type === 'skip') {
+      console.log(
+        'Skip node terminates workflow - no further nodes will be executed',
+      );
+      return;
+    }
+
     if (this.hasRegularNodeStructure(node)) {
-      // Regular nodes (Tool, Converter, Trigger) have single child
-      const regularNode = node as ToolNode | ConverterNode | CronjobTriggerNode;
+      // Regular nodes (Tool, Converter, Trigger, FixedInput, Skip, State, UpsertState) have single child
+      const regularNode = node as
+        | ToolNode
+        | ConverterNode
+        | CronjobTriggerNode
+        | FixedInput
+        | SkipNode
+        | UpsertStateNode;
       if (regularNode.child) {
         this.executionQueue.push({
           nodeId: regularNode.child.identifier,
           context: output,
         });
+      }
+    } else if (node.type === 'boolean') {
+      // Boolean node execution: choose trueChild or falseChild based on boolean result
+      const booleanNode = node as BooleanNode;
+      const booleanResult = output as boolean;
+
+      const nextNode = booleanResult
+        ? booleanNode.trueChild
+        : booleanNode.falseChild;
+
+      if (nextNode) {
+        this.executionQueue.push({
+          nodeId: nextNode.identifier,
+          context: undefined, // Boolean nodes don't pass specific context
+        });
+      } else {
+        console.log(
+          `Boolean node terminated workflow: no ${booleanResult ? 'true' : 'false'} child defined`,
+        );
       }
     } else if (this.isConditionalNode(node)) {
       // The condition result should determine which child to execute
@@ -518,13 +689,39 @@ export class WorkflowEngine implements WorkflowEngineInterface {
         const regularNode = currentNode as
           | ToolNode
           | ConverterNode
-          | CronjobTriggerNode;
+          | CronjobTriggerNode
+          | FixedInput
+          | SkipNode
+          | UpsertStateNode;
         if (regularNode.child && regularNode.child.identifier === nodeId) {
           parents.push(currentNode);
         }
         // Continue searching in the child
         if (regularNode.child && 'type' in regularNode.child) {
           searchForParents(regularNode.child as WorkflowNode);
+        }
+      } else if (currentNode.type === 'boolean') {
+        const booleanNode = currentNode as BooleanNode;
+        // Check if trueChild matches the target node
+        if (
+          booleanNode.trueChild &&
+          booleanNode.trueChild.identifier === nodeId
+        ) {
+          parents.push(currentNode);
+        }
+        // Check if falseChild matches the target node
+        if (
+          booleanNode.falseChild &&
+          booleanNode.falseChild.identifier === nodeId
+        ) {
+          parents.push(currentNode);
+        }
+        // Continue searching in children
+        if (booleanNode.trueChild && 'type' in booleanNode.trueChild) {
+          searchForParents(booleanNode.trueChild as WorkflowNode);
+        }
+        if (booleanNode.falseChild && 'type' in booleanNode.falseChild) {
+          searchForParents(booleanNode.falseChild as WorkflowNode);
         }
       } else if (this.isConditionalNode(currentNode)) {
         const conditionNode = currentNode as ConditionNode;
@@ -545,5 +742,9 @@ export class WorkflowEngine implements WorkflowEngineInterface {
     searchForParents(workflow.trigger);
 
     return parents;
+  }
+
+  private async getStates(): Promise<Record<string, any>> {
+    return this.stateClient.getAllState();
   }
 }

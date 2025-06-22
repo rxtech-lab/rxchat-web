@@ -42,6 +42,7 @@ export class WorkflowToolMissingError extends WorkflowEngineError {
 export class WorkflowReferenceError extends WorkflowEngineError {
   field: 'input' | 'context';
   reference: string;
+  nodeId: string;
 
   /**
    * Create a new WorkflowReferenceError.
@@ -49,7 +50,7 @@ export class WorkflowReferenceError extends WorkflowEngineError {
    * @param field - The field that is referenced.
    * @param reference - The reference that is not found. Can be nested object like 'input.user.name'.
    */
-  constructor(field: 'input' | 'context', reference: string) {
+  constructor(field: 'input' | 'context', reference: string, nodeId: string) {
     super(
       `Reference to non existing ${field}: ${reference}. Please check if the ${field} is available in the workflow.`,
     );
@@ -57,6 +58,7 @@ export class WorkflowReferenceError extends WorkflowEngineError {
     this.name = 'WorkflowReferenceError';
     this.field = field;
     this.reference = reference;
+    this.nodeId = nodeId;
   }
 
   private getDescriptionForField(jsonSchema: any): any {

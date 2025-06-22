@@ -30,6 +30,7 @@ import { cookies } from 'next/headers';
 import { auth } from '../(auth)/auth';
 import type { Job } from '@/lib/db/schema';
 import { WorkflowReferenceError } from '@/lib/workflow/errors';
+import { createStateClient } from '@/lib/workflow/state';
 
 export async function saveChatModelAsCookie(
   model: string,
@@ -162,6 +163,7 @@ export async function createWorkflowJob(documentId: string): Promise<{
   const engine = new WorkflowEngine(
     createJSExecutionEngine(),
     createTestToolExecutionEngine(),
+    createStateClient(session.user.id),
   );
 
   const userId = session.user.id;

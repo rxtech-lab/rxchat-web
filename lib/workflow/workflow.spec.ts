@@ -1,4 +1,9 @@
-import type { ConditionNode, CronjobTriggerNode, ToolNode } from './types';
+import type {
+  BooleanNode,
+  ConditionNode,
+  CronjobTriggerNode,
+  ToolNode,
+} from './types';
 import { Workflow } from './workflow';
 import { McpRouter } from '../router/mcpRouter';
 import { WorkflowToolMissingError } from './errors';
@@ -2522,6 +2527,314 @@ describe('Workflow', () => {
         (workflowData.trigger.child as any)?.child?.child?.child?.child
           ?.identifier,
       ).toBe('deep2');
+    });
+  });
+
+  describe('Boolean Node Operations', () => {
+    beforeEach(() => {
+      workflow = new Workflow('Test Workflow', mockTrigger, mockMcpRouter);
+    });
+
+    it('should add a boolean node as child of trigger', () => {
+      const booleanNode: BooleanNode = {
+        identifier: 'test-boolean',
+        type: 'boolean',
+        runtime: 'js',
+        code: 'async function handle(input) { return input.value > 100; }',
+        trueChild: null,
+        falseChild: null,
+      };
+
+      workflow.addChild(undefined, booleanNode);
+
+      const workflowData = workflow.getWorkflow();
+      expect(workflowData.trigger.child?.identifier).toBe('test-boolean');
+      expect(workflowData.trigger.child?.type).toBe('boolean');
+      expect((workflowData.trigger.child as BooleanNode).trueChild).toBeNull();
+      expect((workflowData.trigger.child as BooleanNode).falseChild).toBeNull();
+    });
+
+    it('should add true child to boolean node', () => {
+      const booleanNode: BooleanNode = {
+        identifier: 'test-boolean',
+        type: 'boolean',
+        runtime: 'js',
+        code: 'async function handle(input) { return input.value > 100; }',
+        trueChild: null,
+        falseChild: null,
+      };
+
+      const trueChild: ToolNode = {
+        identifier: 'true-tool',
+        type: 'tool',
+        toolIdentifier: 'test-tool',
+        description: 'Tool for true path',
+        child: null,
+      };
+
+      workflow.addChild(undefined, booleanNode);
+      workflow.addChild('test-boolean', trueChild);
+
+      const workflowData = workflow.getWorkflow();
+      const retrievedBooleanNode = workflowData.trigger.child as BooleanNode;
+      expect(retrievedBooleanNode.trueChild?.identifier).toBe('true-tool');
+      expect(retrievedBooleanNode.falseChild).toBeNull();
+    });
+
+    it('should add false child to boolean node when true child already exists', () => {
+      const booleanNode: BooleanNode = {
+        identifier: 'test-boolean',
+        type: 'boolean',
+        runtime: 'js',
+        code: 'async function handle(input) { return input.value > 100; }',
+        trueChild: null,
+        falseChild: null,
+      };
+
+      const trueChild: ToolNode = {
+        identifier: 'true-tool',
+        type: 'tool',
+        toolIdentifier: 'test-tool',
+        description: 'Tool for true path',
+        child: null,
+      };
+
+      const falseChild: ToolNode = {
+        identifier: 'false-tool',
+        type: 'tool',
+        toolIdentifier: 'test-tool-2',
+        description: 'Tool for false path',
+        child: null,
+      };
+
+      workflow.addChild(undefined, booleanNode);
+      workflow.addChild('test-boolean', trueChild);
+      workflow.addChild('test-boolean', falseChild);
+
+      const workflowData = workflow.getWorkflow();
+      const retrievedBooleanNode = workflowData.trigger.child as BooleanNode;
+      expect(retrievedBooleanNode.trueChild?.identifier).toBe('true-tool');
+      expect(retrievedBooleanNode.falseChild?.identifier).toBe('false-tool');
+    });
+
+    it('should throw error when trying to add third child to boolean node', () => {
+      const booleanNode: BooleanNode = {
+        identifier: 'test-boolean',
+        type: 'boolean',
+        runtime: 'js',
+        code: 'async function handle(input) { return input.value > 100; }',
+        trueChild: null,
+        falseChild: null,
+      };
+
+      const trueChild: ToolNode = {
+        identifier: 'true-tool',
+        type: 'tool',
+        toolIdentifier: 'test-tool',
+        description: 'Tool for true path',
+        child: null,
+      };
+
+      const falseChild: ToolNode = {
+        identifier: 'false-tool',
+        type: 'tool',
+        toolIdentifier: 'test-tool-2',
+        description: 'Tool for false path',
+        child: null,
+      };
+
+      const extraChild: ToolNode = {
+        identifier: 'extra-tool',
+        type: 'tool',
+        toolIdentifier: 'test-tool-3',
+        description: 'Extra tool',
+        child: null,
+      };
+
+      workflow.addChild(undefined, booleanNode);
+      workflow.addChild('test-boolean', trueChild);
+      workflow.addChild('test-boolean', falseChild);
+
+      expect(() => {
+        workflow.addChild('test-boolean', extraChild);
+      }).toThrow(
+        'Boolean node with identifier test-boolean already has both true and false children',
+      );
+    });
+
+    it('should find boolean node by identifier', () => {
+      const booleanNode: BooleanNode = {
+        identifier: 'test-boolean',
+        type: 'boolean',
+        runtime: 'js',
+        code: 'async function handle(input) { return input.value > 100; }',
+        trueChild: null,
+        falseChild: null,
+      };
+
+      workflow.addChild(undefined, booleanNode);
+
+      const foundNode = workflow.findNode('test-boolean');
+      expect(foundNode).toBeDefined();
+      expect(foundNode?.identifier).toBe('test-boolean');
+      expect((foundNode as any)?.type).toBe('boolean');
+    });
+
+    it('should find nodes in boolean children', () => {
+      const booleanNode: BooleanNode = {
+        identifier: 'test-boolean',
+        type: 'boolean',
+        runtime: 'js',
+        code: 'async function handle(input) { return input.value > 100; }',
+        trueChild: null,
+        falseChild: null,
+      };
+
+      const trueChild: ToolNode = {
+        identifier: 'true-tool',
+        type: 'tool',
+        toolIdentifier: 'test-tool',
+        description: 'Tool for true path',
+        child: null,
+      };
+
+      const falseChild: ToolNode = {
+        identifier: 'false-tool',
+        type: 'tool',
+        toolIdentifier: 'test-tool-2',
+        description: 'Tool for false path',
+        child: null,
+      };
+
+      workflow.addChild(undefined, booleanNode);
+      workflow.addChild('test-boolean', trueChild);
+      workflow.addChild('test-boolean', falseChild);
+
+      const foundTrueChild = workflow.findNode('true-tool');
+      const foundFalseChild = workflow.findNode('false-tool');
+
+      expect(foundTrueChild?.identifier).toBe('true-tool');
+      expect(foundFalseChild?.identifier).toBe('false-tool');
+    });
+
+    it('should remove true child from boolean node', () => {
+      const booleanNode: BooleanNode = {
+        identifier: 'test-boolean',
+        type: 'boolean',
+        runtime: 'js',
+        code: 'async function handle(input) { return input.value > 100; }',
+        trueChild: null,
+        falseChild: null,
+      };
+
+      const trueChild: ToolNode = {
+        identifier: 'true-tool',
+        type: 'tool',
+        toolIdentifier: 'test-tool',
+        description: 'Tool for true path',
+        child: null,
+      };
+
+      workflow.addChild(undefined, booleanNode);
+      workflow.addChild('test-boolean', trueChild);
+
+      // Verify child was added
+      let workflowData = workflow.getWorkflow();
+      let retrievedBooleanNode = workflowData.trigger.child as BooleanNode;
+      expect(retrievedBooleanNode.trueChild?.identifier).toBe('true-tool');
+
+      // Remove the child
+      workflow.removeChild('true-tool');
+
+      // Verify child was removed
+      workflowData = workflow.getWorkflow();
+      retrievedBooleanNode = workflowData.trigger.child as BooleanNode;
+      expect(retrievedBooleanNode.trueChild).toBeNull();
+    });
+
+    it('should remove false child from boolean node', () => {
+      const booleanNode: BooleanNode = {
+        identifier: 'test-boolean',
+        type: 'boolean',
+        runtime: 'js',
+        code: 'async function handle(input) { return input.value > 100; }',
+        trueChild: null,
+        falseChild: null,
+      };
+
+      const trueChild: ToolNode = {
+        identifier: 'true-tool',
+        type: 'tool',
+        toolIdentifier: 'test-tool',
+        description: 'Tool for true path',
+        child: null,
+      };
+
+      const falseChild: ToolNode = {
+        identifier: 'false-tool',
+        type: 'tool',
+        toolIdentifier: 'test-tool-2',
+        description: 'Tool for false path',
+        child: null,
+      };
+
+      workflow.addChild(undefined, booleanNode);
+      workflow.addChild('test-boolean', trueChild); // First child becomes trueChild
+      workflow.addChild('test-boolean', falseChild); // Second child becomes falseChild
+
+      // Verify children were added
+      let workflowData = workflow.getWorkflow();
+      let retrievedBooleanNode = workflowData.trigger.child as BooleanNode;
+      expect(retrievedBooleanNode.trueChild?.identifier).toBe('true-tool');
+      expect(retrievedBooleanNode.falseChild?.identifier).toBe('false-tool');
+
+      // Remove the false child
+      workflow.removeChild('false-tool');
+
+      // Verify false child was removed but true child remains
+      workflowData = workflow.getWorkflow();
+      retrievedBooleanNode = workflowData.trigger.child as BooleanNode;
+      expect(retrievedBooleanNode.falseChild).toBeNull();
+      expect(retrievedBooleanNode.trueChild?.identifier).toBe('true-tool');
+    });
+
+    it('should include boolean node in tree string representation', () => {
+      const booleanNode: BooleanNode = {
+        identifier: 'test-boolean',
+        type: 'boolean',
+        runtime: 'js',
+        code: 'async function handle(input) { return input.value > 100; }',
+        trueChild: null,
+        falseChild: null,
+      };
+
+      const trueChild: ToolNode = {
+        identifier: 'true-tool',
+        type: 'tool',
+        toolIdentifier: 'test-tool',
+        description: 'Tool for true path',
+        child: null,
+      };
+
+      const falseChild: ToolNode = {
+        identifier: 'false-tool',
+        type: 'tool',
+        toolIdentifier: 'test-tool-2',
+        description: 'Tool for false path',
+        child: null,
+      };
+
+      workflow.addChild(undefined, booleanNode);
+      workflow.addChild('test-boolean', trueChild);
+      workflow.addChild('test-boolean', falseChild);
+
+      const treeString = workflow.toViewableString();
+
+      expect(treeString).toContain('BooleanNode');
+      expect(treeString).toContain('TRUE:');
+      expect(treeString).toContain('FALSE:');
+      expect(treeString).toContain('true-tool');
+      expect(treeString).toContain('false-tool');
     });
   });
 });

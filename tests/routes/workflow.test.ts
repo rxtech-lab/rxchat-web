@@ -40,6 +40,8 @@ test.describe('Workflow endpoint', () => {
       documentId: documentCreated.id,
       documentCreatedAt: documentCreated.createdAt,
       runningStatus: 'running',
+      jobTriggerType: 'cronjob',
+      cron: null,
     });
 
     const response = await request.post('/api/workflow', {

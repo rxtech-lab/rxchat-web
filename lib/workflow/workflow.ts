@@ -1,7 +1,3 @@
-import { tool } from 'ai';
-import { v4 } from 'uuid';
-import { z } from 'zod';
-import { compileCode } from '../agent/runtime/runner-environment';
 import { createMcpRouter } from '../router';
 import type { McpRouter } from '../router/mcpRouter';
 import {
@@ -10,10 +6,7 @@ import {
 } from './errors';
 import type {
   BaseNode,
-  ConditionNode,
-  ConverterNode,
   CronjobTriggerNode,
-  FixedInput,
   RegularNode,
   ToolNode,
   Workflow as WorkflowType,
@@ -35,304 +28,6 @@ export interface WorkflowInterface {
   // Check if the workflow is valid using zod
   compile(): Promise<WorkflowType>;
 }
-
-export const addNodeTool = (workflow: Workflow) =>
-  tool({
-    description: 'Add a new tool node to the workflow',
-    parameters: z.object({
-      id: z
-        .string()
-        .nullable()
-        .describe(
-          'The identifier of the node this new node will be added after. If null or empty, the node will be added directly after the trigger node (at the root level). ' +
-            "This is the node's unique ID in the workflow and is different from the toolIdentifier, which references a specific tool in the registry.",
-        ),
-      toolIdentifier: z.string().describe("The tool's unique identifier"),
-    }),
-    execute: async ({ id, toolIdentifier }) => {
-      try {
-        const toolInfo = await workflow.mcpRouter.getToolInfo(toolIdentifier);
-        const node: ToolNode = {
-          identifier: v4(),
-          type: 'tool',
-          toolIdentifier,
-          child: null,
-          description: toolInfo.description,
-          inputSchema: toolInfo.inputSchema,
-          outputSchema: toolInfo.outputSchema,
-        };
-
-        if (id === null || (typeof id === 'string' && id.trim() === '')) {
-          workflow.addAfter(undefined, node);
-        } else {
-          workflow.addAfter(id, node);
-        }
-        console.log('added tool node');
-        console.log(workflow.toViewableString());
-        return `Added tool node with identifier ${toolIdentifier} as child of ${id ?? 'root'}`;
-      } catch (error) {
-        console.log(error);
-        return {
-          error: error,
-        };
-      }
-    },
-  });
-
-export const addConditionTool = (workflow: Workflow) =>
-  tool({
-    description: 'Add a new condition node to the workflow',
-    parameters: z.object({
-      toolIdentifier: z
-        .string()
-        .nullable()
-        .describe(
-          `The identifier for the condition node to be added as child of the node with the identifier. Empty if it added as root.
-           Note: this node contains multiple children, and this tool will determine which child to use.
-          `,
-        ),
-      code: z
-        .string()
-        .describe(
-          `The code for the condition. Should be in the format export async function handle(input: Record<string, any>): Promise<string>. The return is the next tool identifier to use`,
-        ),
-    }),
-    execute: async ({ toolIdentifier, code }) => {
-      try {
-        const node: ConditionNode = {
-          identifier: v4(),
-          type: 'condition',
-          code: code,
-          runtime: 'js',
-          children: [],
-        };
-        if (toolIdentifier) {
-          workflow.addChild(toolIdentifier, node);
-        } else {
-          workflow.addChild(undefined, node);
-        }
-        console.log('added condition node');
-        console.log(workflow.toViewableString());
-        return `Added condition node with identifier ${node.identifier}`;
-      } catch (error) {
-        return {
-          error: error,
-        };
-      }
-    },
-  });
-
-export const addConverterTool = (workflow: Workflow) =>
-  tool({
-    description: 'Add a new converter node to the workflow',
-    parameters: z.object({
-      toolIdentifier: z
-        .string()
-        .describe(
-          "The tool's unique identifier that this node will be added after. This is the UUID not the tool identifier.",
-        ),
-      code: z
-        .string()
-        .describe(`The code for the converter. Written in Typescript and follow the following format:
-          async function handle(input: any): Promise<any> {
-            return input;
-          }
-
-          The input is the output of the tool with the identifier 'toolIdentifier'.
-          The output should follow the targeted output schema.
-          `),
-    }),
-    execute: async ({ toolIdentifier, code }) => {
-      try {
-        await compileCode(code, 'typescript');
-
-        const node: ConverterNode = {
-          identifier: v4(),
-          type: 'converter',
-          code: code,
-          child: null,
-          runtime: 'js',
-        };
-        workflow.addAfter(toolIdentifier, node);
-        console.log('added converter node');
-        console.log(workflow.toViewableString());
-        return `Added converter node with identifier ${node.identifier}`;
-      } catch (error) {
-        return {
-          error: error,
-        };
-      }
-    },
-  });
-
-export const removeNodeTool = (workflow: Workflow) =>
-  tool({
-    description: 'Remove a node from the workflow',
-    parameters: z.object({
-      identifier: z.string(),
-    }),
-    execute: async ({ identifier }) => {
-      try {
-        workflow.removeChild(identifier);
-        console.log('removed node');
-        console.log(workflow.toViewableString());
-        return `Removed node with identifier ${identifier}`;
-      } catch (error) {
-        return {
-          error: error,
-        };
-      }
-    },
-  });
-
-export const modifyToolNode = (workflow: Workflow) =>
-  tool({
-    description:
-      'Modify a tool node in the workflow. This function cannot modify any other node type.',
-    parameters: z.object({
-      id: z.string().describe('The id of the node to modify'),
-      node: z.object({
-        toolIdentifier: z.string().describe("The tool's unique identifier"),
-      }),
-    }),
-    execute: async ({ id, node }) => {
-      try {
-        // Get the current node to preserve its existing child relationship
-        const currentNode = workflow.findNode(id);
-        const existingChild =
-          currentNode && 'child' in currentNode ? currentNode.child : null;
-
-        workflow.modifyChild(id, {
-          identifier: id,
-          type: 'tool',
-          toolIdentifier: node.toolIdentifier,
-          child: existingChild,
-        } as ToolNode);
-        console.log('modified tool node');
-        console.log(workflow.toViewableString());
-        return `Modified tool node with identifier ${id} to ${node.toolIdentifier}`;
-      } catch (error) {
-        return {
-          error: error,
-        };
-      }
-    },
-  });
-
-export const compileTool = (workflow: Workflow) =>
-  tool({
-    description: 'Compile the workflow to see if it is valid',
-    parameters: z.object({}),
-    execute: async () => {
-      try {
-        await workflow.compile();
-        return 'Workflow compiled successfully';
-      } catch (error) {
-        return {
-          error: error,
-        };
-      }
-    },
-  });
-
-export const viewWorkflow = (workflow: Workflow) =>
-  tool({
-    description: 'View workflow in json',
-    parameters: z.object({}),
-    execute: async () => {
-      return workflow.getWorkflow();
-    },
-  });
-
-export const modifyTriggerTool = (workflow: Workflow) =>
-  tool({
-    description: 'Modify the trigger node of the workflow',
-    parameters: z.object({
-      cron: z.string().describe('The cron expression to schedule the workflow'),
-    }),
-    execute: async ({ cron }) => {
-      try {
-        workflow.modifyTrigger({
-          type: 'cronjob-trigger',
-          identifier: v4(),
-          cron,
-        });
-        console.log('modified trigger node');
-        console.log(workflow.toViewableString());
-        return workflow.getWorkflow();
-      } catch (error) {
-        return {
-          error: error,
-        };
-      }
-    },
-  });
-
-export const swapNodesTool = (workflow: Workflow) =>
-  tool({
-    description:
-      'Swap two nodes in the workflow but still keep their children intact',
-    parameters: z.object({
-      identifier1: z.string().describe('The identifier of the first node'),
-      identifier2: z.string().describe('The identifier of the second node'),
-    }),
-    execute: async ({ identifier1, identifier2 }) => {
-      try {
-        workflow.swapNodes(identifier1, identifier2);
-        console.log('swapped nodes');
-        console.log(workflow.toViewableString());
-        return `Swapped nodes ${identifier1} and ${identifier2}`;
-      } catch (error) {
-        return {
-          error: error,
-        };
-      }
-    },
-  });
-
-export const addInputTool = (workflow: Workflow) =>
-  tool({
-    description:
-      'Add a new input node to the workflow that provides static data. Use this when a tool requires input that should be fixed or derived from previous steps. The input node will be connected to the specified tool and provide data according to the required schema. Always call this tool if there is no parent node for the tool.',
-    parameters: z.object({
-      toolIdentifier: z
-        .string()
-        .describe(
-          'The identifier (UUID) of the node after which this input node will be added. Leave empty to add at the root level. If the suggestion is saying to add an node between two nodes, use the identifier of the node after which the input node will be added.',
-        ),
-      output: z
-        .any()
-        .describe(
-          "The data object containing key-value pairs that will be passed to the child node. Keys must match the child's input schema. You can use dynamic values with Jinja syntax: {{input.[property]}} to reference parent outputs or {{context.[property]}} to access global context variables.",
-        ),
-    }),
-    execute: async ({ toolIdentifier, output }) => {
-      try {
-        const node: FixedInput = {
-          identifier: v4(),
-          type: 'fixed-input',
-          output: JSON.parse(output),
-          child: null,
-        };
-
-        if (
-          toolIdentifier === null ||
-          (typeof toolIdentifier === 'string' && toolIdentifier.trim() === '')
-        ) {
-          workflow.addAfter(undefined, node);
-        } else {
-          workflow.addAfter(toolIdentifier, node);
-        }
-        console.log('added input node');
-        console.log(workflow.toViewableString());
-        return `Added fixed input node with identifier ${node.identifier}`;
-      } catch (error) {
-        return {
-          error: error,
-        };
-      }
-    },
-  });
 
 export class Workflow implements WorkflowInterface {
   private workflow: WorkflowType;
@@ -427,6 +122,18 @@ export class Workflow implements WorkflowInterface {
     ) {
       // For conditional nodes that can have multiple children
       (parentNode as any).children.push(child);
+    } else if ((parentNode as any).type === 'boolean') {
+      // For boolean nodes, we need to specify which child (true or false)
+      const booleanNode = parentNode as any;
+      if (booleanNode.trueChild === null) {
+        booleanNode.trueChild = child;
+      } else if (booleanNode.falseChild === null) {
+        booleanNode.falseChild = child;
+      } else {
+        throw new Error(
+          `Boolean node with identifier ${identifier} already has both true and false children`,
+        );
+      }
     } else {
       throw new Error(
         `Node with identifier ${identifier} already has a child or doesn't support children`,
@@ -467,6 +174,19 @@ export class Workflow implements WorkflowInterface {
       if (childIndex !== -1) {
         children.splice(childIndex, 1);
       }
+    } else if ((parentNode as any).type === 'boolean') {
+      const booleanNode = parentNode as any;
+      if (
+        booleanNode.trueChild &&
+        booleanNode.trueChild.identifier === identifier
+      ) {
+        booleanNode.trueChild = null;
+      } else if (
+        booleanNode.falseChild &&
+        booleanNode.falseChild.identifier === identifier
+      ) {
+        booleanNode.falseChild = null;
+      }
     }
   }
 
@@ -502,6 +222,19 @@ export class Workflow implements WorkflowInterface {
       );
       if (childIndex !== -1) {
         children[childIndex] = child;
+      }
+    } else if ((parentNode as any).type === 'boolean') {
+      const booleanNode = parentNode as any;
+      if (
+        booleanNode.trueChild &&
+        booleanNode.trueChild.identifier === identifier
+      ) {
+        booleanNode.trueChild = child;
+      } else if (
+        booleanNode.falseChild &&
+        booleanNode.falseChild.identifier === identifier
+      ) {
+        booleanNode.falseChild = child;
       }
     }
   }
@@ -842,6 +575,15 @@ export class Workflow implements WorkflowInterface {
           }
         });
       }
+      if ((current as any).type === 'boolean') {
+        const booleanNode = current as any;
+        if (booleanNode.trueChild && this.isBaseNode(booleanNode.trueChild)) {
+          queue.push(booleanNode.trueChild);
+        }
+        if (booleanNode.falseChild && this.isBaseNode(booleanNode.falseChild)) {
+          queue.push(booleanNode.falseChild);
+        }
+      }
     }
 
     return null;
@@ -880,6 +622,30 @@ export class Workflow implements WorkflowInterface {
             queue.push(child);
           }
         });
+      }
+
+      // Check boolean node children
+      if ((current as any).type === 'boolean') {
+        const booleanNode = current as any;
+        if (
+          booleanNode.trueChild &&
+          booleanNode.trueChild.identifier === identifier
+        ) {
+          return current;
+        }
+        if (
+          booleanNode.falseChild &&
+          booleanNode.falseChild.identifier === identifier
+        ) {
+          return current;
+        }
+        // Add to queue for further traversal
+        if (booleanNode.trueChild && this.isBaseNode(booleanNode.trueChild)) {
+          queue.push(booleanNode.trueChild);
+        }
+        if (booleanNode.falseChild && this.isBaseNode(booleanNode.falseChild)) {
+          queue.push(booleanNode.falseChild);
+        }
       }
 
       // Continue traversal
@@ -1183,9 +949,12 @@ export class Workflow implements WorkflowInterface {
     const nodeTypeMap: Record<string, string> = {
       'cronjob-trigger': 'Trigger',
       tool: 'ToolNode',
+      boolean: 'BooleanNode',
       condition: 'ConditionNode',
       converter: 'ConverterNode',
       'fixed-input': 'FixedInputNode',
+      'upsert-state': 'UpsertStateNode',
+      skip: 'SkipNode',
     };
 
     const nodeType = nodeTypeMap[(node as any).type] || (node as any).type;
@@ -1197,12 +966,37 @@ export class Workflow implements WorkflowInterface {
       additionalInfo = ` - cron: ${(node as any).cron}`;
     } else if ((node as any).type === 'tool' && (node as any).toolIdentifier) {
       additionalInfo = ` - tool: ${(node as any).toolIdentifier}`;
+    } else if ((node as any).type === 'upsert-state' && (node as any).key) {
+      additionalInfo = ` - key: ${(node as any).key}, value: ${JSON.stringify((node as any).value)}`;
     }
 
     let result = `${prefix}${isLast ? '└── ' : '├── '}${nodeType} (${nodeIdentifier})${additionalInfo}\n`;
 
+    // Handle boolean node with trueChild and falseChild
+    if ((node as any).type === 'boolean') {
+      const booleanNode = node as any;
+      const childPrefix = `${prefix}${isLast ? '    ' : '│   '}`;
+
+      if (booleanNode.trueChild) {
+        result += `${childPrefix}├── TRUE:\n`;
+        result += this.buildTreeString(
+          booleanNode.trueChild,
+          `${childPrefix}│   `,
+          false,
+        );
+      }
+
+      if (booleanNode.falseChild) {
+        result += `${childPrefix}└── FALSE:\n`;
+        result += this.buildTreeString(
+          booleanNode.falseChild,
+          `${childPrefix}    `,
+          true,
+        );
+      }
+    }
     // Handle children array (for condition nodes)
-    if ('children' in node && Array.isArray((node as any).children)) {
+    else if ('children' in node && Array.isArray((node as any).children)) {
       const children = (node as any).children as BaseNode[];
       children.forEach((child, index) => {
         const isLastChild = index === children.length - 1;
