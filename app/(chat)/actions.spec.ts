@@ -184,7 +184,7 @@ const mockWorkflowEngineInstance = {
   execute: jest.fn(),
 };
 
-// Mock QStash workflow client instance  
+// Mock QStash workflow client instance
 const mockQStashWorkflowClient = {
   schedules: {
     delete: jest.fn(),
@@ -206,13 +206,15 @@ describe('Chat Server Actions', () => {
       mockExecutionEngine as any,
     );
     mockGetWorkflowWebhookUrl.mockReturnValue('https://test-webhook-url.com');
-    
+
     // Mock WorkflowEngine constructor
-    mockWorkflowEngine.mockImplementation(() => mockWorkflowEngineInstance as any);
-    
+    mockWorkflowEngine.mockImplementation(
+      () => mockWorkflowEngineInstance as any,
+    );
+
     // Mock QStash Client constructor
     mockQStashClient.mockImplementation(() => mockQStashWorkflowClient as any);
-    
+
     // Setup missing function mocks
     mockGetUserContext.mockResolvedValue({ userId: 'test-user-id' } as any);
     mockUpdateJobRunningStatus.mockResolvedValue(undefined);
@@ -481,11 +483,11 @@ describe('Chat Server Actions', () => {
             modifications: ['Add error handling'],
             skipToolDiscovery: false,
           },
-          workflow: { 
+          workflow: {
             steps: [],
             trigger: {
-              cron: '0 0 * * *'
-            }
+              cron: '0 0 * * *',
+            },
           },
         }),
       };
@@ -544,11 +546,11 @@ describe('Chat Server Actions', () => {
             modifications: ['Add error handling'],
             skipToolDiscovery: false,
           },
-          workflow: { 
+          workflow: {
             steps: [],
             trigger: {
-              cron: '0 0 * * *'
-            }
+              cron: '0 0 * * *',
+            },
           },
         }),
       };
@@ -580,11 +582,11 @@ describe('Chat Server Actions', () => {
             modifications: ['Add error handling'],
             skipToolDiscovery: false,
           },
-          workflow: { 
+          workflow: {
             steps: [],
             trigger: {
-              cron: '0 0 * * *'
-            }
+              cron: '0 0 * * *',
+            },
           },
         }),
       };
@@ -623,11 +625,11 @@ describe('Chat Server Actions', () => {
             modifications: ['Add error handling'],
             skipToolDiscovery: false,
           },
-          workflow: { 
+          workflow: {
             steps: [],
             trigger: {
-              cron: '0 0 * * *'
-            }
+              cron: '0 0 * * *',
+            },
           },
         }),
       };

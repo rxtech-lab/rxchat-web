@@ -39,18 +39,34 @@ describe('ModelSelector', () => {
       provider: 'openAI' as const,
       models: [
         { id: 'gpt-4', name: 'GPT-4', description: 'GPT-4 description' },
-        { id: 'gpt-3.5-turbo', name: 'GPT-3.5 Turbo', description: 'GPT-3.5 Turbo description' },
+        {
+          id: 'gpt-3.5-turbo',
+          name: 'GPT-3.5 Turbo',
+          description: 'GPT-3.5 Turbo description',
+        },
       ],
     },
     anthropic: {
       id: 'anthropic',
       provider: 'anthropic' as const,
       models: [
-        { id: 'claude-3-5-sonnet-20241022', name: 'Claude 3.5 Sonnet', description: 'Claude 3.5 Sonnet description' },
-        { id: 'claude-3-haiku-20240307', name: 'Claude 3 Haiku', description: 'Claude 3 Haiku description' },
+        {
+          id: 'claude-3-5-sonnet-20241022',
+          name: 'Claude 3.5 Sonnet',
+          description: 'Claude 3.5 Sonnet description',
+        },
+        {
+          id: 'claude-3-haiku-20240307',
+          name: 'Claude 3 Haiku',
+          description: 'Claude 3 Haiku description',
+        },
       ],
     },
-    openRouter: { id: 'openrouter', provider: 'openRouter' as const, models: [] },
+    openRouter: {
+      id: 'openrouter',
+      provider: 'openRouter' as const,
+      models: [],
+    },
     gemini: { id: 'gemini', provider: 'gemini' as const, models: [] },
     test: { id: 'test', provider: 'test' as const, models: [] },
     azure: { id: 'azure', provider: 'azure' as const, models: [] },
@@ -221,7 +237,9 @@ describe('ModelSelector', () => {
     fireEvent.click(button);
 
     // GPT models should not be shown since openAI has no models
-    expect(screen.queryByTestId('model-selector-item-gpt-4')).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId('model-selector-item-gpt-4'),
+    ).not.toBeInTheDocument();
   });
 
   it('should handle empty state messaging', () => {

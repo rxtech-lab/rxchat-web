@@ -128,14 +128,14 @@ describe('Jobs Server Actions', () => {
       return await callback(mockTx as any);
     });
     mockRevalidatePath.mockReturnValue(undefined);
-    
+
     // Setup mock returns for QStash and Workflow instances
     mockQStashInstance.schedules.delete.mockResolvedValue(undefined);
     mockQStashInstance.schedules.pause.mockResolvedValue(undefined);
     mockQStashInstance.schedules.resume.mockResolvedValue(undefined);
     mockQStashInstance.publishJSON.mockResolvedValue({ messageId: 'msg-123' });
     mockWorkflowInstance.trigger.mockResolvedValue(undefined);
-    
+
     // Setup job query mocks
     mockDeleteJob.mockResolvedValue(undefined);
     mockDeleteJobsByIds.mockResolvedValue(undefined);
@@ -231,7 +231,9 @@ describe('Jobs Server Actions', () => {
           status: undefined,
           runningStatus: undefined,
         }),
-      ).rejects.toThrow('You need to sign in to view this chat. Please sign in and try again.');
+      ).rejects.toThrow(
+        'You need to sign in to view this chat. Please sign in and try again.',
+      );
     });
 
     test('should validate pagination parameters', async () => {
@@ -260,7 +262,9 @@ describe('Jobs Server Actions', () => {
     test('should throw error for non-existent job', async () => {
       mockGetJobById.mockResolvedValue(null);
 
-      await expect(getJob({ id: 'non-existent-id' })).rejects.toThrow('The requested chat was not found');
+      await expect(getJob({ id: 'non-existent-id' })).rejects.toThrow(
+        'The requested chat was not found',
+      );
     });
 
     test('should return error when user not authenticated', async () => {
@@ -275,9 +279,9 @@ describe('Jobs Server Actions', () => {
       // Since the function doesn't validate UUID format, it will try to fetch
       // The mock is set up to return mockJob, so it will succeed
       mockGetJobById.mockResolvedValue(mockJob as any);
-      
+
       const result = await getJob({ id: 'invalid-uuid' });
-      
+
       expect(result).toEqual(mockJob);
     });
   });
@@ -291,7 +295,10 @@ describe('Jobs Server Actions', () => {
 
       expect(result.success).toBe(true);
       expect(result.message).toBe('Job deleted successfully');
-      expect(mockDeleteJob).toHaveBeenCalledWith({ id: mockJob.id, dbConnection: expect.any(Object) });
+      expect(mockDeleteJob).toHaveBeenCalledWith({
+        id: mockJob.id,
+        dbConnection: expect.any(Object),
+      });
       expect(mockRevalidatePath).toHaveBeenCalledWith('/jobs');
     });
 
@@ -369,7 +376,7 @@ describe('Jobs Server Actions', () => {
     test('should handle deletion errors', async () => {
       const validUuid1 = '123e4567-e89b-12d3-a456-426614174001';
       const validUuid2 = '123e4567-e89b-12d3-a456-426614174002';
-      
+
       // Mock to return valid jobs first
       mockGetJobById.mockResolvedValue(mockJob as any);
       mockDeleteJobsByIds.mockRejectedValue(new Error('Database error'));
@@ -478,7 +485,7 @@ describe('Jobs Server Actions', () => {
     test('should validate job ID parameter', async () => {
       // Override mock to return null for invalid ID test
       mockGetJobById.mockResolvedValue(null);
-      
+
       const result = await triggerJobAction({ id: 'invalid-uuid' });
 
       expect(result.success).toBe(false);
@@ -488,7 +495,7 @@ describe('Jobs Server Actions', () => {
     test('should handle QStash errors', async () => {
       // Override mock to return null for error test
       mockGetJobById.mockResolvedValue(null);
-      
+
       const result = await triggerJobAction({ id: 'nonexistent-job-id' });
 
       expect(result.success).toBe(false);

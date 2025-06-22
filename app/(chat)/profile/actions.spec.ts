@@ -92,7 +92,7 @@ describe('Profile Server Actions', () => {
     mockDeleteUserAccount.mockResolvedValue(undefined);
     mockSignOut.mockResolvedValue(undefined);
     mockRevalidatePath.mockReturnValue(undefined);
-    
+
     // Setup passkey mocks
     mockGetPasskeyAuthenticatorsByUserId.mockResolvedValue([]);
     mockGetPasskeyAuthenticatorByCredentialId.mockResolvedValue({
@@ -185,7 +185,9 @@ describe('Profile Server Actions', () => {
       const result = await resetPassword(null, validFormData);
 
       expect(result.success).toBe(false);
-      expect(result.message).toBe('Failed to update password. Please try again.');
+      expect(result.message).toBe(
+        'Failed to update password. Please try again.',
+      );
     });
   });
 
@@ -254,7 +256,9 @@ describe('Profile Server Actions', () => {
       const result = await deleteAccount(null, validFormData);
 
       expect(result.success).toBe(false);
-      expect(result.message).toBe('Failed to delete account. Please try again.');
+      expect(result.message).toBe(
+        'Failed to delete account. Please try again.',
+      );
     });
   });
 
@@ -366,7 +370,7 @@ describe('Profile Server Actions', () => {
     test('should validate credential ID', async () => {
       // When credential ID is empty, the query should return null
       mockGetPasskeyAuthenticatorByCredentialId.mockResolvedValue(null);
-      
+
       const result = await deletePasskey('');
 
       expect(result.success).toBe(false);

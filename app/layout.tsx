@@ -5,6 +5,7 @@ import { Analytics } from '@vercel/analytics/next';
 import { SpeedInsights } from '@vercel/speed-insights/next';
 import { SessionProvider } from 'next-auth/react';
 import { getBrandName } from '@/lib/utils';
+import { WhatsNewDialog } from '@/components/whats-new-dialog';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -76,7 +77,10 @@ export default async function RootLayout({
           disableTransitionOnChange
         >
           <Toaster position="top-center" />
-          <SessionProvider>{children}</SessionProvider>
+          <SessionProvider>
+            {children}
+            <WhatsNewDialog />
+          </SessionProvider>
         </ThemeProvider>
         <Analytics />
         <SpeedInsights />

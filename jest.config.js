@@ -6,7 +6,7 @@ const tsJestTransformCfg = createDefaultPreset().transform;
 module.exports = {
   testEnvironment: 'node',
   transformIgnorePatterns: [
-    '<rootDir>/node_modules/(?!bcrypt-ts/)',
+    '<rootDir>/node_modules/(?!(bcrypt-ts|react-markdown|remark-gfm|vfile|unist-util-.*|micromark.*|decode-named-character-reference|character-entities|property-information|hast-util-.*|mdast-util-.*|remark-.*)/)',
     '<rootDir>/tests/*.spec.ts',
   ],
   testMatch: ['**/*.spec.ts', '**/*.spec.tsx', '**/*.spec.js', '**/*.spec.jsx'],
