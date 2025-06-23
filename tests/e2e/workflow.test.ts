@@ -1,17 +1,17 @@
-import { test, expect } from '@playwright/test';
+import {
+  createJSExecutionEngine,
+  createToolExecutionEngine,
+} from '@/lib/workflow/engine';
+import { createTestStateClient } from '@/lib/workflow/state/test';
 import type {
   ConverterNode,
   FixedInput,
   ToolNode,
   Workflow,
 } from '@/lib/workflow/types';
-import { v4 } from 'uuid';
 import { WorkflowEngine } from '@/lib/workflow/workflow-engine';
-import {
-  createJSExecutionEngine,
-  createToolExecutionEngine,
-} from '@/lib/workflow/engine';
-import { createTestStateClient } from '@/lib/workflow/state/test';
+import { expect, test } from '@playwright/test';
+import { v4 } from 'uuid';
 
 const code = `
 
@@ -20,7 +20,7 @@ async function handle(input: any) {
 }
 `;
 
-test.describe.skip('Workflow execution', () => {
+test.describe('Workflow execution', () => {
   test('should execute a workflow', async ({ page }) => {
     const workflow = {
       title: 'Test Workflow',

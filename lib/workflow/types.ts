@@ -125,6 +125,7 @@ export const BooleanNodeSchema = BaseNodeSchema.extend({
       ]),
     )
     .nullable()
+    .optional()
     .describe('child node to execute when condition is true'),
   falseChild: z
     .lazy((): any =>
@@ -139,6 +140,7 @@ export const BooleanNodeSchema = BaseNodeSchema.extend({
       ]),
     )
     .nullable()
+    .optional()
     .describe('child node to execute when condition is false'),
 }).strict();
 
@@ -179,6 +181,7 @@ export const TriggerNodeSchema = BaseNodeSchema.extend({
         ToolNodeSchema,
         ConverterNodeSchema,
         ConditionNodeSchema,
+        BooleanNodeSchema,
         FixedInputSchema,
         UpsertStateNodeSchema,
         SkipNodeSchema,
@@ -254,7 +257,14 @@ export const ConverterNodeExecutionResultSchema = z
   .any()
   .describe(
     "The output that converts from the input node and matches the child's input schema",
-  );
+  )
+  .transform((value: any) => {
+    if (typeof value === 'object' || Array.isArray(value)) {
+      return JSON.parse(JSON.stringify(value)); // Ensure deep copy of objects/arrays
+    } else {
+      return value; // For primitive types, return as is
+    }
+  });
 
 export type ConverterNodeExecutionResult = z.infer<
   typeof ConverterNodeExecutionResultSchema
@@ -262,7 +272,9 @@ export type ConverterNodeExecutionResult = z.infer<
 
 export const DiscoverySchema = z.object({
   selectedTools: z.array(z.string()).describe('The selected tools identifiers'),
-  reasoning: z.string().describe('The reasoning for the selected tools'),
+  reasoning: z
+    .string()
+    .describe('The reasoning for the selected tools less than 100 words'),
 });
 
 export const SuggestionSchema = z.object({
@@ -276,17 +288,6 @@ export const SuggestionSchema = z.object({
     .boolean()
     .describe('Whether to skip the tool discovery step'),
 });
-
-export const OnStepSchema = z.object({
-  title: z.string(),
-  type: z.enum(['error', 'info', 'success']),
-  error: z.instanceof(Error).nullable(),
-  toolDiscovery: DiscoverySchema.nullable(),
-  suggestion: SuggestionSchema.nullable(),
-  workflow: z.any().nullable(),
-});
-
-export type OnStep = z.infer<typeof OnStepSchema>;
 
 export const FixedInputSchema = BaseNodeSchema.extend({
   type: z.literal('fixed-input'),
@@ -337,3 +338,39 @@ export type WorkflowOptions = {
 export type ExtraContext = {
   state: Record<string, any>;
 } & Record<string, any>;
+
+// Todo List Schemas
+export const TodoItemSchema = z.object({
+  id: z.string().describe('ID of the todo item'),
+  title: z.string().describe('Title of the todo item'),
+  completed: z
+    .boolean()
+    .default(false)
+    .describe('Whether the todo item is completed'),
+});
+
+export type TodoItem = z.infer<typeof TodoItemSchema>;
+
+export const TodoListAgentResponseSchema = z.object({
+  items: z.array(TodoItemSchema).describe('Array of todo items'),
+});
+
+export type TodoListAgentResponse = z.infer<typeof TodoListAgentResponseSchema>;
+
+export const OnStepSchema = z.object({
+  title: z.string(),
+  type: z.enum(['error', 'info', 'success']),
+  error: z.instanceof(Error).nullable(),
+  toolDiscovery: DiscoverySchema.nullable(),
+  suggestion: SuggestionSchema.nullable(),
+  workflow: z.any().nullable(),
+  todoList: z
+    .object({
+      items: z.array(TodoItemSchema),
+      completedCount: z.number(),
+      totalCount: z.number(),
+    })
+    .nullable(),
+});
+
+export type OnStep = z.infer<typeof OnStepSchema>;

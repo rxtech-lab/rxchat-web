@@ -1,4 +1,12 @@
 import { v4 } from 'uuid';
+import { createJSExecutionEngine } from './engine';
+import {
+  createTestToolExecutionEngine,
+  TestToolExecutionEngine,
+} from './engine/testToolExecutionEngine';
+import { WorkflowReferenceError } from './errors';
+import type { StateClient } from './state/state';
+import { createTestStateClient } from './state/test';
 import type {
   BooleanNode,
   ConditionNode,
@@ -14,13 +22,6 @@ import {
   type ToolExecutionEngine,
   WorkflowEngine,
 } from './workflow-engine';
-import { WorkflowReferenceError } from './errors';
-import {
-  createTestToolExecutionEngine,
-  TestToolExecutionEngine,
-} from './engine/testToolExecutionEngine';
-import { createJSExecutionEngine } from './engine';
-import type { StateClient } from './state/state';
 
 describe('WorkflowEngine', () => {
   let engine: WorkflowEngine;
@@ -224,7 +225,7 @@ describe('WorkflowEngine', () => {
 
       // expect input to be "tools"
       expect(jsCodeExecutionEngine.execute).toHaveBeenCalledWith(
-        { input: 'tools', state: undefined },
+        { input: 'tools', state: undefined, context: expect.anything() },
         'return "tool1";',
         {
           input: 'tools',
@@ -481,6 +482,7 @@ describe('WorkflowEngine', () => {
         {
           input: mockToolResult,
           state: undefined,
+          context: expect.anything(),
         },
         'return { convertedResult: `Processed: ${input.result}`, originalSuccess: input.success };',
         {
@@ -1024,7 +1026,7 @@ describe('WorkflowEngine', () => {
       const result = await engine.execute(workflow, { shouldUseTrue: false });
 
       expect(jsCodeExecutionEngine.execute).toHaveBeenCalledWith(
-        {},
+        expect.anything(),
         'return input.shouldUseTrue;',
         { nodeId: 'boolean-node' },
       );
@@ -1660,6 +1662,331 @@ describe('Workflow Engine with test ToolExecutionEngine', () => {
       await expect(engine.execute(workflow)).rejects.toThrow(
         "Boolean node 'boolean-node' execution failed: Execution failed",
       );
+    });
+
+    it('should be able to execute workflow when boolean node has an input', async () => {
+      const workflow = {
+        title: 'New Workflow',
+        trigger: {
+          type: 'cronjob-trigger',
+          identifier: 'cf796887-f3d0-4236-b5fa-c8d7395c42e4',
+          cron: '*/10 * * * *',
+          child: {
+            identifier: '8a09de05-2c43-444f-bf31-ef9ae2a35a50',
+            type: 'fixed-input',
+            output: { symbol: 'BTCUSDT' },
+            child: {
+              identifier: '33dbba25-3ca7-4bcc-88b4-0fbe3c7273a7',
+              type: 'tool',
+              toolIdentifier: 'binance',
+              child: {
+                identifier: 'bfafba37-3ffa-4319-a9d9-874d6264f0cf',
+                type: 'converter',
+                code: 'async function handle({input, context, state}) { return { message: `BTCUSDT price is ${input.price}`, price: input.price }; }',
+                child: {
+                  identifier: '3670906e-a8e3-41bc-89a7-a13941a01c06',
+                  type: 'boolean',
+                  code: 'async function handle({input, context, state}) { return input.price > 10000; }',
+                  runtime: 'js',
+                  trueChild: {
+                    identifier: '655987fe-8f2a-4cca-aed9-7e41e3e41de5',
+                    type: 'fixed-input',
+                    output: {
+                      chat_id: '{{context.telegramId}}',
+                      message:
+                        'BTCUSDT price is over 10k, current price is {{input.price}}',
+                    },
+                    child: {
+                      identifier: '5e35634b-7797-4972-87f8-f0bc8f87d412',
+                      type: 'tool',
+                      toolIdentifier: 'telegram-bot',
+                      child: {
+                        identifier: '24efd01f-65d1-4e21-963c-8975fed0c631',
+                        type: 'upsert-state',
+                        key: 'hasSent',
+                        value: 'true',
+                        child: null,
+                      },
+                      description:
+                        '\n' +
+                        '\t\tTelegram Bot is a tool that allows you to send messages to Telegram chats.\n' +
+                        '\t\tYou can use this tool to send messages in Markdown format to any chat where the bot has access.\n' +
+                        '\t\t',
+                      inputSchema: {
+                        $id: 'https://github.com/wyt-labs/mcp-router/plugins/telegram-bot/telegram/send-message-input',
+                        $schema: 'https://json-schema.org/draft/2020-12/schema',
+                        additionalProperties: false,
+                        properties: {
+                          chat_id: { description: 'Chat ID', type: 'string' },
+                          message: {
+                            description: 'Message text in markdown format',
+                            type: 'string',
+                          },
+                        },
+                        required: ['message', 'chat_id'],
+                        type: 'object',
+                      },
+                      outputSchema: {
+                        $id: 'https://github.com/wyt-labs/mcp-router/plugins/telegram-bot/telegram/send-message-output',
+                        $schema: 'https://json-schema.org/draft/2020-12/schema',
+                        additionalProperties: false,
+                        properties: {
+                          error: {
+                            description: 'Error message if the request failed',
+                            type: 'string',
+                          },
+                        },
+                        type: 'object',
+                      },
+                    },
+                  },
+                  falseChild: {
+                    identifier: '53fcf660-597b-42ba-ac22-626ec191ed18',
+                    type: 'skip',
+                    child: null,
+                  },
+                },
+                runtime: 'js',
+              },
+              description: 'Get current cryptocurrency prices via Binance API',
+              inputSchema: {
+                $schema: 'https://json-schema.org/draft/2020-12/schema',
+                additionalProperties: false,
+                properties: {
+                  symbol: {
+                    description: 'Trading pair symbol (e.g.',
+                    type: 'string',
+                  },
+                },
+                type: 'object',
+              },
+              outputSchema: {
+                $schema: 'https://json-schema.org/draft/2020-12/schema',
+                additionalProperties: false,
+                properties: {
+                  error: {
+                    description: 'Error message if the request failed',
+                    type: 'string',
+                  },
+                  price: {
+                    description: 'Current price of the trading pair',
+                    type: 'number',
+                  },
+                },
+                required: ['price'],
+                type: 'object',
+              },
+            },
+          },
+        },
+      };
+
+      const testToolExecutionEngine = createTestToolExecutionEngine((tool) => {
+        if (tool === 'telegram-bot') {
+          return {
+            mode: 'test',
+            result: {
+              result: 'success',
+            },
+          };
+        }
+        if (tool === 'binance') {
+          return {
+            mode: 'test',
+            result: {
+              price: 15000,
+            },
+          };
+        }
+        return {
+          mode: 'real',
+        };
+      });
+
+      const workflowEngine = new WorkflowEngine(
+        createJSExecutionEngine(),
+        testToolExecutionEngine,
+        createTestStateClient('e2e'),
+      );
+
+      await workflowEngine.execute(workflow as Workflow, {
+        telegramId: '1234567890',
+      });
+      expect(testToolExecutionEngine.getCallCount('binance')).toBe(1);
+      expect(testToolExecutionEngine.getCallCount('telegram-bot')).toBe(1);
+    });
+
+    it('should be able to send a message to Telegram when boolean node is true', async () => {
+      const workflow = {
+        title: 'New Workflow',
+        trigger: {
+          type: 'cronjob-trigger',
+          identifier: 'f8e357ea-b4fc-4ab0-82b0-96ad314b691e',
+          cron: '*/10 * * * *',
+          child: {
+            identifier: 'f19b07b9-3761-458d-8e83-9f2fff04b9ec',
+            type: 'fixed-input',
+            output: { symbol: 'BTCUSDT' },
+            child: {
+              identifier: '58f1eada-902f-4bd2-84ba-783e37fbaa07',
+              type: 'tool',
+              toolIdentifier: 'binance',
+              child: {
+                identifier: '85836c66-339f-4e6d-ae46-cbb86944f2ce',
+                type: 'converter',
+                code:
+                  '\n' +
+                  'async function handle({input, context, state}) {\n' +
+                  '    return {\n' +
+                  '        message: `BTCUSDT price is ${input.price}`,\n' +
+                  '        price: input.price,\n' +
+                  '    };\n' +
+                  '}\n',
+                child: {
+                  identifier: '835a4c1a-89cc-4b45-adcf-de69f389b562',
+                  type: 'boolean',
+                  code: 'async function handle({input, context, state}) { return input.price > 10000 }',
+                  runtime: 'js',
+                  trueChild: {
+                    identifier: 'e94cdeef-09da-4445-8c9e-0c4ff005d37d',
+                    type: 'boolean',
+                    code: 'async function handle({input, context, state}) { return !state.hasSent }',
+                    runtime: 'js',
+                    trueChild: {
+                      identifier: 'c3fd635b-4c4a-4dab-a344-4d68110d94e5',
+                      type: 'fixed-input',
+                      output: {
+                        chat_id: '{{context.telegramId}}',
+                        message: '{{input.message}}',
+                      },
+                      child: {
+                        identifier: 'a684c976-f39c-4c96-afa1-9992fcc7ca78',
+                        type: 'tool',
+                        toolIdentifier: 'telegram-bot',
+                        child: {
+                          identifier: '42cc9d05-8c6e-4309-86c7-92877e5c3954',
+                          type: 'upsert-state',
+                          key: 'hasSent',
+                          value: 'true',
+                          child: null,
+                        },
+                        description:
+                          '\n' +
+                          '\t\tTelegram Bot is a tool that allows you to send messages to Telegram chats.\n' +
+                          '\t\tYou can use this tool to send messages in Markdown format to any chat where the bot has access.\n' +
+                          '\t\t',
+                        inputSchema: {
+                          $id: 'https://github.com/wyt-labs/mcp-router/plugins/telegram-bot/telegram/send-message-input',
+                          $schema:
+                            'https://json-schema.org/draft/2020-12/schema',
+                          additionalProperties: false,
+                          properties: {
+                            chat_id: { description: 'Chat ID', type: 'string' },
+                            message: {
+                              description: 'Message text in markdown format',
+                              type: 'string',
+                            },
+                          },
+                          required: ['message', 'chat_id'],
+                          type: 'object',
+                        },
+                        outputSchema: {
+                          $id: 'https://github.com/wyt-labs/mcp-router/plugins/telegram-bot/telegram/send-message-output',
+                          $schema:
+                            'https://json-schema.org/draft/2020-12/schema',
+                          additionalProperties: false,
+                          properties: {
+                            error: {
+                              description:
+                                'Error message if the request failed',
+                              type: 'string',
+                            },
+                          },
+                          type: 'object',
+                        },
+                      },
+                    },
+                    falseChild: null,
+                  },
+                  falseChild: {
+                    identifier: 'b6c4bc50-e5ec-463c-8502-a0d0daf191ce',
+                    type: 'upsert-state',
+                    key: 'hasSent',
+                    value: 'false',
+                    child: null,
+                  },
+                },
+                runtime: 'js',
+              },
+              description: 'Get current cryptocurrency prices via Binance API',
+              inputSchema: {
+                $schema: 'https://json-schema.org/draft/2020-12/schema',
+                additionalProperties: false,
+                properties: {
+                  symbol: {
+                    description: 'Trading pair symbol (e.g.',
+                    type: 'string',
+                  },
+                },
+                type: 'object',
+              },
+              outputSchema: {
+                $schema: 'https://json-schema.org/draft/2020-12/schema',
+                additionalProperties: false,
+                properties: {
+                  error: {
+                    description: 'Error message if the request failed',
+                    type: 'string',
+                  },
+                  price: {
+                    description: 'Current price of the trading pair',
+                    type: 'number',
+                  },
+                },
+                required: ['price'],
+                type: 'object',
+              },
+            },
+          },
+        },
+      };
+      const testToolExecutionEngine = createTestToolExecutionEngine((tool) => {
+        if (tool === 'telegram-bot') {
+          return {
+            mode: 'test',
+            result: {
+              result: 'success',
+            },
+          };
+        }
+        if (tool === 'binance') {
+          return {
+            mode: 'test',
+            result: {
+              price: 15000,
+            },
+          };
+        }
+        return {
+          mode: 'real',
+        };
+      });
+
+      const workflowEngine = new WorkflowEngine(
+        createJSExecutionEngine(),
+        testToolExecutionEngine,
+        createTestStateClient('e2e'),
+      );
+
+      await workflowEngine.execute(workflow as Workflow, {
+        telegramId: '1234567890',
+      });
+
+      await workflowEngine.execute(workflow as Workflow, {
+        telegramId: '1234567890',
+      });
+      expect(testToolExecutionEngine.getCallCount('binance')).toBe(2);
+      expect(testToolExecutionEngine.getCallCount('telegram-bot')).toBe(1);
     });
   });
 });

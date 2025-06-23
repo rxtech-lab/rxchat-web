@@ -2,6 +2,7 @@
 
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -9,12 +10,15 @@ import {
   AlertTriangle,
   ArrowRight,
   CheckCircle,
+  ChevronDown,
+  ChevronUp,
   Info,
   Lightbulb,
   Loader2,
   Search,
   Wrench,
 } from 'lucide-react';
+import { useState } from 'react';
 import type { OnStep } from './types';
 import WorkflowView from './workflow-view';
 
@@ -32,6 +36,19 @@ export function OnStepView({
   className,
   showMainInfo,
 }: OnStepViewProps) {
+  // State for collapsed panels
+  const [collapsedPanels, setCollapsedPanels] = useState({
+    toolDiscovery: false,
+    todoList: false,
+    suggestions: false,
+  });
+
+  const togglePanel = (panel: keyof typeof collapsedPanels) => {
+    setCollapsedPanels((prev) => ({
+      ...prev,
+      [panel]: !prev[panel],
+    }));
+  };
   // Get the appropriate icon and color based on step type
   const getStepIcon = () => {
     switch (onStep.type) {
@@ -207,7 +224,10 @@ export function OnStepView({
                     animate="visible"
                     exit="hidden"
                   >
-                    <Alert variant="destructive">
+                    <Alert
+                      variant="destructive"
+                      className="max-h-80 overflow-y-auto"
+                    >
                       <motion.div
                         initial={{ rotate: 0 }}
                         animate={{ rotate: [0, -5, 5, 0] }}
@@ -235,7 +255,7 @@ export function OnStepView({
                             <summary className="cursor-pointer font-medium">
                               View Stack Trace
                             </summary>
-                            <pre className="mt-2 text-xs bg-red-50 p-3 rounded border overflow-auto">
+                            <pre className="mt-2 text-xs bg-red-50 p-3 rounded border overflow-auto max-h-40">
                               {onStep.error.stack}
                             </pre>
                           </motion.details>
@@ -257,79 +277,283 @@ export function OnStepView({
                   >
                     <Card>
                       <CardHeader>
-                        <div className="flex items-center gap-2">
-                          <motion.div
-                            animate={{ rotate: [0, 15, -15, 0] }}
-                            transition={{
-                              duration: 2,
-                              repeat: Number.POSITIVE_INFINITY,
-                            }}
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <motion.div
+                              animate={{ rotate: [0, 15, -15, 0] }}
+                              transition={{
+                                duration: 2,
+                                repeat: Number.POSITIVE_INFINITY,
+                              }}
+                            >
+                              <Search className="size-5 text-indigo-600" />
+                            </motion.div>
+                            <CardTitle className="text-base">
+                              Tool Discovery
+                            </CardTitle>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => togglePanel('toolDiscovery')}
+                            className="p-1"
                           >
-                            <Search className="size-5 text-indigo-600" />
-                          </motion.div>
-                          <CardTitle className="text-base">
-                            Tool Discovery
-                          </CardTitle>
+                            {collapsedPanels.toolDiscovery ? (
+                              <ChevronUp className="size-4" />
+                            ) : (
+                              <ChevronDown className="size-4" />
+                            )}
+                          </Button>
                         </div>
                       </CardHeader>
-                      <CardContent className="space-y-4">
-                        <motion.div
-                          initial={{ opacity: 0, x: -20 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          transition={{ delay: 0.2 }}
-                        >
-                          <h4 className="font-medium text-sm text-gray-700 mb-2">
-                            Reasoning:
-                          </h4>
-                          <p className="text-sm bg-gray-50 p-3 rounded-md">
-                            {onStep.toolDiscovery.reasoning}
-                          </p>
-                        </motion.div>
 
-                        <motion.div
-                          initial={{ opacity: 0, x: -20 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          transition={{ delay: 0.3 }}
-                        >
-                          <h4 className="font-medium text-sm text-gray-700 mb-2">
-                            Selected Tools (
-                            {onStep.toolDiscovery.selectedTools.length}
-                            ):
-                          </h4>
-                          <div className="flex flex-wrap gap-2">
-                            {onStep.toolDiscovery.selectedTools.length > 0 ? (
-                              onStep.toolDiscovery.selectedTools.map(
-                                (tool, index) => (
-                                  <motion.div
-                                    key={tool}
-                                    initial={{ opacity: 0, scale: 0 }}
-                                    animate={{ opacity: 1, scale: 1 }}
-                                    transition={{
-                                      delay: 0.4 + index * 0.1,
-                                      type: 'spring',
-                                      stiffness: 300,
-                                    }}
-                                    whileHover={{ scale: 1.05 }}
-                                    whileTap={{ scale: 0.95 }}
-                                  >
-                                    <Badge
-                                      variant="outline"
-                                      className="flex items-center gap-1"
+                      {/* Collapsed state - show only tool chips */}
+                      {collapsedPanels.toolDiscovery && (
+                        <CardContent className="pt-0">
+                          <motion.div
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: 'auto' }}
+                            exit={{ opacity: 0, height: 0 }}
+                            transition={{ duration: 0.3, ease: 'easeInOut' }}
+                          >
+                            <div className="flex flex-wrap gap-2">
+                              {onStep.toolDiscovery.selectedTools.length > 0 ? (
+                                onStep.toolDiscovery.selectedTools.map(
+                                  (tool, index) => (
+                                    <motion.div
+                                      key={tool}
+                                      initial={{ opacity: 0, scale: 0 }}
+                                      animate={{ opacity: 1, scale: 1 }}
+                                      transition={{
+                                        delay: index * 0.05,
+                                        type: 'spring',
+                                        stiffness: 300,
+                                      }}
                                     >
-                                      <Wrench className="size-3" />
-                                      {tool}
-                                    </Badge>
-                                  </motion.div>
-                                ),
-                              )
-                            ) : (
-                              <span className="text-sm text-gray-500 italic">
-                                No tools selected
-                              </span>
-                            )}
+                                      <Badge
+                                        variant="outline"
+                                        className="flex items-center gap-1"
+                                      >
+                                        <Wrench className="size-3" />
+                                        {tool}
+                                      </Badge>
+                                    </motion.div>
+                                  ),
+                                )
+                              ) : (
+                                <span className="text-sm text-gray-500 italic">
+                                  No tools selected
+                                </span>
+                              )}
+                            </div>
+                          </motion.div>
+                        </CardContent>
+                      )}
+
+                      {/* Expanded state - show full content */}
+                      {!collapsedPanels.toolDiscovery && (
+                        <CardContent className="space-y-4">
+                          <motion.div
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: 'auto' }}
+                            exit={{ opacity: 0, height: 0 }}
+                            transition={{ duration: 0.3, ease: 'easeInOut' }}
+                            className="space-y-4"
+                          >
+                            <motion.div
+                              initial={{ opacity: 0, x: -20 }}
+                              animate={{ opacity: 1, x: 0 }}
+                              transition={{ delay: 0.1 }}
+                            >
+                              <h4 className="font-medium text-sm text-gray-700 mb-2">
+                                Reasoning:
+                              </h4>
+                              <p className="text-sm bg-gray-50 p-3 rounded-md">
+                                {onStep.toolDiscovery.reasoning}
+                              </p>
+                            </motion.div>
+
+                            <motion.div
+                              initial={{ opacity: 0, x: -20 }}
+                              animate={{ opacity: 1, x: 0 }}
+                              transition={{ delay: 0.2 }}
+                            >
+                              <h4 className="font-medium text-sm text-gray-700 mb-2">
+                                Selected Tools (
+                                {onStep.toolDiscovery.selectedTools.length}
+                                ):
+                              </h4>
+                              <div className="flex flex-wrap gap-2">
+                                {onStep.toolDiscovery.selectedTools.length >
+                                0 ? (
+                                  onStep.toolDiscovery.selectedTools.map(
+                                    (tool, index) => (
+                                      <motion.div
+                                        key={tool}
+                                        initial={{ opacity: 0, scale: 0 }}
+                                        animate={{ opacity: 1, scale: 1 }}
+                                        transition={{
+                                          delay: 0.3 + index * 0.1,
+                                          type: 'spring',
+                                          stiffness: 300,
+                                        }}
+                                        whileHover={{ scale: 1.05 }}
+                                        whileTap={{ scale: 0.95 }}
+                                      >
+                                        <Badge
+                                          variant="outline"
+                                          className="flex items-center gap-1"
+                                        >
+                                          <Wrench className="size-3" />
+                                          {tool}
+                                        </Badge>
+                                      </motion.div>
+                                    ),
+                                  )
+                                ) : (
+                                  <span className="text-sm text-gray-500 italic">
+                                    No tools selected
+                                  </span>
+                                )}
+                              </div>
+                            </motion.div>
+                          </motion.div>
+                        </CardContent>
+                      )}
+                    </Card>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              {/* Todo List Display */}
+              <AnimatePresence>
+                {onStep.todoList && (
+                  <motion.div
+                    variants={itemVariants}
+                    initial="hidden"
+                    animate="visible"
+                    exit="hidden"
+                  >
+                    <Card>
+                      <CardHeader>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <motion.div
+                              animate={{
+                                scale: [1, 1.1, 1],
+                                rotate: [0, 5, -5, 0],
+                              }}
+                              transition={{
+                                duration: 2,
+                                repeat: Number.POSITIVE_INFINITY,
+                                ease: 'easeInOut',
+                              }}
+                            >
+                              <Lightbulb className="size-5 text-yellow-600" />
+                            </motion.div>
+                            <CardTitle className="text-base">
+                              Todo List
+                            </CardTitle>
                           </div>
-                        </motion.div>
-                      </CardContent>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => togglePanel('todoList')}
+                            className="p-1"
+                          >
+                            {collapsedPanels.todoList ? (
+                              <ChevronUp className="size-4" />
+                            ) : (
+                              <ChevronDown className="size-4" />
+                            )}
+                          </Button>
+                        </div>
+                      </CardHeader>
+
+                      {/* Collapsed state - show only completion count */}
+                      {collapsedPanels.todoList && (
+                        <CardContent className="pt-0">
+                          <motion.div
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: 'auto' }}
+                            exit={{ opacity: 0, height: 0 }}
+                            transition={{ duration: 0.3, ease: 'easeInOut' }}
+                          >
+                            <div className="flex items-center gap-2">
+                              <Badge
+                                variant="secondary"
+                                className="text-sm font-medium"
+                              >
+                                {onStep.todoList.completedCount}/
+                                {onStep.todoList.totalCount}
+                              </Badge>
+                              <span className="text-sm text-gray-600">
+                                {onStep.todoList.completedCount ===
+                                onStep.todoList.totalCount
+                                  ? 'All tasks completed'
+                                  : `${onStep.todoList.totalCount - onStep.todoList.completedCount} tasks remaining`}
+                              </span>
+                            </div>
+                          </motion.div>
+                        </CardContent>
+                      )}
+
+                      {/* Expanded state - show full todo list */}
+                      {!collapsedPanels.todoList && (
+                        <CardContent className="space-y-4">
+                          <motion.div
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: 'auto' }}
+                            exit={{ opacity: 0, height: 0 }}
+                            transition={{ duration: 0.3, ease: 'easeInOut' }}
+                            className="space-y-4"
+                          >
+                            <motion.div
+                              initial={{ opacity: 0, y: 20 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              transition={{ delay: 0.1 }}
+                            >
+                              <div className="flex items-center justify-between mb-3">
+                                <h4 className="font-medium text-sm text-gray-700">
+                                  Todo Items:
+                                </h4>
+                                <Badge variant="secondary" className="text-sm">
+                                  {onStep.todoList.completedCount}/
+                                  {onStep.todoList.totalCount}
+                                </Badge>
+                              </div>
+                              <div className="space-y-2">
+                                {onStep.todoList.items.map((item, index) => (
+                                  <motion.div
+                                    key={item.id}
+                                    initial={{ opacity: 0, x: -20 }}
+                                    animate={{ opacity: 1, x: 0 }}
+                                    transition={{ delay: 0.2 + index * 0.1 }}
+                                    className={`flex items-center gap-3 p-3 rounded-md ${
+                                      item.completed
+                                        ? 'bg-green-50 border border-green-200'
+                                        : 'bg-gray-50 border border-gray-200'
+                                    }`}
+                                  >
+                                    <div className="text-lg">
+                                      {item.completed ? '✅' : '❌'}
+                                    </div>
+                                    <span
+                                      className={`text-sm flex-1 ${
+                                        item.completed
+                                          ? 'text-green-800 line-through'
+                                          : 'text-gray-700'
+                                      }`}
+                                    >
+                                      {item.title}
+                                    </span>
+                                  </motion.div>
+                                ))}
+                              </div>
+                            </motion.div>
+                          </motion.div>
+                        </CardContent>
+                      )}
                     </Card>
                   </motion.div>
                 )}
@@ -346,66 +570,130 @@ export function OnStepView({
                   >
                     <Card>
                       <CardHeader>
-                        <div className="flex items-center gap-2">
-                          <motion.div
-                            animate={{
-                              scale: [1, 1.1, 1],
-                              rotate: [0, 5, -5, 0],
-                            }}
-                            transition={{
-                              duration: 2,
-                              repeat: Number.POSITIVE_INFINITY,
-                              ease: 'easeInOut',
-                            }}
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <motion.div
+                              animate={{
+                                scale: [1, 1.1, 1],
+                                rotate: [0, 5, -5, 0],
+                              }}
+                              transition={{
+                                duration: 2,
+                                repeat: Number.POSITIVE_INFINITY,
+                                ease: 'easeInOut',
+                              }}
+                            >
+                              <Lightbulb className="size-5 text-yellow-600" />
+                            </motion.div>
+                            <CardTitle className="text-base">
+                              Suggestions
+                            </CardTitle>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => togglePanel('suggestions')}
+                            className="p-1"
                           >
-                            <Lightbulb className="size-5 text-yellow-600" />
-                          </motion.div>
-                          <CardTitle className="text-base">
-                            Suggestions
-                          </CardTitle>
+                            {collapsedPanels.suggestions ? (
+                              <ChevronUp className="size-4" />
+                            ) : (
+                              <ChevronDown className="size-4" />
+                            )}
+                          </Button>
                         </div>
                       </CardHeader>
-                      <CardContent className="space-y-4">
-                        {onStep.suggestion.modifications &&
-                          onStep.suggestion.modifications.length > 0 && (
-                            <motion.div
-                              initial={{ opacity: 0, y: 20 }}
-                              animate={{ opacity: 1, y: 0 }}
-                              transition={{ delay: 0.4 }}
-                            >
-                              <h4 className="font-medium text-sm text-gray-700 mb-2">
-                                Modifications:
-                              </h4>
-                              <ul className="space-y-2">
-                                {onStep.suggestion.modifications.map(
-                                  (modification, index) => (
-                                    <motion.li
-                                      key={`modification-${index}-${modification.substring(0, 50)}`}
-                                      initial={{ opacity: 0, x: -20 }}
-                                      animate={{ opacity: 1, x: 0 }}
-                                      transition={{ delay: 0.5 + index * 0.1 }}
-                                      className="flex items-start gap-2"
-                                    >
-                                      <motion.div
-                                        animate={{ x: [0, 3, 0] }}
-                                        transition={{
-                                          duration: 1.5,
-                                          repeat: Number.POSITIVE_INFINITY,
-                                          delay: index * 0.2,
-                                        }}
-                                      >
-                                        <ArrowRight className="size-4 text-gray-400 mt-0.5 shrink-0" />
-                                      </motion.div>
-                                      <span className="text-sm bg-blue-50 p-2 rounded border">
-                                        {modification}
-                                      </span>
-                                    </motion.li>
-                                  ),
+
+                      {/* Collapsed state - show only modification count */}
+                      {collapsedPanels.suggestions && (
+                        <CardContent className="pt-0">
+                          <motion.div
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: 'auto' }}
+                            exit={{ opacity: 0, height: 0 }}
+                            transition={{ duration: 0.3, ease: 'easeInOut' }}
+                          >
+                            <div className="flex items-center gap-2">
+                              <Badge
+                                variant="secondary"
+                                className="text-sm font-medium"
+                              >
+                                {onStep.suggestion.modifications?.length || 0}{' '}
+                                modifications
+                              </Badge>
+                              {onStep.suggestion.modifications &&
+                                onStep.suggestion.modifications.length > 0 && (
+                                  <span className="text-sm text-gray-600">
+                                    Workflow changes suggested
+                                  </span>
                                 )}
-                              </ul>
-                            </motion.div>
-                          )}
-                      </CardContent>
+                            </div>
+                          </motion.div>
+                        </CardContent>
+                      )}
+
+                      {/* Expanded state - show full suggestions */}
+                      {!collapsedPanels.suggestions && (
+                        <CardContent className="space-y-4">
+                          <motion.div
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: 'auto' }}
+                            exit={{ opacity: 0, height: 0 }}
+                            transition={{ duration: 0.3, ease: 'easeInOut' }}
+                            className="space-y-4"
+                          >
+                            {onStep.suggestion.modifications &&
+                              onStep.suggestion.modifications.length > 0 && (
+                                <motion.div
+                                  initial={{ opacity: 0, y: 20 }}
+                                  animate={{ opacity: 1, y: 0 }}
+                                  transition={{ delay: 0.1 }}
+                                >
+                                  <div className="flex items-center justify-between mb-3">
+                                    <h4 className="font-medium text-sm text-gray-700">
+                                      Modifications:
+                                    </h4>
+                                    <Badge
+                                      variant="secondary"
+                                      className="text-sm"
+                                    >
+                                      {onStep.suggestion.modifications.length}
+                                    </Badge>
+                                  </div>
+                                  <ul className="space-y-2">
+                                    {onStep.suggestion.modifications.map(
+                                      (modification, index) => (
+                                        <motion.li
+                                          key={`modification-${index}-${modification.substring(0, 50)}`}
+                                          initial={{ opacity: 0, x: -20 }}
+                                          animate={{ opacity: 1, x: 0 }}
+                                          transition={{
+                                            delay: 0.2 + index * 0.1,
+                                          }}
+                                          className="flex items-start gap-2"
+                                        >
+                                          <motion.div
+                                            animate={{ x: [0, 3, 0] }}
+                                            transition={{
+                                              duration: 1.5,
+                                              repeat: Number.POSITIVE_INFINITY,
+                                              delay: index * 0.2,
+                                            }}
+                                          >
+                                            <ArrowRight className="size-4 text-gray-400 mt-0.5 shrink-0" />
+                                          </motion.div>
+                                          <span className="text-sm bg-blue-50 p-2 rounded border">
+                                            {modification}
+                                          </span>
+                                        </motion.li>
+                                      ),
+                                    )}
+                                  </ul>
+                                </motion.div>
+                              )}
+                          </motion.div>
+                        </CardContent>
+                      )}
                     </Card>
                   </motion.div>
                 )}

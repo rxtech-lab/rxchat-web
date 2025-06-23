@@ -2715,6 +2715,9 @@ describe('Workflow', () => {
 
       expect(foundTrueChild?.identifier).toBe('true-tool');
       expect(foundFalseChild?.identifier).toBe('false-tool');
+
+      const structure = workflow.toViewableString();
+      expect(structure).toContain('BooleanNode (test-boolean)');
     });
 
     it('should remove true child from boolean node', () => {

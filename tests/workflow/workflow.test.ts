@@ -3,13 +3,14 @@ import { createTestToolExecutionEngine } from '@/lib/workflow/engine/testToolExe
 import { WorkflowReferenceError } from '@/lib/workflow/errors';
 import { createStateClient } from '@/lib/workflow/state';
 import { createTestStateClient } from '@/lib/workflow/state/test';
-import type {
-  BooleanNode,
-  ConverterNode,
-  FixedInput,
-  SkipNode,
-  ToolNode,
-  UpsertStateNode,
+import {
+  WorkflowSchema,
+  type BooleanNode,
+  type ConverterNode,
+  type FixedInput,
+  type SkipNode,
+  type ToolNode,
+  type UpsertStateNode,
 } from '@/lib/workflow/types';
 import { WorkflowEngine } from '@/lib/workflow/workflow-engine';
 import { expect, test } from '@playwright/test';
@@ -297,9 +298,12 @@ test.describe('workflow', () => {
                 child: {
                   identifier: v4(),
                   type: 'boolean',
+                  runtime: 'js',
                   code: `async function handle(input) { return parseInt(input.input.price) > 100; }`,
                   trueChild: {
+                    identifier: v4(),
                     type: 'boolean',
+                    runtime: 'js',
                     code: `async function handle(input) { return !input.state['hasSent'] }`,
                     trueChild: {
                       identifier: v4(),
@@ -338,6 +342,8 @@ test.describe('workflow', () => {
 
     test('should be able to conditionally send message to telegram', async () => {
       const stateClient = createTestStateClient('e2e');
+      const parsedWorkflow = WorkflowSchema.safeParse(workflow);
+      expect(parsedWorkflow.success).toBe(true);
 
       const testToolExecutionEngine = createTestToolExecutionEngine((tool) => {
         if (tool === 'telegram-bot') {
@@ -375,9 +381,14 @@ test.describe('workflow', () => {
 
       // since the price is 100, the boolean node will return true
       // then send message to telegram
-      expect(
-        testToolExecutionEngine.getCallCount('telegram-bot'),
-      ).toBeGreaterThan(0);
+      expect(testToolExecutionEngine.getCallCount('telegram-bot')).toBe(1);
+
+      // execute the workflow again will not send message to telegram
+      await workflowEngine.execute(workflow, {
+        telegramId: '1234567890',
+      });
+
+      expect(testToolExecutionEngine.getCallCount('telegram-bot')).toBe(1);
     });
 
     test('should not be able to conditionally send message to telegram', async () => {
@@ -417,8 +428,6 @@ test.describe('workflow', () => {
         telegramId: '1234567890',
       });
 
-      // since the price is 100, the boolean node will return true
-      // then send message to telegram
       expect(testToolExecutionEngine.getCallCount('telegram-bot')).toBe(0);
     });
 
@@ -464,6 +473,123 @@ test.describe('workflow', () => {
       // then send message to telegram
       expect(testToolExecutionEngine.getCallCount('telegram-bot')).toBe(0);
       expect(await stateClient.getState('hasSent')).toBe(false);
+    });
+  });
+
+  test.describe('node without false boolean child', () => {
+    const skipNode: SkipNode = {
+      identifier: v4(),
+      type: 'skip',
+      child: null,
+    };
+
+    const workflow = {
+      title: 'New Workflow',
+      trigger: {
+        type: 'cronjob-trigger',
+        identifier: v4(),
+        cron: '*/10 * * * *',
+        child: {
+          identifier: v4(),
+          type: 'fixed-input',
+          output: {
+            symbol: 'BTCUSDT',
+          },
+          child: {
+            identifier: v4(),
+            type: 'tool',
+            toolIdentifier: 'binance',
+            child: {
+              identifier: v4(),
+              type: 'converter',
+              code: 'async function handle(input) { return { message: `BTCUSDT price is ${input.input.price}`, price: input.input.price }; }',
+              child: {
+                identifier: v4(),
+                type: 'fixed-input',
+                output: {
+                  chat_id: '{{context.telegramId}}',
+                  message: '{{input.message}}',
+                  price: '{{input.price}}',
+                },
+                child: {
+                  identifier: v4(),
+                  type: 'boolean',
+                  runtime: 'js',
+                  code: `async function handle(input) { return parseInt(input.input.price) > 100; }`,
+                  trueChild: {
+                    identifier: v4(),
+                    type: 'boolean',
+                    runtime: 'js',
+                    code: `async function handle(input) { return !input.state['hasSent'] }`,
+                    trueChild: {
+                      identifier: v4(),
+                      type: 'tool',
+                      toolIdentifier: 'telegram-bot',
+                      child: {
+                        identifier: v4(),
+                        type: 'upsert-state',
+                        key: 'hasSent',
+                        value: true,
+                        child: skipNode,
+                      } as UpsertStateNode,
+                      description: '\n\t\tTelegram Bot',
+                      inputSchema: {},
+                      outputSchema: {},
+                    },
+                    falseChild: skipNode,
+                  } as BooleanNode,
+                } as BooleanNode,
+              },
+              runtime: 'js',
+            },
+            description: 'Access cryptocurrency price data via Binance API',
+            inputSchema: {},
+          },
+        },
+      },
+    } as any;
+
+    test('should be able to execute the workflow', async () => {
+      const stateClient = createTestStateClient('e2e');
+      const parsedWorkflow = WorkflowSchema.safeParse(workflow);
+      console.log(parsedWorkflow.error);
+      expect(parsedWorkflow.success).toBe(true);
+
+      const testToolExecutionEngine = createTestToolExecutionEngine((tool) => {
+        if (tool === 'telegram-bot') {
+          return {
+            mode: 'test',
+            result: {
+              result: 'success',
+            },
+          };
+        }
+
+        if (tool === 'binance') {
+          return {
+            mode: 'test',
+            result: {
+              price: 50,
+            },
+          };
+        }
+
+        return {
+          mode: 'real',
+        };
+      });
+
+      const workflowEngine = new WorkflowEngine(
+        createJSExecutionEngine(),
+        testToolExecutionEngine,
+        stateClient,
+      );
+
+      await workflowEngine.execute(workflow, {
+        telegramId: '1234567890',
+      });
+
+      expect(testToolExecutionEngine.getCallCount('telegram-bot')).toBe(0);
     });
   });
 });

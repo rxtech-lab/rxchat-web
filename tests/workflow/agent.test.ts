@@ -14,7 +14,7 @@ test.beforeEach(async ({ page }, testInfo) => {
   if (isUsingLmStudio) {
     testInfo.setTimeout(testInfo.timeout + 200_000);
   } else {
-    testInfo.setTimeout(testInfo.timeout + 100_000);
+    testInfo.setTimeout(testInfo.timeout + 200_000);
   }
 });
 
@@ -93,5 +93,65 @@ test.describe('agent integration test', () => {
     const args = testToolExecutionEngine.getCallArgs('telegram-bot');
     expect(args.chat_id).toBe('1234567890');
     expect(args.message).not.toBe('BTCUSDT price is undefined');
+  });
+
+  test.describe('conditional workflow', () => {
+    test('should be able to create a conditional workflow when btc is over 10k once', async () => {
+      test.slow();
+      const workflow = await agent(
+        'Create a workflow to fetch BTCUSDT price every 10 minutes and then send a notification using telegram if the price is over 10k',
+        null,
+        null,
+        undefined,
+        (step) => {
+          console.log(step.title);
+        },
+      );
+      expect(workflow?.workflow).toBeDefined();
+
+      console.dir(workflow, { depth: null });
+
+      const testToolExecutionEngine = createTestToolExecutionEngine((tool) => {
+        if (tool === 'telegram-bot') {
+          return {
+            mode: 'test',
+            result: {
+              result: 'success',
+            },
+          };
+        }
+
+        if (tool === 'binance') {
+          return {
+            mode: 'test',
+            result: {
+              price: 1000000,
+            },
+          };
+        }
+        return {
+          mode: 'real',
+        };
+      });
+      const workflowEngine = new WorkflowEngine(
+        createJSExecutionEngine(),
+        testToolExecutionEngine,
+        createTestStateClient('e2e'),
+      );
+
+      // execute the workflow twice will only trigger the telegram bot once
+      await workflowEngine.execute(workflow.workflow, {
+        telegramId: '1234567890',
+      });
+
+      await workflowEngine.execute(workflow.workflow, {
+        telegramId: '1234567890',
+      });
+
+      expect(testToolExecutionEngine.getCallCount('telegram-bot')).toBe(1);
+      const args = testToolExecutionEngine.getCallArgs('telegram-bot');
+      expect(args.chat_id).toBe('1234567890');
+      expect(args.message).not.toBe('BTCUSDT price is undefined');
+    });
   });
 });
