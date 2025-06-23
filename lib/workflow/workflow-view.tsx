@@ -25,6 +25,7 @@ import { Clock, Code, Eye, GitBranch, Wrench, Zap } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import type {
   BaseNode,
+  BooleanNode,
   ConditionNode,
   ConverterNode,
   CronjobTriggerNode,
@@ -37,6 +38,7 @@ import type {
 // Union type for all possible workflow nodes
 type WorkflowNode =
   | ToolNode
+  | BooleanNode
   | ConditionNode
   | ConverterNode
   | TriggerNode
@@ -137,6 +139,104 @@ const ConditionNodeComponent = ({ data }: { data: ConditionNode }) => (
     </div>
   </div>
 );
+
+const BooleanNodeComponent = ({ data }: { data: BooleanNode }) => {
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+
+  return (
+    <div
+      className={cn(
+        'px-4 py-3 rounded-lg border-2 min-w-[200px]',
+        'bg-indigo-50 border-indigo-300 shadow-md',
+      )}
+    >
+      <Handle type="target" position={Position.Top} />
+      <Handle
+        type="source"
+        position={Position.Bottom}
+        id="true"
+        style={{ left: '25%' }}
+      />
+      <Handle
+        type="source"
+        position={Position.Bottom}
+        id="false"
+        style={{ left: '75%' }}
+      />
+      <div className="flex items-center gap-2 mb-1">
+        <GitBranch className="size-4 text-indigo-600" />
+        <span className="font-semibold text-indigo-800">Boolean</span>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="ml-auto p-1 size-6 text-indigo-600 hover:text-indigo-800 hover:bg-indigo-100 z-10 relative"
+          onClick={(e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            setIsDialogOpen(true);
+          }}
+          onMouseDown={(e) => {
+            e.stopPropagation();
+          }}
+        >
+          <Eye className="size-3" />
+        </Button>
+        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <DialogContent className="max-w-4xl max-h-[80vh] overflow-hidden">
+            <DialogHeader>
+              <DialogTitle>Boolean Code - {data.identifier}</DialogTitle>
+            </DialogHeader>
+            <div className="flex flex-col gap-2">
+              <div className="text-sm text-gray-600">
+                Runtime:{' '}
+                <span className="font-mono bg-gray-100 px-1 rounded">
+                  {data.runtime}
+                </span>
+              </div>
+              <div
+                className="border rounded-lg overflow-hidden"
+                style={{ height: '400px' }}
+              >
+                <Editor
+                  height="400px"
+                  language="typescript"
+                  theme="vs-light"
+                  value={data.code}
+                  options={{
+                    readOnly: true,
+                    minimap: { enabled: true },
+                    fontSize: 14,
+                    lineNumbers: 'on',
+                    scrollBeyondLastLine: false,
+                    automaticLayout: true,
+                    wordWrap: 'on',
+                  }}
+                />
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      </div>
+      <div className="text-sm text-indigo-700">
+        <div className="flex justify-between items-center mb-1">
+          <span className="text-xs font-medium text-green-600">TRUE</span>
+          <span className="text-xs font-medium text-red-600">FALSE</span>
+        </div>
+        <div>
+          Code:{' '}
+          <span className="font-mono bg-indigo-100 px-1 rounded text-xs">
+            {data.code.length > 15
+              ? `${data.code.substring(0, 15)}...`
+              : data.code}
+          </span>
+        </div>
+        <div className="text-xs text-indigo-600 mt-1">
+          ID: {data.identifier}
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const ConverterNodeComponent = ({ data }: { data: ConverterNode }) => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -333,6 +433,7 @@ const nodeTypes = {
   trigger: TriggerNodeComponent,
   'cronjob-trigger': TriggerNodeComponent,
   tool: ToolNodeComponent,
+  boolean: BooleanNodeComponent,
   condition: ConditionNodeComponent,
   converter: ConverterNodeComponent,
   'fixed-input': FixedInputNodeComponent,
@@ -410,6 +511,10 @@ export default function WorkflowView({
           // Base + tool info + ID
           return baseHeight + lineHeight;
 
+        case 'boolean':
+          // Base + true/false labels + code preview + ID
+          return baseHeight + lineHeight * 2;
+
         case 'condition':
           // Base + runtime + children count + ID
           return baseHeight + lineHeight * 2;
@@ -485,8 +590,81 @@ export default function WorkflowView({
         }
       }
 
+      // Handle boolean node with trueChild and falseChild
+      if (
+        node.type === 'boolean' &&
+        'trueChild' in node &&
+        'falseChild' in node
+      ) {
+        const booleanNode = node as BooleanNode;
+        let maxChildYPosition = nextYPosition;
+
+        // Handle true child (left side)
+        if (booleanNode.trueChild) {
+          edges.push({
+            id: `${node.identifier}-true-${booleanNode.trueChild.identifier}`,
+            source: node.identifier,
+            sourceHandle: 'true',
+            target: booleanNode.trueChild.identifier,
+            type: 'straight',
+            animated: true,
+            label: 'TRUE',
+            labelStyle: { fill: '#059669', fontWeight: 600 },
+            labelBgStyle: { fill: '#ecfdf5' },
+          });
+
+          const trueChildYPosition = processNode(
+            booleanNode.trueChild as WorkflowNode,
+            nextYPosition,
+            visited,
+          );
+
+          // Position true child to the left
+          const trueChildNodeIndex = nodes.findIndex(
+            (n) => n.id === booleanNode.trueChild?.identifier,
+          );
+          if (trueChildNodeIndex !== -1) {
+            nodes[trueChildNodeIndex].position.x = -150;
+          }
+
+          maxChildYPosition = Math.max(maxChildYPosition, trueChildYPosition);
+        }
+
+        // Handle false child (right side)
+        if (booleanNode.falseChild) {
+          edges.push({
+            id: `${node.identifier}-false-${booleanNode.falseChild.identifier}`,
+            source: node.identifier,
+            sourceHandle: 'false',
+            target: booleanNode.falseChild.identifier,
+            type: 'straight',
+            animated: true,
+            label: 'FALSE',
+            labelStyle: { fill: '#dc2626', fontWeight: 600 },
+            labelBgStyle: { fill: '#fef2f2' },
+          });
+
+          const falseChildYPosition = processNode(
+            booleanNode.falseChild as WorkflowNode,
+            nextYPosition,
+            visited,
+          );
+
+          // Position false child to the right
+          const falseChildNodeIndex = nodes.findIndex(
+            (n) => n.id === booleanNode.falseChild?.identifier,
+          );
+          if (falseChildNodeIndex !== -1) {
+            nodes[falseChildNodeIndex].position.x = 150;
+          }
+
+          maxChildYPosition = Math.max(maxChildYPosition, falseChildYPosition);
+        }
+
+        nextYPosition = maxChildYPosition;
+      }
       // Handle children (array) - for ConditionNode
-      if ('children' in node && Array.isArray(node.children)) {
+      else if ('children' in node && Array.isArray(node.children)) {
         let maxChildYPosition = nextYPosition;
 
         node.children.forEach((child, index) => {

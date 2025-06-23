@@ -36,7 +36,10 @@ export const RegularNodeSchema = BaseNodeSchema.extend({
       z.lazy((): any => ToolNodeSchema),
       z.lazy((): any => ConverterNodeSchema),
       z.lazy((): any => ConditionNodeSchema),
+      z.lazy((): any => BooleanNodeSchema),
       z.lazy((): any => FixedInputSchema),
+      z.lazy((): any => UpsertStateNodeSchema),
+      z.lazy((): any => SkipNodeSchema),
     ])
     .nullable()
     .describe('child node of the current node'),
@@ -53,7 +56,10 @@ export const ConditionalNodeSchema = BaseNodeSchema.extend({
           ToolNodeSchema,
           ConverterNodeSchema,
           ConditionNodeSchema,
+          BooleanNodeSchema,
           FixedInputSchema,
+          UpsertStateNodeSchema,
+          SkipNodeSchema,
         ]),
       ),
     )
@@ -85,7 +91,10 @@ export const ConditionNodeSchema = ConditionalNodeSchema.extend({
           ToolNodeSchema,
           ConverterNodeSchema,
           ConditionNodeSchema,
+          BooleanNodeSchema,
           FixedInputSchema,
+          UpsertStateNodeSchema,
+          SkipNodeSchema,
         ]),
       ),
     )
@@ -94,6 +103,46 @@ export const ConditionNodeSchema = ConditionalNodeSchema.extend({
 }).strict();
 
 export type ConditionNode = z.infer<typeof ConditionNodeSchema>;
+
+/**
+ * Boolean node is a simplified condition node that evaluates to true/false
+ * and has exactly two child nodes: trueChild and falseChild
+ */
+export const BooleanNodeSchema = BaseNodeSchema.extend({
+  type: z.literal('boolean'),
+  runtime: z.literal('js'),
+  code: z.string().describe('JavaScript code that evaluates to a boolean'),
+  trueChild: z
+    .lazy((): any =>
+      z.union([
+        ToolNodeSchema,
+        ConverterNodeSchema,
+        ConditionNodeSchema,
+        BooleanNodeSchema,
+        FixedInputSchema,
+        UpsertStateNodeSchema,
+        SkipNodeSchema,
+      ]),
+    )
+    .nullable()
+    .describe('child node to execute when condition is true'),
+  falseChild: z
+    .lazy((): any =>
+      z.union([
+        ToolNodeSchema,
+        ConverterNodeSchema,
+        ConditionNodeSchema,
+        BooleanNodeSchema,
+        FixedInputSchema,
+        UpsertStateNodeSchema,
+        SkipNodeSchema,
+      ]),
+    )
+    .nullable()
+    .describe('child node to execute when condition is false'),
+}).strict();
+
+export type BooleanNode = z.infer<typeof BooleanNodeSchema>;
 
 /**
  * Tool node can only have one parent and one child
@@ -131,6 +180,8 @@ export const TriggerNodeSchema = BaseNodeSchema.extend({
         ConverterNodeSchema,
         ConditionNodeSchema,
         FixedInputSchema,
+        UpsertStateNodeSchema,
+        SkipNodeSchema,
       ]),
     )
     .nullable(),
@@ -191,6 +242,14 @@ export type ConditionNodeExecutionResult = z.infer<
   typeof ConditionNodeExecutionResultSchema
 >;
 
+export const BooleanNodeExecutionResultSchema = z
+  .boolean()
+  .describe('The boolean result that determines which child node to execute');
+
+export type BooleanNodeExecutionResult = z.infer<
+  typeof BooleanNodeExecutionResultSchema
+>;
+
 export const ConverterNodeExecutionResultSchema = z
   .any()
   .describe(
@@ -237,7 +296,10 @@ export const FixedInputSchema = BaseNodeSchema.extend({
       z.lazy((): any => ToolNodeSchema),
       z.lazy((): any => ConverterNodeSchema),
       z.lazy((): any => ConditionNodeSchema),
+      z.lazy((): any => BooleanNodeSchema),
       z.lazy((): any => FixedInputSchema),
+      z.lazy((): any => UpsertStateNodeSchema),
+      z.lazy((): any => SkipNodeSchema),
     ])
     .nullable()
     .describe('child node of the current node'),
@@ -247,7 +309,31 @@ export const FixedInputSchema = BaseNodeSchema.extend({
 
 export type FixedInput = z.infer<typeof FixedInputSchema>;
 
+/**
+ * Upsert state node that stores a key-value pair and outputs the value
+ */
+export const UpsertStateNodeSchema = RegularNodeSchema.extend({
+  type: z.literal('upsert-state'),
+  key: z.string().describe('The key to store in the state store'),
+  value: z.any().describe('The value to store in the state store'),
+}).strict();
+
+export type UpsertStateNode = z.infer<typeof UpsertStateNodeSchema>;
+
+/**
+ * Skip node that terminates workflow execution and returns whatever output it receives
+ */
+export const SkipNodeSchema = RegularNodeSchema.extend({
+  type: z.literal('skip'),
+}).strict();
+
+export type SkipNode = z.infer<typeof SkipNodeSchema>;
+
 export type WorkflowOptions = {
   toolExecutionEngine?: ToolExecutionEngine;
   jsExecutionEngine?: JSCodeExecutionEngine;
 };
+
+export type ExtraContext = {
+  state: Record<string, any>;
+} & Record<string, any>;

@@ -1,7 +1,16 @@
 import { createJSExecutionEngine } from '@/lib/workflow/engine';
 import { createTestToolExecutionEngine } from '@/lib/workflow/engine/testToolExecutionEngine';
 import { WorkflowReferenceError } from '@/lib/workflow/errors';
-import type { ConverterNode, FixedInput, ToolNode } from '@/lib/workflow/types';
+import { createStateClient } from '@/lib/workflow/state';
+import { createTestStateClient } from '@/lib/workflow/state/test';
+import type {
+  BooleanNode,
+  ConverterNode,
+  FixedInput,
+  SkipNode,
+  ToolNode,
+  UpsertStateNode,
+} from '@/lib/workflow/types';
 import { WorkflowEngine } from '@/lib/workflow/workflow-engine';
 import { expect, test } from '@playwright/test';
 import { v4 } from 'uuid';
@@ -32,7 +41,7 @@ test.describe('workflow', () => {
               code: `
                 async function handle(input) {
                   return {
-                    message: \`BTCUSDT price is \${input.price}\`,
+                    message: \`BTCUSDT price is \${input.input.price}\`,
                   };
                 }
               `,
@@ -74,6 +83,7 @@ test.describe('workflow', () => {
     const workflowEngine = new WorkflowEngine(
       createJSExecutionEngine(),
       testToolExecutionEngine,
+      createTestStateClient('e2e'),
     );
 
     await workflowEngine.execute(workflow as any, {
@@ -109,7 +119,7 @@ test.describe('workflow', () => {
             child: {
               identifier: '4b7603bc-44fe-41ea-b96f-a6cfdf5d826d',
               type: 'converter',
-              code: 'async function handle(input) { return { message: `BTCUSDT price is ${input.price}` }; }',
+              code: 'async function handle(input) { return { message: `BTCUSDT price is ${input.input.price}` }; }',
               child: {
                 identifier: 'f461d1b3-ed2a-40e3-826e-2e581da3dd5a',
                 type: 'fixed-input',
@@ -153,6 +163,7 @@ test.describe('workflow', () => {
     const workflowEngine = new WorkflowEngine(
       createJSExecutionEngine(),
       testToolExecutionEngine,
+      createTestStateClient('e2e'),
     );
 
     await workflowEngine.execute(workflow, {
@@ -232,12 +243,227 @@ test.describe('workflow', () => {
     const workflowEngine = new WorkflowEngine(
       createJSExecutionEngine(),
       testToolExecutionEngine,
+      createStateClient('e2e'),
     );
 
     expect(() =>
       workflowEngine.execute(workflow, {
         telegramId: null,
       }),
-    ).rejects.toThrow(new WorkflowReferenceError('context', 'telegramId'));
+    ).rejects.toThrow(
+      new WorkflowReferenceError(
+        'context',
+        'telegramId',
+        '265da7c0-3b7d-4a24-ae80-31942ccfffef',
+      ),
+    );
+  });
+
+  test.describe('conditional node', () => {
+    const skipNode: SkipNode = {
+      identifier: v4(),
+      type: 'skip',
+      child: null,
+    };
+
+    const workflow = {
+      title: 'New Workflow',
+      trigger: {
+        type: 'cronjob-trigger',
+        identifier: v4(),
+        cron: '*/10 * * * *',
+        child: {
+          identifier: v4(),
+          type: 'fixed-input',
+          output: {
+            symbol: 'BTCUSDT',
+          },
+          child: {
+            identifier: v4(),
+            type: 'tool',
+            toolIdentifier: 'binance',
+            child: {
+              identifier: v4(),
+              type: 'converter',
+              code: 'async function handle(input) { return { message: `BTCUSDT price is ${input.input.price}`, price: input.input.price }; }',
+              child: {
+                identifier: v4(),
+                type: 'fixed-input',
+                output: {
+                  chat_id: '{{context.telegramId}}',
+                  message: '{{input.message}}',
+                  price: '{{input.price}}',
+                },
+                child: {
+                  identifier: v4(),
+                  type: 'boolean',
+                  code: `async function handle(input) { return parseInt(input.input.price) > 100; }`,
+                  trueChild: {
+                    type: 'boolean',
+                    code: `async function handle(input) { return !input.state['hasSent'] }`,
+                    trueChild: {
+                      identifier: v4(),
+                      type: 'tool',
+                      toolIdentifier: 'telegram-bot',
+                      child: {
+                        identifier: v4(),
+                        type: 'upsert-state',
+                        key: 'hasSent',
+                        value: true,
+                        child: skipNode,
+                      } as UpsertStateNode,
+                      description: '\n\t\tTelegram Bot',
+                      inputSchema: {},
+                      outputSchema: {},
+                    },
+                    falseChild: skipNode,
+                  } as BooleanNode,
+                  falseChild: {
+                    identifier: v4(),
+                    type: 'upsert-state',
+                    key: 'hasSent',
+                    value: false,
+                    child: skipNode,
+                  } as UpsertStateNode,
+                } as BooleanNode,
+              },
+              runtime: 'js',
+            },
+            description: 'Access cryptocurrency price data via Binance API',
+            inputSchema: {},
+          },
+        },
+      },
+    } as any;
+
+    test('should be able to conditionally send message to telegram', async () => {
+      const stateClient = createTestStateClient('e2e');
+
+      const testToolExecutionEngine = createTestToolExecutionEngine((tool) => {
+        if (tool === 'telegram-bot') {
+          return {
+            mode: 'test',
+            result: {
+              result: 'success',
+            },
+          };
+        }
+
+        if (tool === 'binance') {
+          return {
+            mode: 'test',
+            result: {
+              price: 200,
+            },
+          };
+        }
+
+        return {
+          mode: 'real',
+        };
+      });
+
+      const workflowEngine = new WorkflowEngine(
+        createJSExecutionEngine(),
+        testToolExecutionEngine,
+        stateClient,
+      );
+
+      await workflowEngine.execute(workflow, {
+        telegramId: '1234567890',
+      });
+
+      // since the price is 100, the boolean node will return true
+      // then send message to telegram
+      expect(
+        testToolExecutionEngine.getCallCount('telegram-bot'),
+      ).toBeGreaterThan(0);
+    });
+
+    test('should not be able to conditionally send message to telegram', async () => {
+      const stateClient = createTestStateClient('e2e');
+
+      const testToolExecutionEngine = createTestToolExecutionEngine((tool) => {
+        if (tool === 'telegram-bot') {
+          return {
+            mode: 'test',
+            result: {
+              result: 'success',
+            },
+          };
+        }
+
+        if (tool === 'binance') {
+          return {
+            mode: 'test',
+            result: {
+              price: 50,
+            },
+          };
+        }
+
+        return {
+          mode: 'real',
+        };
+      });
+
+      const workflowEngine = new WorkflowEngine(
+        createJSExecutionEngine(),
+        testToolExecutionEngine,
+        stateClient,
+      );
+
+      await workflowEngine.execute(workflow, {
+        telegramId: '1234567890',
+      });
+
+      // since the price is 100, the boolean node will return true
+      // then send message to telegram
+      expect(testToolExecutionEngine.getCallCount('telegram-bot')).toBe(0);
+    });
+
+    test('should not be able to send message if sent', async () => {
+      const stateClient = createTestStateClient('e2e');
+      await stateClient.setState('hasSent', true);
+
+      const testToolExecutionEngine = createTestToolExecutionEngine((tool) => {
+        if (tool === 'telegram-bot') {
+          return {
+            mode: 'test',
+            result: {
+              result: 'success',
+            },
+          };
+        }
+
+        if (tool === 'binance') {
+          return {
+            mode: 'test',
+            result: {
+              price: 50,
+            },
+          };
+        }
+
+        return {
+          mode: 'real',
+        };
+      });
+
+      const workflowEngine = new WorkflowEngine(
+        createJSExecutionEngine(),
+        testToolExecutionEngine,
+        stateClient,
+      );
+
+      await workflowEngine.execute(workflow, {
+        telegramId: '1234567890',
+      });
+
+      // since the price is 100, the boolean node will return true
+      // then send message to telegram
+      expect(testToolExecutionEngine.getCallCount('telegram-bot')).toBe(0);
+      expect(await stateClient.getState('hasSent')).toBe(false);
+    });
   });
 });

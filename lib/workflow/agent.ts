@@ -28,16 +28,18 @@ import {
   addConditionTool,
   addConverterTool,
   addInputTool,
-  addNodeTool,
+  addToolNodeTool,
   compileTool,
   modifyToolNode,
   modifyTriggerTool,
   removeNodeTool,
   swapNodesTool,
   viewWorkflow,
-  Workflow,
-} from './workflow';
+} from './workflow-tools';
+
 import { WorkflowEngine } from './workflow-engine';
+import { createTestStateClient } from './state/test';
+import { Workflow } from './workflow';
 
 /**
  * Parameters for the tool discovery agent
@@ -171,7 +173,7 @@ async function workflowBuilderAgent({
     model,
     tools: {
       ...availableTools,
-      addNodeTool: addNodeTool(workflow),
+      addNodeTool: addToolNodeTool(workflow),
       addConditionTool: addConditionTool(workflow),
       removeNodeTool: removeNodeTool(workflow),
       getWorkflow: viewWorkflow(workflow),
@@ -227,6 +229,7 @@ async function suggestionAgent({
     const engine = new WorkflowEngine(
       options.jsExecutionEngine ?? createJSExecutionEngine(),
       options.toolExecutionEngine ?? createToolExecutionEngine(),
+      createTestStateClient('e2e'),
     );
     await engine.execute(workflow.getWorkflow(), userContext ?? {});
   } catch (error: any) {

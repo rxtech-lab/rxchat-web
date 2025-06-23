@@ -2,6 +2,8 @@ import {
   WorkflowSchema,
   CronjobTriggerNodeSchema,
   ToolNodeSchema,
+  BooleanNodeSchema,
+  BooleanNodeExecutionResultSchema,
   ConditionNodeSchema,
   ConverterNodeSchema,
   RuntimeCodeSchema,
@@ -396,6 +398,210 @@ describe('Schema validation', () => {
           expect(() => ConditionNodeSchema.parse(node)).not.toThrow();
         } else {
           expect(() => ConditionNodeSchema.parse(node)).toThrow();
+        }
+      });
+    });
+  });
+
+  describe('BooleanNodeSchema', () => {
+    const booleanTestCases: {
+      node: any;
+      isValid: boolean;
+      description: string;
+    }[] = [
+      {
+        node: {
+          identifier: '550e8400-e29b-41d4-a716-446655440001',
+          type: 'boolean',
+          runtime: 'js',
+          code: 'async function handle(input) { return input.value > 100; }',
+          trueChild: null,
+          falseChild: null,
+        },
+        isValid: true,
+        description: 'valid boolean node with no children',
+      },
+      {
+        node: {
+          identifier: '550e8400-e29b-41d4-a716-446655440001',
+          type: 'boolean',
+          runtime: 'js',
+          code: 'async function handle(input) { return input.status === "active"; }',
+          trueChild: {
+            identifier: '550e8400-e29b-41d4-a716-446655440002',
+            type: 'tool',
+            toolIdentifier: 'test-tool-1',
+            description: 'Test tool 1',
+            child: null,
+          },
+          falseChild: {
+            identifier: '550e8400-e29b-41d4-a716-446655440003',
+            type: 'tool',
+            toolIdentifier: 'test-tool-2',
+            description: 'Test tool 2',
+            child: null,
+          },
+        },
+        isValid: true,
+        description: 'valid boolean node with both true and false children',
+      },
+      {
+        node: {
+          identifier: '550e8400-e29b-41d4-a716-446655440001',
+          type: 'boolean',
+          runtime: 'js',
+          code: 'async function handle(input) { return input.price > threshold; }',
+          trueChild: {
+            identifier: '550e8400-e29b-41d4-a716-446655440002',
+            type: 'tool',
+            toolIdentifier: 'send-notification',
+            description: 'Send notification tool',
+            child: null,
+          },
+          falseChild: null,
+        },
+        isValid: true,
+        description: 'valid boolean node with only true child',
+      },
+      {
+        node: {
+          identifier: '550e8400-e29b-41d4-a716-446655440001',
+          type: 'boolean',
+          runtime: 'js',
+          code: 'async function handle(input) { return false; }',
+          trueChild: null,
+          falseChild: {
+            identifier: '550e8400-e29b-41d4-a716-446655440003',
+            type: 'converter',
+            runtime: 'js',
+            code: 'async function handle(input) { return { message: "Low value" }; }',
+            child: null,
+          },
+        },
+        isValid: true,
+        description: 'valid boolean node with only false child',
+      },
+      {
+        node: {
+          identifier: '550e8400-e29b-41d4-a716-446655440001',
+          type: 'boolean',
+          trueChild: null,
+          falseChild: null,
+        },
+        isValid: false,
+        description: 'missing runtime and code',
+      },
+      {
+        node: {
+          identifier: '550e8400-e29b-41d4-a716-446655440001',
+          type: 'boolean',
+          runtime: 'js',
+          trueChild: null,
+          falseChild: null,
+        },
+        isValid: false,
+        description: 'missing code field',
+      },
+      {
+        node: {
+          identifier: 'invalid-uuid',
+          type: 'boolean',
+          runtime: 'js',
+          code: 'async function handle(input) { return true; }',
+          trueChild: null,
+          falseChild: null,
+        },
+        isValid: false,
+        description: 'invalid UUID identifier',
+      },
+      {
+        node: {
+          identifier: '550e8400-e29b-41d4-a716-446655440001',
+          type: 'boolean',
+          runtime: 'python',
+          code: 'def handle(input): return True',
+          trueChild: null,
+          falseChild: null,
+        },
+        isValid: false,
+        description: 'unsupported runtime type',
+      },
+    ];
+
+    booleanTestCases.forEach(({ node, isValid, description }) => {
+      it(`should ${isValid ? 'validate' : 'invalidate'} ${description}`, () => {
+        if (isValid) {
+          expect(() => BooleanNodeSchema.parse(node)).not.toThrow();
+        } else {
+          expect(() => BooleanNodeSchema.parse(node)).toThrow();
+        }
+      });
+    });
+  });
+
+  describe('BooleanNodeExecutionResultSchema', () => {
+    const booleanResultTestCases: {
+      result: any;
+      isValid: boolean;
+      description: string;
+    }[] = [
+      {
+        result: true,
+        isValid: true,
+        description: 'valid true boolean result',
+      },
+      {
+        result: false,
+        isValid: true,
+        description: 'valid false boolean result',
+      },
+      {
+        result: 'true',
+        isValid: false,
+        description: 'string "true" should be invalid',
+      },
+      {
+        result: 1,
+        isValid: false,
+        description: 'number 1 should be invalid',
+      },
+      {
+        result: 0,
+        isValid: false,
+        description: 'number 0 should be invalid',
+      },
+      {
+        result: null,
+        isValid: false,
+        description: 'null should be invalid',
+      },
+      {
+        result: undefined,
+        isValid: false,
+        description: 'undefined should be invalid',
+      },
+      {
+        result: {},
+        isValid: false,
+        description: 'object should be invalid',
+      },
+      {
+        result: [],
+        isValid: false,
+        description: 'array should be invalid',
+      },
+    ];
+
+    booleanResultTestCases.forEach(({ result, isValid, description }) => {
+      it(`should ${isValid ? 'validate' : 'invalidate'} ${description}`, () => {
+        if (isValid) {
+          expect(() =>
+            BooleanNodeExecutionResultSchema.parse(result),
+          ).not.toThrow();
+        } else {
+          expect(() =>
+            BooleanNodeExecutionResultSchema.parse(result),
+          ).toThrow();
         }
       });
     });

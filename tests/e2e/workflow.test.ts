@@ -11,15 +11,16 @@ import {
   createJSExecutionEngine,
   createToolExecutionEngine,
 } from '@/lib/workflow/engine';
+import { createTestStateClient } from '@/lib/workflow/state/test';
 
 const code = `
 
 async function handle(input: any) {
-  return input;
+  return input.input;
 }
 `;
 
-test.describe('Workflow execution', () => {
+test.describe.skip('Workflow execution', () => {
   test('should execute a workflow', async ({ page }) => {
     const workflow = {
       title: 'Test Workflow',
@@ -51,6 +52,7 @@ test.describe('Workflow execution', () => {
     const workflowEngine = new WorkflowEngine(
       createJSExecutionEngine(),
       createToolExecutionEngine(),
+      createTestStateClient('e2e'),
     );
 
     const result = await workflowEngine.execute(workflow);

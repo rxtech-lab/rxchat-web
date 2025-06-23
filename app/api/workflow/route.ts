@@ -12,6 +12,7 @@ import {
   createJSExecutionEngine,
   createToolExecutionEngine,
 } from '@/lib/workflow/engine';
+import { createTestStateClient } from '@/lib/workflow/state/test';
 import { OnStepSchema } from '@/lib/workflow/types';
 import { WorkflowEngine } from '@/lib/workflow/workflow-engine';
 import { serve } from '@upstash/workflow/nextjs';
@@ -85,10 +86,13 @@ export const { POST } = serve(
       return result;
     });
 
+    const userId = result.job.userId;
+
     await context.run('Executing workflow job', async () => {
       const workflowEngine = new WorkflowEngine(
         createJSExecutionEngine(),
         createToolExecutionEngine(),
+        createTestStateClient('e2e'),
       );
       const executionResult = await workflowEngine.execute(
         result.workflow.workflow,

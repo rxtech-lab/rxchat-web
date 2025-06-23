@@ -122,39 +122,28 @@ describe('TestToolExecutionEngine', () => {
         outputSchema,
       );
 
-      // Verify the result structure
-      expect(result).toHaveProperty('result');
-      expect(result).toHaveProperty('metadata');
-      expect(result.metadata).toHaveProperty('tool', tool);
-      expect(result.metadata).toHaveProperty('isTestExecution', true);
-      expect(result.metadata).toHaveProperty('timestamp');
-
       // Verify the generated data matches the schema
-      expect(result.result).toHaveProperty('status');
-      expect(['success', 'error']).toContain(result.result.status);
-      expect(result.result).toHaveProperty('data');
-      expect(result.result.data).toHaveProperty('processedAt');
-      expect(new Date(result.result.data.processedAt).toString()).not.toBe(
+      expect(result).toHaveProperty('status');
+      expect(['success', 'error']).toContain(result.status);
+      expect(result).toHaveProperty('data');
+      expect(result.data).toHaveProperty('processedAt');
+      expect(new Date(result.data.processedAt).toString()).not.toBe(
         'Invalid Date',
       );
-      expect(result.result.data).toHaveProperty('result');
-      expect(result.result.data.result).toHaveProperty('score');
-      expect(typeof result.result.data.result.score).toBe('number');
-      expect(result.result.data.result.score).toBeGreaterThanOrEqual(0);
-      expect(result.result.data.result.score).toBeLessThanOrEqual(100);
-      expect(result.result.data.result).toHaveProperty('recommendations');
-      expect(Array.isArray(result.result.data.result.recommendations)).toBe(
-        true,
+      expect(result.data).toHaveProperty('result');
+      expect(result.data.result).toHaveProperty('score');
+      expect(typeof result.data.result.score).toBe('number');
+      expect(result.data.result.score).toBeGreaterThanOrEqual(0);
+      expect(result.data.result.score).toBeLessThanOrEqual(100);
+      expect(result.data.result).toHaveProperty('recommendations');
+      expect(Array.isArray(result.data.result.recommendations)).toBe(true);
+      expect(result.data.result.recommendations.length).toBeGreaterThanOrEqual(
+        1,
       );
-      expect(
-        result.result.data.result.recommendations.length,
-      ).toBeGreaterThanOrEqual(1);
-      expect(
-        result.result.data.result.recommendations.length,
-      ).toBeLessThanOrEqual(3);
+      expect(result.data.result.recommendations.length).toBeLessThanOrEqual(3);
 
       // Verify each recommendation
-      result.result.data.result.recommendations.forEach((rec: any) => {
+      result.data.result.recommendations.forEach((rec: any) => {
         expect(rec).toHaveProperty('id');
         expect(rec).toHaveProperty('title');
         expect(typeof rec.id).toBe('string');
@@ -258,10 +247,7 @@ describe('TestToolExecutionEngine', () => {
       const outputSchema = {};
 
       const result = await engine.execute(tool, {}, inputSchema, outputSchema);
-      expect(result).toHaveProperty('result');
-      expect(result).toHaveProperty('metadata');
-      expect(result.metadata).toHaveProperty('tool', tool);
-      expect(result.metadata).toHaveProperty('isTestExecution', true);
+      expect(result).toEqual({});
     });
 
     it('should call onToolCall callback with correct parameters and use its return value', async () => {
@@ -313,16 +299,11 @@ describe('TestToolExecutionEngine', () => {
       expect(mockCallback).toHaveBeenCalledWith(tool, inputData, outputSchema);
 
       // Verify the callback's return value is used
-      expect(result.result).toEqual({
+      expect(result).toEqual({
         message: 'Hello Test User, you are 25 years old!',
         success: true,
         customField: 'callback-generated',
       });
-
-      // Verify metadata is still added
-      expect(result.metadata).toHaveProperty('tool', tool);
-      expect(result.metadata).toHaveProperty('isTestExecution', true);
-      expect(result.metadata).toHaveProperty('timestamp');
     });
 
     it('should fallback to random generation when onToolCall returns test mode with null result', async () => {
@@ -367,16 +348,12 @@ describe('TestToolExecutionEngine', () => {
       expect(mockCallback).toHaveBeenCalledWith(tool, inputData, outputSchema);
 
       // Verify random data was generated according to schema
-      expect(result.result).toHaveProperty('status');
-      expect(['success', 'error']).toContain(result.result.status);
-      expect(result.result).toHaveProperty('count');
-      expect(typeof result.result.count).toBe('number');
-      expect(result.result.count).toBeGreaterThanOrEqual(1);
-      expect(result.result.count).toBeLessThanOrEqual(10);
-
-      // Verify metadata is still added
-      expect(result.metadata).toHaveProperty('tool', tool);
-      expect(result.metadata).toHaveProperty('isTestExecution', true);
+      expect(result).toHaveProperty('status');
+      expect(['success', 'error']).toContain(result.status);
+      expect(result).toHaveProperty('count');
+      expect(typeof result.count).toBe('number');
+      expect(result.count).toBeGreaterThanOrEqual(1);
+      expect(result.count).toBeLessThanOrEqual(10);
     });
 
     it('should track call count and arguments correctly', async () => {

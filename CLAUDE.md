@@ -1,0 +1,4 @@
+- Always use pnpm to run command
+- Always use pnpm test:unit to run unit tests
+- Always run unit tests after modify files
+- Always check type error using ide diagnostic info
