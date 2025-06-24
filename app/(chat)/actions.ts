@@ -30,7 +30,7 @@ import { cookies } from 'next/headers';
 import { auth } from '../(auth)/auth';
 import type { Job } from '@/lib/db/schema';
 import { WorkflowReferenceError } from '@/lib/workflow/errors';
-import { createStateClient } from '@/lib/workflow/state';
+import { createTestStateClient } from '@/lib/workflow/state/test';
 
 export async function saveChatModelAsCookie(
   model: string,
@@ -163,7 +163,7 @@ export async function createWorkflowJob(documentId: string): Promise<{
   const engine = new WorkflowEngine(
     createJSExecutionEngine(),
     createTestToolExecutionEngine(),
-    createStateClient(session.user.id),
+    createTestStateClient(session.user.id),
   );
 
   const userId = session.user.id;
@@ -255,6 +255,7 @@ export async function createWorkflowJob(documentId: string): Promise<{
       };
     });
   } catch (error) {
+    console.error('Error creating workflow job:', error);
     return {
       error: 'Failed to create workflow job',
     };

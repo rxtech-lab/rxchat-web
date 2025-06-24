@@ -1,12 +1,13 @@
 import type { z } from 'zod';
+import { zodToJsonSchema } from 'zod-to-json-schema';
+import { UserContextSchema, type UserContext } from '../types';
 import type {
   WorkflowInputOutputMismatchError,
   WorkflowToolMissingError,
 } from './errors';
+import type { TodoList } from './todolist/todolist';
 import type { DiscoverySchema, SuggestionSchema } from './types';
 import type { Workflow } from './workflow';
-import { UserContextSchema, type UserContext } from '../types';
-import { zodToJsonSchema } from 'zod-to-json-schema';
 
 export const generalWorkflowPrompt = () => `
 
@@ -60,10 +61,10 @@ A workflow consists of:
 - **Purpose**: Provides static or templated data to child nodes
 - **Connections**: Has one parent, one child
 - **Template Support**: Use Jinja2 syntax for dynamic values:
-  - Use {{input.fieldName}} to access parent node output
-  - Use {{context.fieldName}} to access global workflow context
+  - Use {{input.fieldName}} to access parent node output: 
+  - Use {{context.fieldName}} to access global workflow context.
   - Use {{state.fieldName}} to access state values
-- **Note** Fixed input should always be a parent of a tool node.
+- **Note** Fixed input should always be a parent of a tool node and should match the tool node's input schema.
 
 
 ## WORKFLOW BUILDING RULES
@@ -100,14 +101,16 @@ A workflow consists of:
 
 ## EXAMPLE WORKFLOWS
 
-### Simple Tool Execution Pattern
+<example>
 1. User query: "Create a workflow to fetch BTCUSDT price"
 - Start with cronjob-trigger (cron schedule)
 - Look up the tool schema to understand the input and output of the tool
 - Add fixed-input node with tool parameters (through addInputTool tool not addNodeTool) that matches the child tool's input schema
 - Add tool node after fixed-input node with proper toolIdentifier to fetch price
 - Ensure schemas match between nodes
+</example>
 
+<example>
 2. User query: "Create a workflow to fetch BTCUSDT price and send notification"
 - Start with cronjob-trigger (cron schedule)
 - Look up the tool schema to understand the input and output of the tool
@@ -117,11 +120,11 @@ A workflow consists of:
     symbol: 'BTCUSDT',
 }
 \`\`\`
-- Add a converter node to convert the output of the fixed-input node to a string (note: you need to access input.input.price to get the output from the parent node. input.price will result in undefined)
+- Add a converter node to convert the output of the fixed-input node to a string.
   \`\`\`js
-  async function handle(input) {
+  async function handle({input, context, state}) {
     return {
-      message: \`BTCUSDT price is \${input.input.price}\`,
+      message: \`BTCUSDT price is \${input.price}\`,
     };
   }
   \`\`\`
@@ -147,24 +150,88 @@ The final result should look like this:
             └── ConverterNode (f809fc61...)
                 └── FixedInputNode (9eb5dca9...)
                     └── ToolNode (347e62d1...) - tool: telegram-bot
+</example>
+
+<example>
+3. User query: "Create a workflow to fetch BTCUSDT price and send notification if the price is over 10k"
+
+1. Start with cronjob-trigger (cron schedule)
+2. Add a fixed input node with tool parameters that matches the child tool's input schema for example:
+\`\`\`json
+{
+    symbol: 'BTCUSDT',
+}
+\`\`\`
+3. Add a tool node that fetches the price
+4. Add a converter node
+\`\`\`typescript
+async function handle({input, context, state}) {
+    return {
+        message: \`BTCUSDT price is \${input.price}\`,
+        price: input.price,
+    };
+}
+\`\`\`
+5. Add a boolean node to check if the price is over 10k
+\`\`\`typescript
+async function handle({input, context, state}) { return input.price > 10000 }
+\`\`\`
+6. Add a true child fixed input node to the boolean node
+\`\`\`json
+{
+    chat_id: '{{context.telegramId}}',
+    message: '{{input.message}}',
+    price: '{{input.price}}',
+}
+\`\`\`
+7. Add a boolean node to check if the message is sent
+\`\`\`typescript
+async function handle({input, context, state}) { return !state['hasSent'] }
+\`\`\`
+8. Add a true child tool node to the boolean node to send notification - telegram
+9. Add a upsert state node to set the hasSent state to true then skip (key: hasSent, value: true)
+10. Add a false child updateState node to the boolean node that checks if the price is over 10k
+
+Note: Don't need to add true/false child to the boolean node since it will be automatically skip if no child is selected.
+Note2: The reason why we need to add upsert state node is to avoid sending duplicate notifications. (key: hasSent, value: true). So make sure to add upsert state node to the workflow.
+Note3: You should always use upsert node when user want to build a workflow that does something when some condition is met to avoid sending duplicate notifications.
+Note4: We have two boolean nodes in the workflow. The first boolean node is used to check if the price is over 10k. 
+Note5: Don't add unnecessary converter between nodes. Use the node structure below to build the workflow. Only 10 nodes needed to build this workflow.
+The second boolean node is used to check if the notification has been sent. You should always add second boolean node to prevent sending duplicate notifications.
+
+Final result should look like this:
+└── Trigger - cron: */10 * * * *
+    └── FixedInputNode
+        └── ToolNode - tool: binance
+            └── ConverterNode
+              └── BooleanNode
+                  ├── TRUE:
+                  │   ├── BooleanNode
+                  │   │   ├── TRUE:
+                  │   │   │   ├── FixedInputNode
+                  │   │   │   │   └── ToolNode - tool: telegram-bot
+                  │   │   │   │       └── UpsertStateNode - key: hasSent, value: "true"
+                  └── FALSE:
+                      └── UpsertStateNode - key: hasSent, value: "false"
+</example>
 
 ### Data Conversion Pattern  
 - Tool node outputs data
 - Converter node transforms the data format
 - Next tool node receives transformed input
-- Use "async function handle(input) { return transformed; }" pattern
+- Use "async function handle({input, context, state}) { return transformed; }" pattern
 
 ### Boolean Conditional Branching Pattern
 - Boolean node evaluates input to true/false
 - Has exactly two execution paths: trueChild and falseChild
-- Use "async function handle(input) { return true; }" pattern for simple binary decisions
+- Use "async function handle({input, context, state}) { return true; }" pattern for simple binary decisions
 - Automatically routes to appropriate child based on boolean result
 
 ### Advanced Conditional Branching Pattern
 - Condition node evaluates input
 - Returns child node identifier to execute next
 - Multiple children possible for different paths
-- Use "async function handle(input) { return childId; }" pattern for complex multi-way branching
+- Use "async function handle({input, context, state}) { return childId; }" pattern for complex multi-way branching
 
 ## INSTRUCTIONS
 1. **Follow suggestions** if provided to modify the workflow appropriately
@@ -174,6 +241,7 @@ The final result should look like this:
 5. **Prioritize schema tools** to understand tool requirements before adding ToolNodes
 6. **Use available workflow modification tools** (addNodeTool, addConverterTool, etc.)
 7. **Condition node** Don't need to add this node without multiple parents.
+8. Boolean node always pass the input to the child node. No need to modify it.
 
 Remember: Node identifiers in the workflow are different from tool identifiers. Always use viewWorkflow to find the correct node IDs for connections.
 `;
@@ -187,6 +255,40 @@ export const DiscoverySystemPrompt = `
     You should return a list of the tools' identifiers that you think are relevant to the user query, along with the reasoning for the selected tools. Always return a list of tools, even if it is empty.
     Refine your search query to find the most relevant tools.
     Your output tools should match the tools from query tool's toolIdentifiers. Don't add anything else.
+  `;
+
+export const TodoListAgentSystemPrompt = ({
+  todoList,
+  workflow,
+}: {
+  todoList: TodoList;
+  workflow: Workflow;
+}) => `
+    # TODO LIST
+    ${todoList.toViewableString()}
+  
+    # General workflow prompt
+    ${generalWorkflowPrompt()}
+
+    # Current workflow
+    ${workflow.toViewableString()}
+
+    You are a todo list agent that generate todo list based on the user query and the current workflow.
+    If the given todo list is not enough, generate more todo list.
+    If the given workflow functionality is enough, mark the todo list item as completed.
+    For example, if the input node is given in the workflow, mark input node as completed.
+    
+    If you think it is not enough, generate more todo list.
+    Don't add todo list item that is already completed or already in the todo list.
+
+    Generate the todo list using the following format:
+    1. Ensure the trigger is properly configured.
+    2. Ensure the data is properly fetched from the tool.
+    3. Notification tool is properly configured.
+    You can adjust the todo list based on the user query and the current workflow. Don't need to add too much todo list and too detailed todo list since you are a general todo list agent.
+    Don't need to list every single step or node in the workflow.
+    
+    You should always use the answerTool to answer the user query.
   `;
 
 /**
@@ -218,15 +320,21 @@ export const WorkflowBuilderSystemPrompt = (
   toolDiscoveryResult: z.infer<typeof DiscoverySchema>,
   userContext: UserContext | null,
   suggestion: z.infer<typeof SuggestionSchema> | null,
+  todoList: TodoList,
   workflow: Workflow,
 ) => {
   const workflowString = workflow.toViewableString();
 
   return `
   You are a workflow builder that creates structured workflows based on user queries and available MCP tools.
+  You should focus on the tool calling and no need to think about the returning text back to user to save tokens.
+  Your text response should be less than 50 words.
   
   # CURRENT WORKFLOW
   ${workflowString}
+
+  # TODO LIST (You should always follow the todo list to build the workflow and should complete the unfinished todo list first)
+  ${todoList.toViewableString()}
 
   # USER CONTEXT
   ${userContextPrompt(userContext)}
@@ -238,6 +346,7 @@ export const WorkflowBuilderSystemPrompt = (
   Suppose we have a workflow:
   - node1(abc) -> node2(def) -> node3(ghi)
   And suggestion is saying to add an input node between node1 and node2, use addInputNode(identifier: abc) to add the input node.
+  Remember to check whether upsert state node is added to the workflow when user ask to send notification when some condition is met.
 
   ## Prioritize fixed input node over tool node
   If suggestion is saying add a fixed input node and a tool node, add the fixed input node first since it is required to be a parent of the tool node in most cases unless the tool node has a parent that produces output.
@@ -262,7 +371,8 @@ export const WorkflowBuilderSystemPrompt = (
   - addConverterTool: Add a converter node between two nodes.
   - addInputTool: Add a fixed input node as a parent of the tool node.
   - viewWorkflow: View the current workflow.
-  
+  - addUpsertStateNodeTool: Add a upsert state node to the workflow.
+  - addSkipNodeTool: Add a skip node to the workflow.
   `;
 };
 
@@ -289,6 +399,8 @@ export const SuggestionSystemPrompt = async (
       5. You don't need to execute the workflow or ask to execute the workflow. You only need to give modifications to the workflow design!
       6. If user doesn't ask for notification, don't add notification tool.
       7. You don't need to provide modification to the workflow if workflow meets the user's request.
+      8. If user ask to send notification when some condition is met, make sure to check whether upsert state node is added to the workflow after the notification tool
+        and set upsert to false when condition unmet.
   
       # GENERAL WORKFLOW PROMPT
       ${generalWorkflowPrompt()}
@@ -305,6 +417,7 @@ export const SuggestionSystemPrompt = async (
       Make decisions based on whether the workflow accomplishes the user's request efficiently.
   
       A workflow should contain at least one tool node and one input node. A workflow only contains trigger is invalid.
+      The correct way to access price from the tool node is 'input.price'.
     `;
 
   if (inputOutputMismatchError) {
@@ -327,22 +440,10 @@ export const SuggestionSystemPrompt = async (
       `;
   }
 
-  // Await the compile result before interpolating it into the template string
-  let compilingResult: any;
-  try {
-    compilingResult = await workflow.compile();
-  } catch (error) {
-    compilingResult = {
-      error:
-        error instanceof Error ? error.message : 'Unknown compilation error',
-    };
-  }
-
   return `
       ${generalPrompt}
     
       Workflow: ${workflowString}
-      Compiling Result: ${JSON.stringify(compilingResult)}
       Tools: ${JSON.stringify(toolDiscoveryResult?.selectedTools)}
       User Query: ${query}
     `;

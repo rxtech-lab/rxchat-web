@@ -16,20 +16,29 @@ import { modelProviders } from './models';
 import {
   DiscoverySystemPrompt,
   SuggestionSystemPrompt,
+  TodoListAgentSystemPrompt,
   WorkflowBuilderSystemPrompt,
 } from './prompts';
 import {
   DiscoverySchema,
   SuggestionSchema,
+  TodoListAgentResponseSchema,
   type OnStep,
   type WorkflowOptions,
 } from './types';
 import {
+  addBooleanFalseChildTool,
+  addBooleanNodeTool,
+  addBooleanTrueChildTool,
   addConditionTool,
   addConverterTool,
   addInputTool,
+  addSkipNodeTool,
+  addTodoListItemsTool,
   addToolNodeTool,
+  addUpsertStateNodeTool,
   compileTool,
+  markAsComplete,
   modifyToolNode,
   modifyTriggerTool,
   removeNodeTool,
@@ -37,9 +46,10 @@ import {
   viewWorkflow,
 } from './workflow-tools';
 
-import { WorkflowEngine } from './workflow-engine';
 import { createTestStateClient } from './state/test';
+import { TodoList } from './todolist/todolist';
 import { Workflow } from './workflow';
+import { WorkflowEngine } from './workflow-engine';
 
 /**
  * Parameters for the tool discovery agent
@@ -49,6 +59,7 @@ interface ToolDiscoveryAgentParams {
   suggestion: z.infer<typeof SuggestionSchema> | null;
   mcpClient: any;
   workflow: Workflow;
+  todoList: TodoList;
   onUpdate: (response: z.infer<typeof DiscoverySchema>) => void;
 }
 
@@ -61,6 +72,7 @@ async function toolDiscoveryAgent({
   suggestion,
   mcpClient,
   workflow,
+  todoList,
   onUpdate,
 }: ToolDiscoveryAgentParams): Promise<{
   selectedTools: any[];
@@ -140,6 +152,7 @@ interface WorkflowBuilderAgentParams {
   userContext: UserContext | null;
   workflow: Workflow;
   options: WorkflowOptions;
+  todoList: TodoList;
   onUpdate: (workflow: Workflow) => void;
 }
 
@@ -155,6 +168,7 @@ async function workflowBuilderAgent({
   userContext,
   workflow,
   options,
+  todoList,
   onUpdate,
 }: WorkflowBuilderAgentParams): Promise<{
   workflow: Workflow;
@@ -166,6 +180,7 @@ async function workflowBuilderAgent({
     toolDiscoveryResult,
     userContext,
     suggestion,
+    todoList,
     workflow,
   );
 
@@ -173,7 +188,7 @@ async function workflowBuilderAgent({
     model,
     tools: {
       ...availableTools,
-      addNodeTool: addToolNodeTool(workflow),
+      addToolNodeTool: addToolNodeTool(workflow),
       addConditionTool: addConditionTool(workflow),
       removeNodeTool: removeNodeTool(workflow),
       getWorkflow: viewWorkflow(workflow),
@@ -183,15 +198,26 @@ async function workflowBuilderAgent({
       addInputTool: addInputTool(workflow),
       modifyTriggerTool: modifyTriggerTool(workflow),
       swapNodesTool: swapNodesTool(workflow),
+      addUpsertStateTool: addUpsertStateNodeTool(workflow),
+      addSkipTool: addSkipNodeTool(workflow),
+      addBooleanTool: addBooleanNodeTool(workflow),
+      addBooleanTrueChildTool: addBooleanTrueChildTool(workflow),
+      addBooleanFalseChildTool: addBooleanFalseChildTool(workflow),
     },
-    toolChoice: 'required',
     system: prompt,
     prompt: `User Query: "${query}"`,
-    maxSteps: 5,
-    onStepFinish: () => {
+    maxSteps: 20,
+    onStepFinish: (result) => {
+      console.log(
+        `(${result.toolCalls
+          .map((toolCall) => toolCall.toolName)
+          .join(', ')
+          .substring(0, 100)})`,
+      );
       onUpdate(workflow);
     },
   });
+
   return { workflow, response: text };
 }
 
@@ -204,6 +230,7 @@ interface SuggestionAgentParams {
   workflow: Workflow;
   userContext: UserContext | null;
   toolDiscoveryResult: z.infer<typeof DiscoverySchema> | null;
+  todoList: TodoList;
   options?: WorkflowOptions;
 }
 
@@ -217,6 +244,7 @@ async function suggestionAgent({
   workflow,
   userContext,
   toolDiscoveryResult,
+  todoList,
   options = {},
 }: SuggestionAgentParams): Promise<z.infer<typeof SuggestionSchema>> {
   const model = modelProviders().suggestion;
@@ -248,9 +276,18 @@ async function suggestionAgent({
 
     if (error instanceof WorkflowReferenceError) {
     } else {
-      prompt = `Workflow execution failed. Please fix the error: ${error.message}`;
+      prompt = `Workflow execution failed. Please fix the error: ${error.message.substring(0, 1000)}`;
     }
   }
+
+  const systemPrompt = await SuggestionSystemPrompt(
+    workflow,
+    query ?? '',
+    null,
+    null,
+    toolDiscoveryResult,
+    userContext,
+  );
 
   const result = await generateText({
     model,
@@ -261,20 +298,60 @@ async function suggestionAgent({
       }),
     },
     toolChoice: 'required',
-    system: await SuggestionSystemPrompt(
-      workflow,
-      query ?? '',
-      null,
-      null,
-      toolDiscoveryResult,
-      userContext,
-    ),
+    system: systemPrompt,
     prompt: prompt,
     maxSteps: 4,
   });
 
   const lastToolCall = Array.from(result.toolCalls).pop();
   return SuggestionSchema.parse(lastToolCall?.args);
+}
+
+/**
+ * Parameters for the todo list agent
+ */
+interface TodoListAgentParams {
+  query: string;
+  userContext: UserContext | null;
+  todoList: TodoList;
+  mcpClient: any;
+  workflow: Workflow;
+}
+
+/**
+ * Agent 4: Todo List Agent
+ * Manages todo lists based on user input, verifies task completion, and provides task status updates
+ */
+async function todoListAgent({
+  query,
+  userContext,
+  mcpClient,
+  todoList,
+  workflow,
+}: TodoListAgentParams): Promise<z.infer<typeof TodoListAgentResponseSchema>> {
+  const model = modelProviders().todoList;
+
+  const result = await generateText({
+    model,
+    tools: {
+      addTodoListItems: addTodoListItemsTool(todoList),
+      markAsComplete: markAsComplete(todoList),
+      answerTool: tool({
+        description: 'Provide todo list response',
+        parameters: TodoListAgentResponseSchema,
+      }),
+    },
+    toolChoice: 'required',
+    system: TodoListAgentSystemPrompt({
+      todoList,
+      workflow,
+    }),
+    prompt: `User Query: "${query}"`,
+    maxSteps: 10,
+  });
+
+  const lastToolCall = Array.from(result.toolCalls).pop();
+  return TodoListAgentResponseSchema.parse(lastToolCall?.args);
 }
 
 export async function agent(
@@ -285,28 +362,31 @@ export async function agent(
   onStep?: (step: OnStep) => void,
 ): Promise<OnStep> {
   const mcpClient = await createMCPClient();
-  let workflowResult: { workflow: Workflow; response: string } | null =
-    oldWorkflow
-      ? {
-          workflow: new Workflow('New Workflow', {
-            identifier: v4(),
-            type: 'cronjob-trigger',
-            cron: '0 2 * * *',
-            child: null,
-          }),
-          response: '',
-        }
-      : {
-          workflow: new Workflow('New Workflow', {
-            identifier: v4(),
-            type: 'cronjob-trigger',
-            cron: '0 2 * * *',
-            child: null,
-          }),
-          response: '',
-        };
+  let workflowResult: {
+    workflow: Workflow;
+    response: string;
+  } | null = oldWorkflow
+    ? {
+        workflow: new Workflow('New Workflow', {
+          identifier: v4(),
+          type: 'cronjob-trigger',
+          cron: '0 2 * * *',
+          child: null,
+        }),
+        response: '',
+      }
+    : {
+        workflow: new Workflow('New Workflow', {
+          identifier: v4(),
+          type: 'cronjob-trigger',
+          cron: '0 2 * * *',
+          child: null,
+        }),
+        response: '',
+      };
   let toolDiscovery: z.infer<typeof DiscoverySchema> | null = null;
   let suggestion: z.infer<typeof SuggestionSchema> | null = null;
+  const todoList: TodoList = new TodoList();
 
   let status: 'success' | 'error' | 'continue' = 'success';
   let error: Error | null = null;
@@ -319,6 +399,7 @@ export async function agent(
       toolDiscovery,
       suggestion,
       workflow: workflowResult?.workflow.getWorkflow(),
+      todoList: todoList.toViewableObject(),
       error: null,
     });
     while (true) {
@@ -326,6 +407,25 @@ export async function agent(
         if (step >= MAX_WORKFLOW_STEPS) {
           break;
         }
+
+        onStep?.({
+          title: 'Start Todo List Agent',
+          type: 'info',
+          toolDiscovery,
+          suggestion,
+          workflow: workflowResult?.workflow.getWorkflow(),
+          todoList: todoList.toViewableObject(),
+          error: null,
+        });
+
+        await todoListAgent({
+          query,
+          userContext,
+          mcpClient,
+          todoList,
+          workflow: workflowResult?.workflow,
+        });
+
         if (suggestion?.skipToolDiscovery) {
         } else {
           onStep?.({
@@ -334,6 +434,7 @@ export async function agent(
             toolDiscovery,
             suggestion,
             workflow: workflowResult?.workflow.getWorkflow(),
+            todoList: todoList.toViewableObject(),
             error: null,
           });
           toolDiscovery = await toolDiscoveryAgent({
@@ -341,6 +442,7 @@ export async function agent(
             suggestion,
             mcpClient,
             workflow: workflowResult?.workflow,
+            todoList,
             onUpdate: (response) => {
               onStep?.({
                 title: 'Tool Discovery',
@@ -348,36 +450,7 @@ export async function agent(
                 toolDiscovery: response,
                 suggestion,
                 workflow: workflowResult?.workflow.getWorkflow(),
-                error: null,
-              });
-            },
-          });
-        }
-
-        if (suggestion !== null) {
-          onStep?.({
-            title: 'Starting Workflow Builder',
-            type: 'info',
-            toolDiscovery,
-            suggestion,
-            workflow: workflowResult?.workflow.getWorkflow(),
-            error: null,
-          });
-          workflowResult = await workflowBuilderAgent({
-            query,
-            suggestion,
-            mcpClient,
-            toolDiscoveryResult: toolDiscovery as any,
-            userContext,
-            workflow: workflowResult?.workflow,
-            options,
-            onUpdate: (workflow) => {
-              onStep?.({
-                title: 'Starting Workflow Builder',
-                type: 'info',
-                toolDiscovery,
-                suggestion,
-                workflow: workflow.getWorkflow(),
+                todoList: todoList.toViewableObject(),
                 error: null,
               });
             },
@@ -385,11 +458,44 @@ export async function agent(
         }
 
         onStep?.({
+          title: 'Starting Workflow Builder',
+          type: 'info',
+          toolDiscovery,
+          suggestion,
+          workflow: workflowResult?.workflow.getWorkflow(),
+          todoList: todoList.toViewableObject(),
+          error: null,
+        });
+
+        workflowResult = await workflowBuilderAgent({
+          query,
+          suggestion,
+          mcpClient,
+          toolDiscoveryResult: toolDiscovery as any,
+          userContext,
+          workflow: workflowResult?.workflow,
+          todoList,
+          options,
+          onUpdate: (workflow) => {
+            onStep?.({
+              title: 'Starting Workflow Builder',
+              type: 'info',
+              toolDiscovery,
+              suggestion,
+              workflow: workflow.getWorkflow(),
+              todoList: todoList.toViewableObject(),
+              error: null,
+            });
+          },
+        });
+
+        onStep?.({
           title: 'Starting suggestion agent',
           type: 'info',
           toolDiscovery,
           suggestion,
           workflow: workflowResult?.workflow.getWorkflow(),
+          todoList: todoList.toViewableObject(),
           error: null,
         });
         suggestion = await suggestionAgent({
@@ -398,6 +504,7 @@ export async function agent(
           workflow: workflowResult.workflow,
           userContext,
           toolDiscoveryResult: toolDiscovery,
+          todoList,
           options,
         });
         onStep?.({
@@ -405,6 +512,7 @@ export async function agent(
           type: 'info',
           toolDiscovery,
           suggestion,
+          todoList: todoList.toViewableObject(),
           error: null,
           workflow: workflowResult?.workflow.getWorkflow(),
         });
@@ -418,6 +526,7 @@ export async function agent(
           toolDiscovery,
           suggestion,
           workflow: workflowResult?.workflow.getWorkflow(),
+          todoList: todoList.toViewableObject(),
           error: error as Error,
         });
         suggestion = await suggestionAgent({
@@ -426,6 +535,7 @@ export async function agent(
           workflow: workflowResult?.workflow,
           userContext,
           toolDiscoveryResult: toolDiscovery ?? null,
+          todoList,
           options,
         });
         onStep?.({
@@ -433,6 +543,7 @@ export async function agent(
           type: 'info',
           toolDiscovery,
           suggestion,
+          todoList: todoList.toViewableObject(),
           error: error as Error,
           workflow: workflowResult?.workflow.getWorkflow(),
         });
@@ -447,6 +558,7 @@ export async function agent(
       workflow: workflowResult?.workflow.getWorkflow(),
       suggestion,
       toolDiscovery,
+      todoList: todoList.toViewableObject(),
       error: null,
       type: 'success',
       title: 'Success',
@@ -468,5 +580,6 @@ export async function agent(
     error: error,
     type: status,
     title: status,
+    todoList: todoList.toViewableObject(),
   };
 }

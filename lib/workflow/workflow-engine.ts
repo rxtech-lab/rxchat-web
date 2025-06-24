@@ -334,15 +334,18 @@ export class WorkflowEngine implements WorkflowEngineInterface {
 
   private async executeFixedInputNode(
     node: FixedInput,
-    context: Record<string, any>,
+    _context: Record<string, any>,
   ): Promise<any> {
     console.log(`Fixed input node executed: ${node.identifier}`);
 
     const env = new Environment(undefined, { throwOnUndefined: true });
-    // Use context (from parent node's output) as input, and workflow context as context
-    // If context is empty (first node after trigger), use workflow context as input too
+
+    // Get parent node's output, handling boolean nodes correctly
+    const parentInput = this.getParentInput(node.identifier);
+
+    // Use parent input if available, otherwise fall back to workflow context
     const inputContext =
-      Object.keys(context).length === 0 ? this.workflowContext : context;
+      parentInput !== null ? parentInput : this.workflowContext;
     const renderContext = {
       input: inputContext,
       context: this.workflowContext,
@@ -446,6 +449,8 @@ export class WorkflowEngine implements WorkflowEngineInterface {
         node.inputSchema,
         node.outputSchema,
       );
+      // Store the output in nodeOutputs for later use
+      this.nodeOutputs.set(node.identifier, result);
       return result;
     } catch (error) {
       throw new WorkflowEngineError(
@@ -456,29 +461,27 @@ export class WorkflowEngine implements WorkflowEngineInterface {
 
   private async executeConditionNode(
     node: ConditionNode,
-    input?: any,
+    _input?: any,
   ): Promise<ConditionNodeExecutionResult> {
     console.log(`Condition node executed: ${node.identifier}`);
 
     try {
-      // Collect inputs from all parent nodes
+      // Get parent node's output, handling boolean nodes correctly
+      const parentOutput = this.getParentInput(node.identifier);
+
       let parentInput: ConditionNodeInput | null = null;
+      if (parentOutput !== null) {
+        const parentNodes = this.findParentNodes(
+          node.identifier,
+          this.workflow,
+        ).filter((parent) => !this.isTriggerNode(parent));
 
-      const parentNodes = this.findParentNodes(
-        node.identifier,
-        this.workflow,
-      ).filter((parent) => !this.isTriggerNode(parent));
-
-      // condition node can only have one parent node
-      if (parentNodes.length > 0) {
-        const firstParent = parentNodes[0];
-        const parentOutput = this.nodeOutputs.get(firstParent.identifier);
-        if (parentOutput !== undefined) {
-          parentInput = {
-            input: parentOutput,
-            nodeId: firstParent.identifier,
-          };
-        }
+        const nodeId =
+          parentNodes.length > 0 ? parentNodes[0].identifier : 'unknown';
+        parentInput = {
+          input: parentOutput,
+          nodeId: nodeId,
+        };
       }
 
       const result = this.jsCodeExecutionEngine.execute(
@@ -502,35 +505,35 @@ export class WorkflowEngine implements WorkflowEngineInterface {
 
   private async executeBooleanNode(
     node: BooleanNode,
-    input?: any,
+    _input?: any,
   ): Promise<BooleanNodeExecutionResult> {
     console.log(`Boolean node executed: ${node.identifier}`);
 
     try {
-      // Collect inputs from all parent nodes (similar to condition node)
+      // Get parent node's output, handling boolean nodes correctly
+      const parentOutput = this.getParentInput(node.identifier);
+
       let parentInput: ConditionNodeInput | null = null;
+      if (parentOutput !== null) {
+        const parentNodes = this.findParentNodes(
+          node.identifier,
+          this.workflow,
+        ).filter((parent) => !this.isTriggerNode(parent));
 
-      const parentNodes = this.findParentNodes(
-        node.identifier,
-        this.workflow,
-      ).filter((parent) => !this.isTriggerNode(parent));
-
-      // boolean node can only have one parent node
-      if (parentNodes.length > 0) {
-        const firstParent = parentNodes[0];
-        const parentOutput = this.nodeOutputs.get(firstParent.identifier);
-        if (parentOutput !== undefined) {
-          parentInput = {
-            input: parentOutput,
-            nodeId: firstParent.identifier,
-          };
-        }
+        const nodeId =
+          parentNodes.length > 0 ? parentNodes[0].identifier : 'unknown';
+        parentInput = {
+          input: parentOutput,
+          nodeId: nodeId,
+        };
       }
 
+      const context = this.workflowContext;
       const result = await this.jsCodeExecutionEngine.execute(
         {
           input: parentInput?.input,
           state: await this.getStates(),
+          context,
         },
         node.code,
         {
@@ -549,18 +552,21 @@ export class WorkflowEngine implements WorkflowEngineInterface {
   private async executeConverterNode(
     node: ConverterNode,
     input?: any,
-    context?: Record<string, any>,
+    _context?: Record<string, any>,
   ): Promise<ConverterNodeExecutionResult> {
     console.log(
       `Converter node executed: ${node.identifier} using converter: ${node.code}`,
     );
 
     try {
+      const state = await this.getStates();
+      const context = this.workflowContext;
       // Execute the JavaScript code for conversion
       const result = await this.jsCodeExecutionEngine.execute(
         {
           input,
-          state: await this.getStates(),
+          state,
+          context,
         },
         node.code,
         {
@@ -580,7 +586,7 @@ export class WorkflowEngine implements WorkflowEngineInterface {
 
   private async executeUpsertStateNode(
     node: UpsertStateNode,
-    input?: any,
+    _input?: any,
   ): Promise<any> {
     console.log(
       `Upsert state node executed: ${node.identifier} with key: ${node.key}, value: ${JSON.stringify(node.value)}`,
@@ -612,7 +618,7 @@ export class WorkflowEngine implements WorkflowEngineInterface {
   private queueNextNodes(
     node: WorkflowNode,
     output: any,
-    workflow: Workflow,
+    _workflow: Workflow,
   ): void {
     // Skip nodes terminate workflow execution, so don't queue any children
     if (node.type === 'skip') {
@@ -652,9 +658,11 @@ export class WorkflowEngine implements WorkflowEngineInterface {
           context: undefined, // Boolean nodes don't pass specific context
         });
       } else {
+        // If no false child exists, treat it as a skip (terminate workflow execution)
         console.log(
-          `Boolean node terminated workflow: no ${booleanResult ? 'true' : 'false'} child defined`,
+          `Boolean node terminated workflow: no ${booleanResult ? 'true' : 'false'} child defined - treating as skip`,
         );
+        // Don't queue any more nodes - this terminates the workflow like a skip node
       }
     } else if (this.isConditionalNode(node)) {
       // The condition result should determine which child to execute
@@ -746,5 +754,36 @@ export class WorkflowEngine implements WorkflowEngineInterface {
 
   private async getStates(): Promise<Record<string, any>> {
     return this.stateClient.getAllState();
+  }
+
+  /**
+   * Get the correct parent input for a node. If the parent is a boolean node,
+   * we need to recursively traverse up the chain until we find a non-boolean parent.
+   * If no non-boolean parent is found, return null to indicate no parent data.
+   */
+  private getParentInput(nodeId: string): any {
+    const findNonBooleanParent = (currentNodeId: string): any => {
+      const parentNodes = this.findParentNodes(
+        currentNodeId,
+        this.workflow,
+      ).filter((parent) => !this.isTriggerNode(parent));
+
+      if (parentNodes.length === 0) {
+        // No non-trigger parent found, return null
+        return null;
+      }
+
+      const firstParent = parentNodes[0];
+
+      // If parent is a boolean node, recursively look for its non-boolean parent
+      if (firstParent.type === 'boolean') {
+        return findNonBooleanParent(firstParent.identifier);
+      }
+
+      // Found a non-boolean parent, return its output
+      return this.nodeOutputs.get(firstParent.identifier);
+    };
+
+    return findNonBooleanParent(nodeId);
   }
 }

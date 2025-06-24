@@ -12,7 +12,9 @@ import type {
   ToolNode,
   UpsertStateNode,
 } from './types';
+import { TodoItemSchema } from './types';
 import type { Workflow } from './workflow';
+import type { TodoList } from './todolist/todolist';
 
 const createChildNode = async (
   childNode: any,
@@ -61,7 +63,7 @@ const createChildNode = async (
       return {
         identifier: childId,
         type: 'fixed-input',
-        output: childNode.output,
+        output: JSON.parse(childNode.output),
         child: null,
       } as FixedInput;
     case 'upsert-state':
@@ -249,15 +251,11 @@ export const addBooleanTrueChildTool = (workflow: Workflow) =>
       try {
         const booleanNode = workflow.findNode(booleanNodeId) as any;
         if (!booleanNode || booleanNode.type !== 'boolean') {
-          throw new Error(
-            `Boolean node with identifier ${booleanNodeId} not found`,
-          );
+          return `Boolean node with identifier ${booleanNodeId} not found`;
         }
 
         if (booleanNode.trueChild !== null) {
-          throw new Error(
-            `Boolean node ${booleanNodeId} already has a true child`,
-          );
+          return `Boolean node ${booleanNodeId} already has a true child`;
         }
 
         const childId = v4();
@@ -305,15 +303,11 @@ export const addBooleanFalseChildTool = (workflow: Workflow) =>
       try {
         const booleanNode = workflow.findNode(booleanNodeId) as any;
         if (!booleanNode || booleanNode.type !== 'boolean') {
-          throw new Error(
-            `Boolean node with identifier ${booleanNodeId} not found`,
-          );
+          return `Boolean node with identifier ${booleanNodeId} not found`;
         }
 
         if (booleanNode.falseChild !== null) {
-          throw new Error(
-            `Boolean node ${booleanNodeId} already has a false child`,
-          );
+          return `Boolean node ${booleanNodeId} already has a false child`;
         }
 
         const childId = v4();
@@ -486,7 +480,7 @@ export const swapNodesTool = (workflow: Workflow) =>
     execute: async ({ identifier1, identifier2 }) => {
       try {
         workflow.swapNodes(identifier1, identifier2);
-        console.log('swapped nodes');
+        console.log('swapped nodes', identifier1, identifier2);
         console.log(workflow.toViewableString());
         return `Swapped nodes ${identifier1} and ${identifier2}`;
       } catch (error) {
@@ -508,7 +502,7 @@ export const addInputTool = (workflow: Workflow) =>
           'The identifier (UUID) of the node after which this input node will be added. Leave empty to add at the root level. If the suggestion is saying to add an node between two nodes, use the identifier of the node after which the input node will be added.',
         ),
       output: z
-        .any()
+        .string()
         .describe(
           "The data object containing key-value pairs that will be passed to the child node. Keys must match the child's input schema. You can use dynamic values with Jinja syntax: {{input.[property]}} to reference parent outputs or {{context.[property]}} to access global context variables.",
         ),
@@ -626,5 +620,47 @@ export const addSkipNodeTool = (workflow: Workflow) =>
           error: error,
         };
       }
+    },
+  });
+
+export const addTodoListItemsTool = (todoList: TodoList) =>
+  tool({
+    description:
+      'Add items to the todo list. Sort the items by the workflow execution order.',
+    parameters: z.object({
+      items: z
+        .array(TodoItemSchema.omit({ id: true }))
+        .describe('Todo items to add to the list'),
+    }),
+    execute: async ({ items }) => {
+      todoList.addItems(items);
+      return {
+        todoList: todoList.toViewableString(),
+        message: `Added ${items.length} items to todo list`,
+      };
+    },
+  });
+
+export const markAsComplete = (todoList: TodoList) =>
+  tool({
+    description:
+      'Mark items as completed in the todo list. Please always call this tool when part of the todo list is completed.',
+    parameters: z.object({
+      markCompleted: z
+        .array(z.number())
+        .optional()
+        .describe('Indexes of items to mark as completed'),
+    }),
+    execute: async ({ markCompleted }) => {
+      if (markCompleted && markCompleted.length > 0) {
+        markCompleted.forEach((index) =>
+          todoList.markAsCompletedByIndex(index),
+        );
+      }
+
+      return {
+        todoList: todoList.toViewableString(),
+        message: `Updated todo list. Marked ${markCompleted?.length || 0} as completed`,
+      };
     },
   });

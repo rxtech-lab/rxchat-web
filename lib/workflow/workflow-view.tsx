@@ -21,7 +21,16 @@ import {
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import cronstrue from 'cronstrue';
-import { Clock, Code, Eye, GitBranch, Wrench, Zap } from 'lucide-react';
+import {
+  Clock,
+  Code,
+  Database,
+  Eye,
+  GitBranch,
+  Square,
+  Wrench,
+  Zap,
+} from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import type {
   BaseNode,
@@ -30,8 +39,10 @@ import type {
   ConverterNode,
   CronjobTriggerNode,
   FixedInput,
+  SkipNode,
   ToolNode,
   TriggerNode,
+  UpsertStateNode,
   Workflow,
 } from './types';
 
@@ -43,7 +54,9 @@ type WorkflowNode =
   | ConverterNode
   | TriggerNode
   | CronjobTriggerNode
-  | FixedInput;
+  | FixedInput
+  | SkipNode
+  | UpsertStateNode;
 
 // Custom node components
 const TriggerNodeComponent = ({
@@ -407,6 +420,116 @@ const FixedInputNodeComponent = ({ data }: { data: FixedInput }) => {
   );
 };
 
+const SkipNodeComponent = ({ data }: { data: SkipNode }) => (
+  <div
+    className={cn(
+      'px-4 py-3 rounded-lg border-2 min-w-[200px]',
+      'bg-red-50 border-red-300 shadow-md',
+    )}
+  >
+    <Handle type="target" position={Position.Top} />
+    <div className="flex items-center gap-2 mb-1">
+      <Square className="size-4 text-red-600" />
+      <span className="font-semibold text-red-800">Skip</span>
+    </div>
+    <div className="text-sm text-red-700">
+      <div className="text-xs text-red-600 mb-1">
+        Terminates workflow execution
+      </div>
+      <div className="text-xs text-red-600">ID: {data.identifier}</div>
+    </div>
+  </div>
+);
+
+const UpsertStateNodeComponent = ({ data }: { data: UpsertStateNode }) => {
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+
+  return (
+    <div
+      className={cn(
+        'px-4 py-3 rounded-lg border-2 min-w-[200px]',
+        'bg-teal-50 border-teal-300 shadow-md',
+      )}
+    >
+      <Handle type="target" position={Position.Top} />
+      <Handle type="source" position={Position.Bottom} />
+      <div className="flex items-center gap-2 mb-1">
+        <Database className="size-4 text-teal-600" />
+        <span className="font-semibold text-teal-800">Upsert State</span>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="ml-auto p-1 size-6 text-teal-600 hover:text-teal-800 hover:bg-teal-100 z-10 relative"
+          onClick={(e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            setIsDialogOpen(true);
+          }}
+          onMouseDown={(e) => {
+            e.stopPropagation();
+          }}
+        >
+          <Eye className="size-3" />
+        </Button>
+        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <DialogContent className="max-w-4xl max-h-[80vh] overflow-hidden">
+            <DialogHeader>
+              <DialogTitle>Upsert State Value - {data.identifier}</DialogTitle>
+            </DialogHeader>
+            <div className="flex flex-col gap-2">
+              <div className="text-sm text-gray-600">
+                Key:{' '}
+                <span className="font-mono bg-gray-100 px-1 rounded">
+                  {data.key}
+                </span>
+              </div>
+              <div
+                className="border rounded-lg overflow-hidden"
+                style={{ height: '400px' }}
+              >
+                <Editor
+                  height="400px"
+                  language="json"
+                  theme="vs-light"
+                  value={JSON.stringify(data.value, null, 2)}
+                  options={{
+                    readOnly: true,
+                    minimap: { enabled: true },
+                    fontSize: 14,
+                    lineNumbers: 'on',
+                    scrollBeyondLastLine: false,
+                    automaticLayout: true,
+                    wordWrap: 'on',
+                  }}
+                />
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      </div>
+      <div className="text-sm text-teal-700">
+        <div>
+          Key:{' '}
+          <span className="font-mono bg-teal-100 px-1 rounded text-xs">
+            {data.key}
+          </span>
+        </div>
+        <div>
+          Value:{' '}
+          <span className="font-mono bg-teal-100 px-1 rounded text-xs">
+            {typeof data.value === 'string' && data.value.length > 15
+              ? `${data.value.substring(0, 15)}...`
+              : typeof data.value === 'object'
+                ? 'Object'
+                : String(data.value)}
+          </span>
+        </div>
+        <div className="text-xs text-teal-600 mt-1">ID: {data.identifier}</div>
+      </div>
+    </div>
+  );
+};
+
 const DefaultNodeComponent = ({
   data,
 }: { data: BaseNode & { type?: string } }) => (
@@ -437,6 +560,8 @@ const nodeTypes = {
   condition: ConditionNodeComponent,
   converter: ConverterNodeComponent,
   'fixed-input': FixedInputNodeComponent,
+  skip: SkipNodeComponent,
+  'upsert-state': UpsertStateNodeComponent,
   default: DefaultNodeComponent,
 };
 
@@ -527,8 +652,69 @@ export default function WorkflowView({
           // Base + output info + jinja note + ID
           return baseHeight + lineHeight * 2;
 
+        case 'skip':
+          // Base + termination note + ID
+          return baseHeight + lineHeight;
+
+        case 'upsert-state':
+          // Base + key + value preview + ID
+          return baseHeight + lineHeight * 2;
+
         default:
           return baseHeight;
+      }
+    };
+
+    // Helper function to recursively shift all descendants of a node
+    const shiftNodeAndDescendants = (
+      nodeId: string,
+      xShift: number,
+      visited = new Set<string>(),
+    ): void => {
+      if (visited.has(nodeId)) return;
+      visited.add(nodeId);
+
+      const nodeIndex = nodes.findIndex((n) => n.id === nodeId);
+      if (nodeIndex !== -1) {
+        nodes[nodeIndex].position.x += xShift;
+
+        // Find the node data to get its children
+        const nodeData = nodes[nodeIndex].data;
+
+        // Recursively shift children based on node type
+        if (nodeData.type === 'boolean') {
+          const booleanNode = nodeData as BooleanNode;
+          if (booleanNode.trueChild) {
+            shiftNodeAndDescendants(
+              booleanNode.trueChild.identifier,
+              xShift,
+              visited,
+            );
+          }
+          if (booleanNode.falseChild) {
+            shiftNodeAndDescendants(
+              booleanNode.falseChild.identifier,
+              xShift,
+              visited,
+            );
+          }
+        } else if ('child' in nodeData && nodeData.child) {
+          const childNode = nodeData.child as WorkflowNode;
+          if (childNode?.identifier) {
+            shiftNodeAndDescendants(childNode.identifier, xShift, visited);
+          }
+        } else if ('children' in nodeData && Array.isArray(nodeData.children)) {
+          nodeData.children.forEach((child) => {
+            if (
+              child &&
+              typeof child === 'object' &&
+              'identifier' in child &&
+              child.identifier
+            ) {
+              shiftNodeAndDescendants(child.identifier, xShift, visited);
+            }
+          });
+        }
       }
     };
 
@@ -619,13 +805,8 @@ export default function WorkflowView({
             visited,
           );
 
-          // Position true child to the left
-          const trueChildNodeIndex = nodes.findIndex(
-            (n) => n.id === booleanNode.trueChild?.identifier,
-          );
-          if (trueChildNodeIndex !== -1) {
-            nodes[trueChildNodeIndex].position.x = -150;
-          }
+          // Position true child and all its descendants to the left
+          shiftNodeAndDescendants(booleanNode.trueChild.identifier, -150);
 
           maxChildYPosition = Math.max(maxChildYPosition, trueChildYPosition);
         }
@@ -650,13 +831,8 @@ export default function WorkflowView({
             visited,
           );
 
-          // Position false child to the right
-          const falseChildNodeIndex = nodes.findIndex(
-            (n) => n.id === booleanNode.falseChild?.identifier,
-          );
-          if (falseChildNodeIndex !== -1) {
-            nodes[falseChildNodeIndex].position.x = 150;
-          }
+          // Position false child and all its descendants to the right
+          shiftNodeAndDescendants(booleanNode.falseChild.identifier, 150);
 
           maxChildYPosition = Math.max(maxChildYPosition, falseChildYPosition);
         }

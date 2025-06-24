@@ -1,9 +1,9 @@
 import type { ArtifactKind } from '@/components/artifact';
+import { createMemoryClient } from '@/lib/memory';
+import { RecursiveCharacterTextSplitter } from '@langchain/textsplitters';
 import type { Geo } from '@vercel/functions';
 import type { Attachment } from 'ai';
 import { createMarkitdownClient } from '../document/markitdown';
-import { RecursiveCharacterTextSplitter } from '@langchain/textsplitters';
-import { createMemoryClient } from '@/lib/memory';
 
 export const artifactsPrompt = `
 Artifacts is a special user interface mode that helps users with writing, editing, and other content creation tasks. When artifact is open, it is on the right side of the screen, while the conversation is on the left side. When creating or updating documents, changes are reflected in real-time on the artifacts and visible to the user.
@@ -45,6 +45,7 @@ export const regularPrompt = `
   **Important** Always use query to first, then call schema to get the input and output of the tool, then use the tool.
   **Important** If you use useTool to call a tool and it returns a non empty url, don't include that URL in your final response. Don't say: You can complete the transaction here: https://someurl.com something like that.
   **Important** If user want to create a workflow, or intent to create a automated system, use createDocument tool to create a workflow.
+  **Important** If user wants to create, manage, or track todo lists or tasks, suggest using the todo list management system which can help organize and track their work.
   `;
 
 export interface RequestHints {

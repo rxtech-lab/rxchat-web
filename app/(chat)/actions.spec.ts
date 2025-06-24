@@ -142,8 +142,10 @@ const mockGetWorkflowWebhookUrl = getWorkflowWebhookUrl as jest.MockedFunction<
   typeof getWorkflowWebhookUrl
 >;
 const mockWorkflowEngine = WorkflowEngine as jest.MockedFunction<
+  //@ts-expect-error
   typeof WorkflowEngine
 >;
+//@ts-expect-error
 const mockQStashClient = Client as jest.MockedFunction<typeof Client>;
 const mockGenerateText = generateText as jest.MockedFunction<
   typeof generateText
@@ -184,7 +186,7 @@ const mockWorkflowEngineInstance = {
   execute: jest.fn(),
 };
 
-// Mock QStash workflow client instance  
+// Mock QStash workflow client instance
 const mockQStashWorkflowClient = {
   schedules: {
     delete: jest.fn(),
@@ -197,6 +199,7 @@ describe('Chat Server Actions', () => {
     jest.clearAllMocks();
 
     // Setup default mocks
+    //@ts-expect-error
     mockAuth.mockResolvedValue(mockSession as any);
     mockCookies.mockResolvedValue(mockCookieStore as any);
     mockCreateMCPClient.mockResolvedValue(mockMCPClient as any);
@@ -205,17 +208,22 @@ describe('Chat Server Actions', () => {
     mockCreateTestToolExecutionEngine.mockReturnValue(
       mockExecutionEngine as any,
     );
-    mockGetWorkflowWebhookUrl.mockReturnValue('https://test-webhook-url.com');
-    
+    mockGetWorkflowWebhookUrl.mockReturnValue(
+      new URL('https://test-webhook-url.com'),
+    );
+
     // Mock WorkflowEngine constructor
-    mockWorkflowEngine.mockImplementation(() => mockWorkflowEngineInstance as any);
-    
+    mockWorkflowEngine.mockImplementation(
+      () => mockWorkflowEngineInstance as any,
+    );
+
     // Mock QStash Client constructor
     mockQStashClient.mockImplementation(() => mockQStashWorkflowClient as any);
-    
+
     // Setup missing function mocks
     mockGetUserContext.mockResolvedValue({ userId: 'test-user-id' } as any);
-    mockUpdateJobRunningStatus.mockResolvedValue(undefined);
+    //@ts-expect-error
+    mockUpdateJobRunningStatus.mockResolvedValue(null);
 
     // Mock database transaction
     (db.transaction as jest.Mock).mockImplementation((fn) => fn(db));
@@ -252,7 +260,7 @@ describe('Chat Server Actions', () => {
         id: 'test-message-id',
         role: 'user' as const,
         content: 'Hello, how are you?',
-      };
+      } as any;
 
       const mockTitleModel = {
         provider: 'openai',
@@ -281,7 +289,7 @@ describe('Chat Server Actions', () => {
         id: 'test-message-id',
         role: 'user' as const,
         content: 'Test message',
-      };
+      } as any;
 
       const mockTitleModel = {
         provider: 'openai',
@@ -332,6 +340,7 @@ describe('Chat Server Actions', () => {
 
   describe('updateChatVisibility', () => {
     test('should update chat visibility', async () => {
+      //@ts-expect-error
       mockUpdateChatVisiblityById.mockResolvedValue(undefined);
 
       await updateChatVisibility({
@@ -346,6 +355,7 @@ describe('Chat Server Actions', () => {
     });
 
     test('should handle private visibility', async () => {
+      //@ts-expect-error
       mockUpdateChatVisiblityById.mockResolvedValue(undefined);
 
       await updateChatVisibility({
@@ -401,6 +411,7 @@ describe('Chat Server Actions', () => {
       const testCode = 'console.log("Hello, World!");';
       const expectedResult = 'Hello, World!';
 
+      //@ts-expect-error
       mockCreatePromptRunner.mockReturnValue(expectedResult);
 
       const result = await testPrompt(testCode);
@@ -455,6 +466,7 @@ describe('Chat Server Actions', () => {
     });
 
     test('should handle prompt not found', async () => {
+      //@ts-expect-error
       mockSelectPromptById.mockResolvedValue(null);
 
       const result = await selectPrompt({ promptId: 'non-existent-id' });
@@ -473,6 +485,11 @@ describe('Chat Server Actions', () => {
           title: 'Test Workflow',
           type: 'info',
           error: null,
+          todoList: {
+            items: [],
+            completedCount: 0,
+            totalCount: 0,
+          },
           toolDiscovery: {
             selectedTools: ['tool1', 'tool2'],
             reasoning: 'These tools are needed for the workflow',
@@ -481,11 +498,11 @@ describe('Chat Server Actions', () => {
             modifications: ['Add error handling'],
             skipToolDiscovery: false,
           },
-          workflow: { 
+          workflow: {
             steps: [],
             trigger: {
-              cron: '0 0 * * *'
-            }
+              cron: '0 0 * * *',
+            },
           },
         }),
       };
@@ -510,6 +527,7 @@ describe('Chat Server Actions', () => {
     });
 
     test('should return error when user not authenticated', async () => {
+      //@ts-expect-error
       mockAuth.mockResolvedValue(null);
 
       const result = await createWorkflowJob('test-doc-id');
@@ -519,6 +537,7 @@ describe('Chat Server Actions', () => {
     });
 
     test('should return error when document not found', async () => {
+      //@ts-expect-error
       mockGetDocumentById.mockResolvedValue(null);
 
       const result = await createWorkflowJob('non-existent-doc-id');
@@ -544,11 +563,11 @@ describe('Chat Server Actions', () => {
             modifications: ['Add error handling'],
             skipToolDiscovery: false,
           },
-          workflow: { 
+          workflow: {
             steps: [],
             trigger: {
-              cron: '0 0 * * *'
-            }
+              cron: '0 0 * * *',
+            },
           },
         }),
       };
@@ -572,6 +591,11 @@ describe('Chat Server Actions', () => {
           title: 'Test Workflow',
           type: 'info',
           error: null,
+          todoList: {
+            items: [],
+            completedCount: 0,
+            totalCount: 0,
+          },
           toolDiscovery: {
             selectedTools: ['tool1', 'tool2'],
             reasoning: 'These tools are needed for the workflow',
@@ -580,11 +604,11 @@ describe('Chat Server Actions', () => {
             modifications: ['Add error handling'],
             skipToolDiscovery: false,
           },
-          workflow: { 
+          workflow: {
             steps: [],
             trigger: {
-              cron: '0 0 * * *'
-            }
+              cron: '0 0 * * *',
+            },
           },
         }),
       };
@@ -623,11 +647,11 @@ describe('Chat Server Actions', () => {
             modifications: ['Add error handling'],
             skipToolDiscovery: false,
           },
-          workflow: { 
+          workflow: {
             steps: [],
             trigger: {
-              cron: '0 0 * * *'
-            }
+              cron: '0 0 * * *',
+            },
           },
         }),
       };
