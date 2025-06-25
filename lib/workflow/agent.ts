@@ -61,6 +61,7 @@ interface ToolDiscoveryAgentParams {
   workflow: Workflow;
   todoList: TodoList;
   onUpdate: (response: z.infer<typeof DiscoverySchema>) => void;
+  abortSignal?: AbortSignal;
 }
 
 /**
@@ -74,6 +75,7 @@ async function toolDiscoveryAgent({
   workflow,
   todoList,
   onUpdate,
+  abortSignal,
 }: ToolDiscoveryAgentParams): Promise<{
   selectedTools: any[];
   reasoning: string;
@@ -94,6 +96,14 @@ async function toolDiscoveryAgent({
 
     let retryCount = 0;
     while (true) {
+      // Check if stream has been cancelled
+      if (abortSignal?.aborted) {
+        return {
+          selectedTools: [],
+          reasoning: 'Operation cancelled',
+        };
+      }
+
       const result = await generateText({
         model,
         tools: {
@@ -131,7 +141,12 @@ async function toolDiscoveryAgent({
       }
     }
 
-    return parsedToolCall;
+    return (
+      parsedToolCall || {
+        selectedTools: [],
+        reasoning: 'No tools discovered',
+      }
+    );
   } catch (error) {
     console.error('Tool Discovery Agent Error:', error);
     return {
@@ -154,6 +169,7 @@ interface WorkflowBuilderAgentParams {
   options: WorkflowOptions;
   todoList: TodoList;
   onUpdate: (workflow: Workflow) => void;
+  abortSignal?: AbortSignal;
 }
 
 /**
@@ -170,10 +186,16 @@ async function workflowBuilderAgent({
   options,
   todoList,
   onUpdate,
+  abortSignal,
 }: WorkflowBuilderAgentParams): Promise<{
   workflow: Workflow;
   response: string;
 }> {
+  // Check if stream has been cancelled before starting
+  if (abortSignal?.aborted) {
+    return { workflow, response: 'Operation cancelled' };
+  }
+
   const model = modelProviders().workflow;
   const availableTools = await mcpClient.tools();
   const prompt = WorkflowBuilderSystemPrompt(
@@ -232,6 +254,7 @@ interface SuggestionAgentParams {
   toolDiscoveryResult: z.infer<typeof DiscoverySchema> | null;
   todoList: TodoList;
   options?: WorkflowOptions;
+  abortSignal?: AbortSignal;
 }
 
 /**
@@ -246,7 +269,16 @@ async function suggestionAgent({
   toolDiscoveryResult,
   todoList,
   options = {},
+  abortSignal,
 }: SuggestionAgentParams): Promise<z.infer<typeof SuggestionSchema>> {
+  // Check if stream has been cancelled before starting
+  if (abortSignal?.aborted) {
+    return {
+      modifications: [],
+      skipToolDiscovery: false,
+    };
+  }
+
   const model = modelProviders().suggestion;
   let prompt = `User Query: "${query}"`;
   if (error !== null) {
@@ -316,6 +348,7 @@ interface TodoListAgentParams {
   todoList: TodoList;
   mcpClient: any;
   workflow: Workflow;
+  abortSignal?: AbortSignal;
 }
 
 /**
@@ -328,7 +361,15 @@ async function todoListAgent({
   mcpClient,
   todoList,
   workflow,
+  abortSignal,
 }: TodoListAgentParams): Promise<z.infer<typeof TodoListAgentResponseSchema>> {
+  // Check if stream has been cancelled before starting
+  if (abortSignal?.aborted) {
+    return {
+      items: [],
+    };
+  }
+
   const model = modelProviders().todoList;
 
   const result = await generateText({
@@ -360,6 +401,7 @@ export async function agent(
   userContext: UserContext | null = null,
   options: WorkflowOptions = {},
   onStep?: (step: OnStep) => void,
+  abortSignal?: AbortSignal,
 ): Promise<OnStep> {
   const mcpClient = await createMCPClient();
   let workflowResult: {
@@ -399,6 +441,11 @@ export async function agent(
     });
     while (true) {
       try {
+        // Check if stream has been cancelled
+        if (abortSignal?.aborted) {
+          break;
+        }
+
         if (step >= MAX_WORKFLOW_STEPS) {
           break;
         }
@@ -419,6 +466,7 @@ export async function agent(
           mcpClient,
           todoList,
           workflow: workflowResult?.workflow,
+          abortSignal,
         });
 
         if (suggestion?.skipToolDiscovery) {
@@ -438,6 +486,7 @@ export async function agent(
             mcpClient,
             workflow: workflowResult?.workflow,
             todoList,
+            abortSignal,
             onUpdate: (response) => {
               onStep?.({
                 title: 'Tool Discovery',
@@ -471,6 +520,7 @@ export async function agent(
           workflow: workflowResult?.workflow,
           todoList,
           options,
+          abortSignal,
           onUpdate: (workflow) => {
             onStep?.({
               title: 'Starting Workflow Builder',
@@ -501,6 +551,7 @@ export async function agent(
           toolDiscoveryResult: toolDiscovery,
           todoList,
           options,
+          abortSignal,
         });
         onStep?.({
           title: 'Deciding next step',
@@ -532,6 +583,7 @@ export async function agent(
           toolDiscoveryResult: toolDiscovery ?? null,
           todoList,
           options,
+          abortSignal,
         });
         onStep?.({
           title: 'Suggestion',
