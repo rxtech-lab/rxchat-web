@@ -63,8 +63,6 @@ const PurePreviewMessage = ({
       <motion.div
         data-testid={`message-${message.role}`}
         className="w-full mx-auto max-w-3xl px-4 group/message"
-        // initial={{ y: 5, opacity: 0 }}
-        // animate={{ y: 0, opacity: 1 }}
         data-role={message.role}
       >
         <div
@@ -281,42 +279,62 @@ const PurePreviewMessage = ({
                   : undefined;
 
                 return (
-                  <Collapsible key={toolCallId} defaultOpen={isValidMcpResult}>
-                    <CollapsibleTrigger className="flex items-center gap-3 p-4 hover:bg-muted/50 rounded-lg border w-full text-left transition-colors">
-                      <ToolInvocationHeader
-                        toolName={toolName}
-                        toolInvocation={toolInvocation}
-                        status={status}
-                        iframeUrl={iframeUrl}
-                        append={append}
-                        suggestionHeight={
-                          (parsedMcpResult as any).data?.[0]?.suggestHeight
-                        }
-                        suggestions={
-                          (parsedMcpResult as any).data?.[0]?.suggestions
-                        }
-                      />
-                    </CollapsibleTrigger>
+                  <Collapsible
+                    key={toolCallId}
+                    defaultOpen={
+                      isValidMcpResult ||
+                      toolName === 'createDocument' ||
+                      toolName === 'updateDocument'
+                    }
+                  >
+                    {toolName !== 'createDocument' &&
+                      toolName !== 'updateDocument' && (
+                        <CollapsibleTrigger className="flex items-center gap-3 p-4 hover:bg-muted/50 rounded-lg border w-full text-left transition-colors">
+                          <ToolInvocationHeader
+                            toolName={toolName}
+                            toolInvocation={toolInvocation}
+                            status={status}
+                            iframeUrl={iframeUrl}
+                            append={append}
+                            suggestionHeight={
+                              (parsedMcpResult as any).data?.[0]?.suggestHeight
+                            }
+                            suggestions={
+                              (parsedMcpResult as any).data?.[0]?.suggestions
+                            }
+                          />
+                        </CollapsibleTrigger>
+                      )}
                     <CollapsibleContent className="mt-2">
-                      {!isValidMcpResult && (
-                        <Tabs defaultValue={state} className="w-full">
-                          <TabsList className="grid w-full grid-cols-2">
-                            <TabsTrigger value="call">Call</TabsTrigger>
-                            <TabsTrigger value="result">Result</TabsTrigger>
-                          </TabsList>
-                          <TabsContent
-                            value="call"
-                            className="mt-4 min-w-0 w-full"
-                          >
-                            {renderCallContent()}
-                          </TabsContent>
-                          <TabsContent
-                            value="result"
-                            className="mt-4 min-w-0 w-full"
-                          >
-                            {renderResultContent()}
-                          </TabsContent>
-                        </Tabs>
+                      {!isValidMcpResult &&
+                        toolName !== 'createDocument' &&
+                        toolName !== 'updateDocument' && (
+                          <Tabs defaultValue={state} className="w-full">
+                            <TabsList className="grid w-full grid-cols-2">
+                              <TabsTrigger value="call">Call</TabsTrigger>
+                              <TabsTrigger value="result">Result</TabsTrigger>
+                            </TabsList>
+                            <TabsContent
+                              value="call"
+                              className="mt-4 min-w-0 w-full"
+                            >
+                              {renderCallContent()}
+                            </TabsContent>
+                            <TabsContent
+                              value="result"
+                              className="mt-4 min-w-0 w-full"
+                            >
+                              {renderResultContent()}
+                            </TabsContent>
+                          </Tabs>
+                        )}
+                      {(toolName === 'createDocument' ||
+                        toolName === 'updateDocument') && (
+                        <div className="mt-4">
+                          {state === 'call'
+                            ? renderCallContent()
+                            : renderResultContent()}
+                        </div>
                       )}
                     </CollapsibleContent>
                   </Collapsible>
