@@ -367,12 +367,7 @@ export async function agent(
     response: string;
   } | null = oldWorkflow
     ? {
-        workflow: new Workflow('New Workflow', {
-          identifier: v4(),
-          type: 'cronjob-trigger',
-          cron: '0 2 * * *',
-          child: null,
-        }),
+        workflow: Workflow.readFrom(oldWorkflow as any),
         response: '',
       }
     : {

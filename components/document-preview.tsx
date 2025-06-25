@@ -21,6 +21,8 @@ import { useArtifact } from '@/hooks/use-artifact';
 import equal from 'fast-deep-equal';
 import { SpreadsheetEditor } from './sheet-editor';
 import { ImageEditor } from './image-editor';
+import { OnStepSchema, type Workflow } from '@/lib/workflow/types';
+import WorkflowView from '@/lib/workflow/workflow-view';
 
 interface DocumentPreviewProps {
   isReadonly: boolean;
@@ -254,6 +256,22 @@ const DocumentContent = ({ document }: { document: Document }) => {
     suggestions: [],
   };
 
+  let workflow: Workflow | null = null;
+
+  // Only parse JSON for flowchart documents
+  if (document.kind === 'flowchart') {
+    try {
+      const parsed = JSON.parse(document.content as unknown as string);
+      const data = OnStepSchema.safeParse(parsed);
+      if (data.success) {
+        workflow = data.data.workflow;
+      }
+    } catch (error) {
+      console.error('Failed to parse flowchart content:', error);
+      workflow = null;
+    }
+  }
+
   return (
     <div className={containerClassName}>
       {document.kind === 'text' ? (
@@ -279,6 +297,8 @@ const DocumentContent = ({ document }: { document: Document }) => {
           status={artifact.status}
           isInline={true}
         />
+      ) : document.kind === 'flowchart' && workflow ? (
+        <WorkflowView workflow={workflow as any} />
       ) : null}
     </div>
   );
