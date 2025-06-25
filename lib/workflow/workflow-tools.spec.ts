@@ -1,16 +1,8 @@
 import { v4 as uuidv4 } from 'uuid';
 import { compileCode } from '../agent/runtime/runner-environment';
 import type { McpRouter } from '../router/mcpRouter';
-import { TodoList } from './todolist/todolist';
-import type {
-  BooleanNode,
-  ConditionNode,
-  ConverterNode,
-  FixedInput,
-  SkipNode,
-  ToolNode,
-  UpsertStateNode,
-} from './types';
+import type { TodoList } from './todolist/todolist';
+import type { BooleanNode, ConditionNode } from './types';
 import {
   addBooleanFalseChildTool,
   addBooleanNodeTool,
@@ -51,6 +43,7 @@ describe('WorkflowTools', () => {
   beforeEach(() => {
     // Setup UUID mock
     mockUuidv4 = uuidv4 as jest.MockedFunction<typeof uuidv4>;
+    //@ts-expect-error
     mockUuidv4.mockReturnValue('test-uuid-123');
 
     // Setup compile code mock
@@ -100,10 +93,16 @@ describe('WorkflowTools', () => {
     it('should add tool node successfully with parent id', async () => {
       const tool = addToolNodeTool(mockWorkflow);
 
-      const result = await tool.execute({
-        id: 'parent-id',
-        toolIdentifier: 'test-tool',
-      });
+      const result = await tool.execute(
+        {
+          id: 'parent-id',
+          toolIdentifier: 'test-tool',
+        },
+        {
+          toolCallId: '',
+          messages: [],
+        },
+      );
 
       expect(mockMcpRouter.getToolInfo).toHaveBeenCalledWith('test-tool');
       expect(mockWorkflow.addAfter).toHaveBeenCalledWith(
@@ -126,10 +125,16 @@ describe('WorkflowTools', () => {
     it('should add tool node at root level when id is null', async () => {
       const tool = addToolNodeTool(mockWorkflow);
 
-      const result = await tool.execute({
-        id: null,
-        toolIdentifier: 'test-tool',
-      });
+      const result = await tool.execute(
+        {
+          id: null,
+          toolIdentifier: 'test-tool',
+        },
+        {
+          toolCallId: '',
+          messages: [],
+        },
+      );
 
       expect(mockWorkflow.addAfter).toHaveBeenCalledWith(
         undefined,
@@ -143,10 +148,16 @@ describe('WorkflowTools', () => {
     it('should add tool node at root level when id is empty string', async () => {
       const tool = addToolNodeTool(mockWorkflow);
 
-      const result = await tool.execute({
-        id: '   ',
-        toolIdentifier: 'test-tool',
-      });
+      const result = await tool.execute(
+        {
+          id: '   ',
+          toolIdentifier: 'test-tool',
+        },
+        {
+          toolCallId: '',
+          messages: [],
+        },
+      );
 
       expect(mockWorkflow.addAfter).toHaveBeenCalledWith(
         undefined,
@@ -163,10 +174,16 @@ describe('WorkflowTools', () => {
 
       const tool = addToolNodeTool(mockWorkflow);
 
-      const result = await tool.execute({
-        id: 'parent-id',
-        toolIdentifier: 'invalid-tool',
-      });
+      const result = await tool.execute(
+        {
+          id: 'parent-id',
+          toolIdentifier: 'invalid-tool',
+        },
+        {
+          toolCallId: '',
+          messages: [],
+        },
+      );
 
       expect(result).toEqual({ error });
     });
@@ -178,10 +195,16 @@ describe('WorkflowTools', () => {
       const testCode =
         'export async function handle(input) { return "next-tool"; }';
 
-      const result = await tool.execute({
-        toolIdentifier: 'parent-id',
-        code: testCode,
-      });
+      const result = await tool.execute(
+        {
+          toolIdentifier: 'parent-id',
+          code: testCode,
+        },
+        {
+          toolCallId: '',
+          messages: [],
+        },
+      );
 
       const expectedNode: ConditionNode = {
         identifier: 'test-uuid-123',
@@ -203,10 +226,16 @@ describe('WorkflowTools', () => {
       const testCode =
         'export async function handle(input) { return "next-tool"; }';
 
-      await tool.execute({
-        toolIdentifier: null,
-        code: testCode,
-      });
+      await tool.execute(
+        {
+          toolIdentifier: null,
+          code: testCode,
+        },
+        {
+          toolCallId: '',
+          messages: [],
+        },
+      );
 
       expect(mockWorkflow.addChild).toHaveBeenCalledWith(
         undefined,
@@ -222,10 +251,16 @@ describe('WorkflowTools', () => {
 
       const tool = addConditionTool(mockWorkflow);
 
-      const result = await tool.execute({
-        toolIdentifier: 'parent-id',
-        code: 'test code',
-      });
+      const result = await tool.execute(
+        {
+          toolIdentifier: 'parent-id',
+          code: 'test code',
+        },
+        {
+          toolCallId: '',
+          messages: [],
+        },
+      );
 
       expect(result).toEqual({ error });
     });
@@ -236,10 +271,16 @@ describe('WorkflowTools', () => {
       const tool = addBooleanNodeTool(mockWorkflow);
       const testCode = 'async function handle(input) { return true; }';
 
-      const result = await tool.execute({
-        parentIdentifier: 'parent-id',
-        code: testCode,
-      });
+      const result = await tool.execute(
+        {
+          parentIdentifier: 'parent-id',
+          code: testCode,
+        },
+        {
+          toolCallId: '',
+          messages: [],
+        },
+      );
 
       const expectedNode: BooleanNode = {
         identifier: 'test-uuid-123',
@@ -260,10 +301,16 @@ describe('WorkflowTools', () => {
     it('should add boolean node at root when parentIdentifier is null', async () => {
       const tool = addBooleanNodeTool(mockWorkflow);
 
-      await tool.execute({
-        parentIdentifier: null,
-        code: 'async function handle(input) { return true; }',
-      });
+      await tool.execute(
+        {
+          parentIdentifier: null,
+          code: 'async function handle(input) { return true; }',
+        },
+        {
+          toolCallId: '',
+          messages: [],
+        },
+      );
 
       expect(mockWorkflow.addChild).toHaveBeenCalledWith(
         undefined,
@@ -283,13 +330,19 @@ describe('WorkflowTools', () => {
 
       const tool = addBooleanTrueChildTool(mockWorkflow);
 
-      const result = await tool.execute({
-        booleanNodeId: 'boolean-node-id',
-        childNode: {
-          type: 'tool',
-          toolIdentifier: 'test-tool',
+      const result = await tool.execute(
+        {
+          booleanNodeId: 'boolean-node-id',
+          childNode: {
+            type: 'tool',
+            toolIdentifier: 'test-tool',
+          },
         },
-      });
+        {
+          toolCallId: '',
+          messages: [],
+        },
+      );
 
       expect(mockWorkflow.findNode).toHaveBeenCalledWith('boolean-node-id');
       expect(mockMcpRouter.getToolInfo).toHaveBeenCalledWith('test-tool');
@@ -310,10 +363,16 @@ describe('WorkflowTools', () => {
 
       const tool = addBooleanTrueChildTool(mockWorkflow);
 
-      const result = await tool.execute({
-        booleanNodeId: 'non-existent-id',
-        childNode: { type: 'skip' },
-      });
+      const result = await tool.execute(
+        {
+          booleanNodeId: 'non-existent-id',
+          childNode: { type: 'skip' },
+        },
+        {
+          toolCallId: '',
+          messages: [],
+        },
+      );
 
       expect(result).toBe(
         'Boolean node with identifier non-existent-id not found',
@@ -325,10 +384,16 @@ describe('WorkflowTools', () => {
 
       const tool = addBooleanTrueChildTool(mockWorkflow);
 
-      const result = await tool.execute({
-        booleanNodeId: 'tool-node-id',
-        childNode: { type: 'skip' },
-      });
+      const result = await tool.execute(
+        {
+          booleanNodeId: 'tool-node-id',
+          childNode: { type: 'skip' },
+        },
+        {
+          toolCallId: '',
+          messages: [],
+        },
+      );
 
       expect(result).toBe(
         'Boolean node with identifier tool-node-id not found',
@@ -345,10 +410,16 @@ describe('WorkflowTools', () => {
 
       const tool = addBooleanTrueChildTool(mockWorkflow);
 
-      const result = await tool.execute({
-        booleanNodeId: 'boolean-node-id',
-        childNode: { type: 'skip' },
-      });
+      const result = await tool.execute(
+        {
+          booleanNodeId: 'boolean-node-id',
+          childNode: { type: 'skip' },
+        },
+        {
+          toolCallId: '',
+          messages: [],
+        },
+      );
 
       expect(result).toBe(
         'Boolean node boolean-node-id already has a true child',
@@ -367,13 +438,19 @@ describe('WorkflowTools', () => {
 
       const tool = addBooleanFalseChildTool(mockWorkflow);
 
-      const result = await tool.execute({
-        booleanNodeId: 'boolean-node-id',
-        childNode: {
-          type: 'converter',
-          code: 'async function handle(input) { return input; }',
+      const result = await tool.execute(
+        {
+          booleanNodeId: 'boolean-node-id',
+          childNode: {
+            type: 'converter',
+            code: 'async function handle(input) { return input; }',
+          },
         },
-      });
+        {
+          toolCallId: '',
+          messages: [],
+        },
+      );
 
       expect(mockBooleanNode.falseChild).toEqual(
         expect.objectContaining({
@@ -397,10 +474,16 @@ describe('WorkflowTools', () => {
 
       const tool = addBooleanFalseChildTool(mockWorkflow);
 
-      const result = await tool.execute({
-        booleanNodeId: 'boolean-node-id',
-        childNode: { type: 'skip' },
-      });
+      const result = await tool.execute(
+        {
+          booleanNodeId: 'boolean-node-id',
+          childNode: { type: 'skip' },
+        },
+        {
+          toolCallId: '',
+          messages: [],
+        },
+      );
 
       expect(result).toBe(
         'Boolean node boolean-node-id already has a false child',
@@ -413,10 +496,16 @@ describe('WorkflowTools', () => {
       const tool = addConverterTool(mockWorkflow);
       const testCode = 'async function handle(input) { return input.input; }';
 
-      const result = await tool.execute({
-        toolIdentifier: 'parent-id',
-        code: testCode,
-      });
+      const result = await tool.execute(
+        {
+          toolIdentifier: 'parent-id',
+          code: testCode,
+        },
+        {
+          toolCallId: '',
+          messages: [],
+        },
+      );
 
       expect(mockCompileCode).toHaveBeenCalledWith(testCode, 'typescript');
       expect(mockWorkflow.addAfter).toHaveBeenCalledWith(
@@ -438,10 +527,16 @@ describe('WorkflowTools', () => {
 
       const tool = addConverterTool(mockWorkflow);
 
-      const result = await tool.execute({
-        toolIdentifier: 'parent-id',
-        code: 'invalid code',
-      });
+      const result = await tool.execute(
+        {
+          toolIdentifier: 'parent-id',
+          code: 'invalid code',
+        },
+        {
+          toolCallId: '',
+          messages: [],
+        },
+      );
 
       expect(result).toEqual({ error });
     });
@@ -451,9 +546,15 @@ describe('WorkflowTools', () => {
     it('should remove node successfully', async () => {
       const tool = removeNodeTool(mockWorkflow);
 
-      const result = await tool.execute({
-        identifier: 'node-to-remove',
-      });
+      const result = await tool.execute(
+        {
+          identifier: 'node-to-remove',
+        },
+        {
+          toolCallId: '',
+          messages: [],
+        },
+      );
 
       expect(mockWorkflow.removeChild).toHaveBeenCalledWith('node-to-remove');
       expect(result).toBe('Removed node with identifier node-to-remove');
@@ -467,9 +568,15 @@ describe('WorkflowTools', () => {
 
       const tool = removeNodeTool(mockWorkflow);
 
-      const result = await tool.execute({
-        identifier: 'non-existent-node',
-      });
+      const result = await tool.execute(
+        {
+          identifier: 'non-existent-node',
+        },
+        {
+          toolCallId: '',
+          messages: [],
+        },
+      );
 
       expect(result).toEqual({ error });
     });
@@ -486,10 +593,16 @@ describe('WorkflowTools', () => {
 
       const tool = modifyToolNode(mockWorkflow);
 
-      const result = await tool.execute({
-        id: 'existing-id',
-        node: { toolIdentifier: 'new-tool' },
-      });
+      const result = await tool.execute(
+        {
+          id: 'existing-id',
+          node: { toolIdentifier: 'new-tool' },
+        },
+        {
+          toolCallId: '',
+          messages: [],
+        },
+      );
 
       expect(mockWorkflow.findNode).toHaveBeenCalledWith('existing-id');
       expect(mockWorkflow.modifyChild).toHaveBeenCalledWith('existing-id', {
@@ -511,10 +624,16 @@ describe('WorkflowTools', () => {
 
       const tool = modifyToolNode(mockWorkflow);
 
-      const result = await tool.execute({
-        id: 'node-id',
-        node: { toolIdentifier: 'new-tool' },
-      });
+      const result = await tool.execute(
+        {
+          id: 'node-id',
+          node: { toolIdentifier: 'new-tool' },
+        },
+        {
+          toolCallId: '',
+          messages: [],
+        },
+      );
 
       expect(result).toEqual({ error });
     });
@@ -524,7 +643,13 @@ describe('WorkflowTools', () => {
     it('should compile workflow successfully', async () => {
       const tool = compileTool(mockWorkflow);
 
-      const result = await tool.execute({});
+      const result = await tool.execute(
+        {},
+        {
+          toolCallId: '',
+          messages: [],
+        },
+      );
 
       expect(mockWorkflow.compile).toHaveBeenCalled();
       expect(result).toBe('Workflow compiled successfully');
@@ -536,7 +661,13 @@ describe('WorkflowTools', () => {
 
       const tool = compileTool(mockWorkflow);
 
-      const result = await tool.execute({});
+      const result = await tool.execute(
+        {},
+        {
+          toolCallId: '',
+          messages: [],
+        },
+      );
 
       expect(result).toEqual({ error });
     });
@@ -549,10 +680,15 @@ describe('WorkflowTools', () => {
 
       const tool = viewWorkflow(mockWorkflow);
 
-      const result = await tool.execute({});
+      const result = await tool.execute(
+        {},
+        {
+          toolCallId: '',
+          messages: [],
+        },
+      );
 
-      expect(mockWorkflow.getWorkflow).toHaveBeenCalled();
-      expect(result).toEqual(mockWorkflowData);
+      expect(mockWorkflow.toViewableString).toHaveBeenCalled();
     });
   });
 
@@ -561,9 +697,15 @@ describe('WorkflowTools', () => {
       const tool = modifyTriggerTool(mockWorkflow);
       const cronExpression = '0 0 * * *';
 
-      const result = await tool.execute({
-        cron: cronExpression,
-      });
+      const result = await tool.execute(
+        {
+          cron: cronExpression,
+        },
+        {
+          toolCallId: '',
+          messages: [],
+        },
+      );
 
       expect(mockWorkflow.modifyTrigger).toHaveBeenCalledWith({
         type: 'cronjob-trigger',
@@ -581,9 +723,15 @@ describe('WorkflowTools', () => {
 
       const tool = modifyTriggerTool(mockWorkflow);
 
-      const result = await tool.execute({
-        cron: 'invalid-cron',
-      });
+      const result = await tool.execute(
+        {
+          cron: 'invalid-cron',
+        },
+        {
+          toolCallId: '',
+          messages: [],
+        },
+      );
 
       expect(result).toEqual({ error });
     });
@@ -593,10 +741,16 @@ describe('WorkflowTools', () => {
     it('should swap nodes successfully', async () => {
       const tool = swapNodesTool(mockWorkflow);
 
-      const result = await tool.execute({
-        identifier1: 'node-1',
-        identifier2: 'node-2',
-      });
+      const result = await tool.execute(
+        {
+          identifier1: 'node-1',
+          identifier2: 'node-2',
+        },
+        {
+          toolCallId: '',
+          messages: [],
+        },
+      );
 
       expect(mockWorkflow.swapNodes).toHaveBeenCalledWith('node-1', 'node-2');
       expect(result).toBe('Swapped nodes node-1 and node-2');
@@ -610,10 +764,16 @@ describe('WorkflowTools', () => {
 
       const tool = swapNodesTool(mockWorkflow);
 
-      const result = await tool.execute({
-        identifier1: 'node-1',
-        identifier2: 'node-2',
-      });
+      const result = await tool.execute(
+        {
+          identifier1: 'node-1',
+          identifier2: 'node-2',
+        },
+        {
+          toolCallId: '',
+          messages: [],
+        },
+      );
 
       expect(result).toEqual({ error });
     });
@@ -624,10 +784,16 @@ describe('WorkflowTools', () => {
       const tool = addInputTool(mockWorkflow);
       const outputData = JSON.stringify({ key: 'value' });
 
-      const result = await tool.execute({
-        toolIdentifier: 'parent-id',
-        output: outputData,
-      });
+      const result = await tool.execute(
+        {
+          toolIdentifier: 'parent-id',
+          output: outputData,
+        },
+        {
+          toolCallId: '',
+          messages: [],
+        },
+      );
 
       expect(mockWorkflow.addAfter).toHaveBeenCalledWith(
         'parent-id',
@@ -646,10 +812,16 @@ describe('WorkflowTools', () => {
     it('should add input node at root when identifier is empty', async () => {
       const tool = addInputTool(mockWorkflow);
 
-      await tool.execute({
-        toolIdentifier: '   ',
-        output: '{}',
-      });
+      await tool.execute(
+        {
+          toolIdentifier: '   ',
+          output: '{}',
+        },
+        {
+          toolCallId: '',
+          messages: [],
+        },
+      );
 
       expect(mockWorkflow.addAfter).toHaveBeenCalledWith(
         undefined,
@@ -660,10 +832,16 @@ describe('WorkflowTools', () => {
     it('should handle JSON parsing errors', async () => {
       const tool = addInputTool(mockWorkflow);
 
-      const result = await tool.execute({
-        toolIdentifier: 'parent-id',
-        output: 'invalid json',
-      });
+      const result = await tool.execute(
+        {
+          toolIdentifier: 'parent-id',
+          output: 'invalid json',
+        },
+        {
+          toolCallId: '',
+          messages: [],
+        },
+      );
 
       expect(result).toHaveProperty('error');
     });
@@ -673,11 +851,17 @@ describe('WorkflowTools', () => {
     it('should add upsert state node successfully', async () => {
       const tool = addUpsertStateNodeTool(mockWorkflow);
 
-      const result = await tool.execute({
-        parentIdentifier: 'parent-id',
-        key: 'state-key',
-        value: 'state-value',
-      });
+      const result = await tool.execute(
+        {
+          parentIdentifier: 'parent-id',
+          key: 'state-key',
+          value: 'state-value',
+        },
+        {
+          toolCallId: '',
+          messages: [],
+        },
+      );
 
       expect(mockWorkflow.addAfter).toHaveBeenCalledWith(
         'parent-id',
@@ -697,11 +881,17 @@ describe('WorkflowTools', () => {
     it('should add at root when parentIdentifier is null', async () => {
       const tool = addUpsertStateNodeTool(mockWorkflow);
 
-      await tool.execute({
-        parentIdentifier: null,
-        key: 'key',
-        value: 'value',
-      });
+      await tool.execute(
+        {
+          parentIdentifier: null,
+          key: 'key',
+          value: 'value',
+        },
+        {
+          toolCallId: '',
+          messages: [],
+        },
+      );
 
       expect(mockWorkflow.addAfter).toHaveBeenCalledWith(
         undefined,
@@ -714,9 +904,15 @@ describe('WorkflowTools', () => {
     it('should add skip node successfully', async () => {
       const tool = addSkipNodeTool(mockWorkflow);
 
-      const result = await tool.execute({
-        parentIdentifier: 'parent-id',
-      });
+      const result = await tool.execute(
+        {
+          parentIdentifier: 'parent-id',
+        },
+        {
+          toolCallId: '',
+          messages: [],
+        },
+      );
 
       expect(mockWorkflow.addAfter).toHaveBeenCalledWith(
         'parent-id',
@@ -738,7 +934,13 @@ describe('WorkflowTools', () => {
         { title: 'Task 2', completed: true },
       ];
 
-      const result = await tool.execute({ items });
+      const result = await tool.execute(
+        { items },
+        {
+          toolCallId: '',
+          messages: [],
+        },
+      );
 
       expect(mockTodoList.addItems).toHaveBeenCalledWith(items);
       expect(result).toEqual({
@@ -753,9 +955,15 @@ describe('WorkflowTools', () => {
       const tool = markAsComplete(mockTodoList);
       const indices = [0, 2];
 
-      const result = await tool.execute({
-        markCompleted: indices,
-      });
+      const result = await tool.execute(
+        {
+          markCompleted: indices,
+        },
+        {
+          toolCallId: '',
+          messages: [],
+        },
+      );
 
       expect(mockTodoList.markAsCompletedByIndex).toHaveBeenCalledTimes(2);
       expect(mockTodoList.markAsCompletedByIndex).toHaveBeenCalledWith(0);
@@ -769,9 +977,15 @@ describe('WorkflowTools', () => {
     it('should handle empty markCompleted array', async () => {
       const tool = markAsComplete(mockTodoList);
 
-      const result = await tool.execute({
-        markCompleted: [],
-      });
+      const result = await tool.execute(
+        {
+          markCompleted: [],
+        },
+        {
+          toolCallId: '',
+          messages: [],
+        },
+      );
 
       expect(mockTodoList.markAsCompletedByIndex).not.toHaveBeenCalled();
       expect(result).toEqual({
@@ -783,7 +997,13 @@ describe('WorkflowTools', () => {
     it('should handle undefined markCompleted', async () => {
       const tool = markAsComplete(mockTodoList);
 
-      const result = await tool.execute({});
+      const result = await tool.execute(
+        {},
+        {
+          toolCallId: '',
+          messages: [],
+        },
+      );
 
       expect(mockTodoList.markAsCompletedByIndex).not.toHaveBeenCalled();
       expect(result).toEqual({
@@ -805,13 +1025,19 @@ describe('WorkflowTools', () => {
 
       const tool = addBooleanTrueChildTool(mockWorkflow);
 
-      await tool.execute({
-        booleanNodeId: 'boolean-node-id',
-        childNode: {
-          type: 'tool',
-          toolIdentifier: 'test-tool',
+      await tool.execute(
+        {
+          booleanNodeId: 'boolean-node-id',
+          childNode: {
+            type: 'tool',
+            toolIdentifier: 'test-tool',
+          },
         },
-      });
+        {
+          toolCallId: '',
+          messages: [],
+        },
+      );
 
       expect(mockBooleanNode.trueChild).toEqual(
         expect.objectContaining({
@@ -831,13 +1057,19 @@ describe('WorkflowTools', () => {
 
       const tool = addBooleanTrueChildTool(mockWorkflow);
 
-      await tool.execute({
-        booleanNodeId: 'boolean-node-id',
-        childNode: {
-          type: 'converter',
-          code: 'test code',
+      await tool.execute(
+        {
+          booleanNodeId: 'boolean-node-id',
+          childNode: {
+            type: 'converter',
+            code: 'test code',
+          },
         },
-      });
+        {
+          toolCallId: '',
+          messages: [],
+        },
+      );
 
       expect(mockBooleanNode.trueChild).toEqual(
         expect.objectContaining({
@@ -857,13 +1089,19 @@ describe('WorkflowTools', () => {
 
       const tool = addBooleanTrueChildTool(mockWorkflow);
 
-      await tool.execute({
-        booleanNodeId: 'boolean-node-id',
-        childNode: {
-          type: 'fixed-input',
-          output: '{"key": "value"}',
+      await tool.execute(
+        {
+          booleanNodeId: 'boolean-node-id',
+          childNode: {
+            type: 'fixed-input',
+            output: '{"key": "value"}',
+          },
         },
-      });
+        {
+          toolCallId: '',
+          messages: [],
+        },
+      );
 
       expect(mockBooleanNode.trueChild).toEqual(
         expect.objectContaining({
@@ -883,14 +1121,20 @@ describe('WorkflowTools', () => {
 
       const tool = addBooleanTrueChildTool(mockWorkflow);
 
-      await tool.execute({
-        booleanNodeId: 'boolean-node-id',
-        childNode: {
-          type: 'upsert-state',
-          key: 'state-key',
-          value: 'state-value',
+      await tool.execute(
+        {
+          booleanNodeId: 'boolean-node-id',
+          childNode: {
+            type: 'upsert-state',
+            key: 'state-key',
+            value: 'state-value',
+          },
         },
-      });
+        {
+          toolCallId: '',
+          messages: [],
+        },
+      );
 
       expect(mockBooleanNode.trueChild).toEqual(
         expect.objectContaining({
@@ -911,12 +1155,18 @@ describe('WorkflowTools', () => {
 
       const tool = addBooleanTrueChildTool(mockWorkflow);
 
-      await tool.execute({
-        booleanNodeId: 'boolean-node-id',
-        childNode: {
-          type: 'skip',
+      await tool.execute(
+        {
+          booleanNodeId: 'boolean-node-id',
+          childNode: {
+            type: 'skip',
+          },
         },
-      });
+        {
+          toolCallId: '',
+          messages: [],
+        },
+      );
 
       expect(mockBooleanNode.trueChild).toEqual(
         expect.objectContaining({
@@ -935,12 +1185,18 @@ describe('WorkflowTools', () => {
 
       const tool = addBooleanTrueChildTool(mockWorkflow);
 
-      const result = await tool.execute({
-        booleanNodeId: 'boolean-node-id',
-        childNode: {
-          type: 'unsupported-type' as any,
+      const result = await tool.execute(
+        {
+          booleanNodeId: 'boolean-node-id',
+          childNode: {
+            type: 'unsupported-type' as any,
+          },
         },
-      });
+        {
+          toolCallId: '',
+          messages: [],
+        },
+      );
 
       expect(result).toHaveProperty('error');
     });
@@ -955,13 +1211,19 @@ describe('WorkflowTools', () => {
 
       const tool = addBooleanTrueChildTool(mockWorkflow);
 
-      const result = await tool.execute({
-        booleanNodeId: 'boolean-node-id',
-        childNode: {
-          type: 'tool',
-          // Missing toolIdentifier
+      const result = await tool.execute(
+        {
+          booleanNodeId: 'boolean-node-id',
+          childNode: {
+            type: 'tool',
+            // Missing toolIdentifier
+          },
         },
-      });
+        {
+          toolCallId: '',
+          messages: [],
+        },
+      );
 
       expect(result).toHaveProperty('error');
     });

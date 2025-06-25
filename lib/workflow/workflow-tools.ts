@@ -441,7 +441,7 @@ export const viewWorkflow = (workflow: Workflow) =>
     description: 'View workflow in json',
     parameters: z.object({}),
     execute: async () => {
-      return workflow.getWorkflow();
+      return workflow.toViewableString();
     },
   });
 

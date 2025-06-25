@@ -27,12 +27,19 @@ export const flowchartDocumentHandler = (
         abortController.abort();
       });
 
-      const workflow = await agent(query, null, userContext, {}, (step) => {
-        dataStream.writeData({
-          type: 'flowchart-step-delta',
-          content: JSON.stringify(step, null, 2),
-        });
-      });
+      const workflow = await agent(
+        query,
+        null,
+        userContext,
+        {},
+        (step) => {
+          dataStream.writeData({
+            type: 'flowchart-step-delta',
+            content: JSON.stringify(step, null, 2),
+          });
+        },
+        abortController.signal,
+      );
 
       dataStream.writeData({
         type: 'flowchart-delta',
@@ -57,6 +64,11 @@ export const flowchartDocumentHandler = (
       } catch {}
 
       const userContext = await getUserContext(session.user.id);
+      const abortController = new AbortController();
+
+      dataStream.onError?.(() => {
+        abortController.abort();
+      });
 
       const workflowResult = await agent(
         description,
@@ -69,6 +81,7 @@ export const flowchartDocumentHandler = (
             content: JSON.stringify(step, null, 2),
           });
         },
+        abortController.signal,
       );
       const draftContent = JSON.stringify(workflowResult, null, 2);
 
