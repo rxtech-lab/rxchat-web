@@ -29,5 +29,4 @@ export type {
 
 // Existing components (re-export for convenience)
 export { AttachmentsButton } from './attachment-button';
-export { MCPButton } from './mcp-button';
 export { SendButton, StopButton } from './send-button';

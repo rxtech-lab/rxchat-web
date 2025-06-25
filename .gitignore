@@ -44,3 +44,4 @@ yarn-error.log*
 .idea
 *.tsbuildinfo
 .env.test
+lib/api/mcp-router/client.ts

@@ -28,14 +28,14 @@ test.describe
       await authPage.login(testUser.email, testUser.password);
 
       await page.waitForURL('/');
-      await expect(page.getByPlaceholder('Send a message...')).toBeVisible();
+      await expect(page.getByTestId('multimodal-input')).toBeVisible();
     });
 
     test('Display user email in user menu', async ({ page }) => {
       await authPage.login(testUser.email, testUser.password);
 
       await page.waitForURL('/');
-      await expect(page.getByPlaceholder('Send a message...')).toBeVisible();
+      await expect(page.getByTestId('multimodal-input')).toBeVisible();
 
       const userEmail = await page.getByTestId('user-email');
       await expect(userEmail).toHaveText(testUser.email);
