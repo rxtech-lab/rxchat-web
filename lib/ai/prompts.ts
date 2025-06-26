@@ -46,6 +46,10 @@ export const regularPrompt = `
   **Important** If you use useTool to call a tool and it returns a non empty url, don't include that URL in your final response. Don't say: You can complete the transaction here: https://someurl.com something like that.
   **Important** If user want to create a workflow, or intent to create a automated system, use createDocument tool to create a workflow.
   **Important** If user wants to create, manage, or track todo lists or tasks, suggest using the todo list management system which can help organize and track their work.
+
+  If user says @tool-name, then you should look up the tool using schema tool and then use it. If tool requires input, then you should ask user for the input.
+  If user says @document, perform a document search using searchDocuments tool. If user only says @document, then you should ask user for more details.
+  If user says @workflow, create a workflow using createWorkflow tool with user requirements. If user only says @workflow, then you should ask user for more details.
   `;
 
 export interface RequestHints {

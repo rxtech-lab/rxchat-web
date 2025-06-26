@@ -3,12 +3,19 @@
 import type { Prompt } from '@/lib/db/schema';
 import type { Attachment, UIMessage } from 'ai';
 import type React from 'react';
-import { memo, useCallback, useEffect, useMemo, useRef, useState, startTransition } from 'react';
+import {
+  memo,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  startTransition,
+} from 'react';
 import { useScrollToBottom } from '@/hooks/use-scroll-to-bottom';
 import type { UseChatHelpers } from '@ai-sdk/react';
 import equal from 'fast-deep-equal';
-import useSWR from 'swr';
-import { getMCPTools, saveWebSearchPreferenceAsCookie } from '@/app/(chat)/actions';
+import { saveWebSearchPreferenceAsCookie } from '@/app/(chat)/actions';
 import { SuggestedActions } from '../suggested-actions';
 import { AttachmentsPreview } from './attachments-preview';
 import { useDocumentManager } from './document-manager';
@@ -59,7 +66,9 @@ function PureMultimodalInput({
   >([]);
   const [uploadQueue, setUploadQueue] = useState<Array<string>>([]);
   // WebSearch state managed with cookies
-  const [isWebSearchEnabled, setIsWebSearchEnabled] = useState(initialWebSearchEnabled);
+  const [isWebSearchEnabled, setIsWebSearchEnabled] = useState(
+    initialWebSearchEnabled,
+  );
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Custom hooks for functionality
@@ -130,11 +139,6 @@ function PureMultimodalInput({
     }
   }, [status, scrollToBottom]);
 
-  // Get MCP tools
-  const { data: mcpTools } = useSWR('/api/mcp-tools', getMCPTools, {
-    revalidateOnFocus: false,
-  });
-
   // Check if there are any attachments/uploads
   const hasAttachments =
     attachments.length > 0 ||
@@ -178,7 +182,6 @@ function PureMultimodalInput({
           fileInputRef={fileInputRef}
           uploadQueue={uploadQueue}
           className={className}
-          mcpTools={mcpTools ?? []}
           isWebSearchEnabled={isWebSearchEnabled}
           onWebSearchToggle={handleWebSearchToggle}
         />
@@ -200,7 +203,6 @@ function PureMultimodalInput({
       stop,
       submitForm,
       className,
-      mcpTools,
       isWebSearchEnabled,
       handleWebSearchToggle,
     ],

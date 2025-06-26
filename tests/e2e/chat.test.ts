@@ -14,6 +14,32 @@ test.describe('Chat activity', () => {
     expect(currentModel).toBe('Test Model');
   });
 
+  test('Show mentions menu when typing @', async ({ adaContext }) => {
+    const input = adaContext.page.getByTestId('multimodal-input');
+    await input.click();
+    await input.fill('@');
+    await adaContext.page.waitForTimeout(1000);
+    const mentionsMenu = adaContext.page.getByTestId('mentions-menu');
+    expect(mentionsMenu).toBeVisible();
+
+    const toolItem = adaContext.page.getByText('Tools', { exact: true });
+    expect(toolItem).toBeVisible();
+
+    // hit enter to select the tool
+    await input.press('Enter');
+    await adaContext.page.waitForTimeout(1000);
+    expect(toolItem).not.toBeVisible();
+
+    await adaContext.page.keyboard.press('Escape');
+    await adaContext.page.waitForTimeout(1000);
+    expect(toolItem).toBeVisible();
+
+    // press esc again
+    await adaContext.page.keyboard.press('Escape');
+    await adaContext.page.waitForTimeout(1000);
+    expect(mentionsMenu).not.toBeVisible();
+  });
+
   test('Send a user message and receive response', async ({ adaContext }) => {
     await chatPage.sendUserMessage('Why is grass green?');
     await chatPage.isGenerationComplete();

@@ -1,6 +1,5 @@
 import { v4 as uuidv4 } from 'uuid';
 import { TodoList } from './todolist';
-import type { TodoItem } from '../types';
 
 describe('TodoList', () => {
   let todoList: TodoList;

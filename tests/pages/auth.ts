@@ -27,7 +27,7 @@ export class AuthPage {
 
   async isAtChatPage() {
     await this.page.waitForURL('/');
-    await expect(this.page.getByPlaceholder('Send a message...')).toBeVisible();
+    await expect(this.page.getByTestId('multimodal-input')).toBeVisible();
   }
 
   async register(email: string, password: string) {
