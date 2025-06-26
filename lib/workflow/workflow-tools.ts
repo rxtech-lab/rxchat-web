@@ -664,3 +664,120 @@ export const markAsComplete = (todoList: TodoList) =>
       };
     },
   });
+
+export const editBooleanNodeTool = (workflow: Workflow) =>
+  tool({
+    description: 'Edit an existing boolean node in the workflow',
+    parameters: z.object({
+      id: z.string().describe('The identifier of the boolean node to edit'),
+      code: z
+        .string()
+        .describe(
+          'The new code for the boolean condition. Should be in the format: async function handle(input: Record<string, any>): Promise<boolean>. The return value determines which child path to take (true or false).',
+        ),
+    }),
+    execute: async ({ id, code }) => {
+      try {
+        const node = workflow.findNode(id) as any;
+        if (!node || node.type !== 'boolean') {
+          return `Boolean node with identifier ${id} not found`;
+        }
+
+        await compileCode(code, 'typescript');
+
+        const booleanNode = node as BooleanNode;
+        const updatedNode: BooleanNode = {
+          ...booleanNode,
+          code: code,
+        };
+
+        workflow.modifyChild(id, updatedNode);
+        console.log('edited boolean node');
+        console.log(workflow.toViewableString());
+        return `Edited boolean node with identifier ${id}`;
+      } catch (error) {
+        return {
+          error: error,
+        };
+      }
+    },
+  });
+
+export const editConverterNodeTool = (workflow: Workflow) =>
+  tool({
+    description: 'Edit an existing converter node in the workflow',
+    parameters: z.object({
+      id: z.string().describe('The identifier of the converter node to edit'),
+      code: z
+        .string()
+        .describe(`The new code for the converter. Written in Typescript and follow the following format:
+            async function handle(input: any): Promise<any> {
+              return input.input;
+            }
+  
+            The input is the output of the previous node.
+            The output should follow the targeted output schema. Note: Always use input.input[field] to access the field of the input and input.state[field] to access the field of the state.
+            `),
+    }),
+    execute: async ({ id, code }) => {
+      try {
+        const node = workflow.findNode(id) as any;
+        if (!node || node.type !== 'converter') {
+          return `Converter node with identifier ${id} not found`;
+        }
+
+        await compileCode(code, 'typescript');
+
+        const converterNode = node as ConverterNode;
+        const updatedNode: ConverterNode = {
+          ...converterNode,
+          code: code,
+        };
+
+        workflow.modifyChild(id, updatedNode);
+        console.log('edited converter node');
+        console.log(workflow.toViewableString());
+        return `Edited converter node with identifier ${id}`;
+      } catch (error) {
+        return {
+          error: error,
+        };
+      }
+    },
+  });
+
+export const editFixedInputTool = (workflow: Workflow) =>
+  tool({
+    description: 'Edit an existing fixed-input node in the workflow',
+    parameters: z.object({
+      id: z.string().describe('The identifier of the fixed-input node to edit'),
+      output: z
+        .string()
+        .describe(
+          "The new data object containing key-value pairs that will be passed to the child node. Keys must match the child's input schema. You can use dynamic values with Jinja syntax: {{input.[property]}} to reference parent outputs or {{context.[property]}} to access global context variables.",
+        ),
+    }),
+    execute: async ({ id, output }) => {
+      try {
+        const node = workflow.findNode(id) as any;
+        if (!node || node.type !== 'fixed-input') {
+          return `Fixed-input node with identifier ${id} not found`;
+        }
+
+        const fixedInputNode = node as FixedInput;
+        const updatedNode: FixedInput = {
+          ...fixedInputNode,
+          output: JSON.parse(output),
+        };
+
+        workflow.modifyChild(id, updatedNode);
+        console.log('edited fixed-input node');
+        console.log(workflow.toViewableString());
+        return `Edited fixed-input node with identifier ${id}`;
+      } catch (error) {
+        return {
+          error: error,
+        };
+      }
+    },
+  });

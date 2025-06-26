@@ -9,7 +9,7 @@ import { HistoryPlugin } from '@lexical/react/LexicalHistoryPlugin';
 import { OnChangePlugin } from '@lexical/react/LexicalOnChangePlugin';
 import { PlainTextPlugin } from '@lexical/react/LexicalPlainTextPlugin';
 import cx from 'classnames';
-import { $createTextNode, $getRoot } from 'lexical';
+import { $createParagraphNode, $createTextNode, $getRoot } from 'lexical';
 import { useEffect } from 'react';
 
 import { MentionNode } from './nodes/mention-node';
@@ -51,7 +51,9 @@ function ValueUpdatePlugin({
       if (currentContent !== value) {
         root.clear();
         if (value) {
-          root.append($createTextNode(value));
+          const paragraph = $createParagraphNode();
+          root.append(paragraph);
+          paragraph.append($createTextNode(value));
         }
       }
     });
@@ -75,7 +77,6 @@ export function LexicalEditor({
       console.error('Lexical error:', error);
     },
     nodes: [MentionNode],
-    editable: !disabled,
   };
 
   return (
