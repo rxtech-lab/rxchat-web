@@ -117,11 +117,22 @@ function checkForAtSignMentions(
     const maybeLeadingWhitespace = match[1];
 
     const matchingString = match[3];
+    const replaceableString = match[2];
+
+    // Don't show popover if there's a space immediately after @
+    // Check if the replaceableString is just "@" and the text has a space after it
+    if (
+      replaceableString === '@' &&
+      text.charAt(match.index + maybeLeadingWhitespace.length + 1) === ' '
+    ) {
+      return null;
+    }
+
     if (matchingString.length >= minMatchLength) {
       return {
         leadOffset: match.index + maybeLeadingWhitespace.length,
         matchingString,
-        replaceableString: match[2],
+        replaceableString,
       };
     }
   }
@@ -263,6 +274,7 @@ export default function MCPToolsMentionsPlugin(): JSX.Element | null {
     selectedIndex: 0,
   });
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const closeMenuRef = React.useRef<(() => void) | null>(null);
 
   // Use the MCP tools search hook
   const { tools, isLoading } = useMCPToolsQuery(
@@ -292,6 +304,25 @@ export default function MCPToolsMentionsPlugin(): JSX.Element | null {
       COMMAND_PRIORITY_HIGH,
     );
   }, [editor, isMenuOpen, menuState.currentMenu]);
+
+  // Handle click-away to close modal
+  useEffect(() => {
+    if (!isMenuOpen || !closeMenuRef.current) return;
+
+    const handleClickAway = (event: MouseEvent) => {
+      const target = event.target as Node;
+      const modalElement = document.querySelector('[data-state="open"]');
+
+      if (modalElement && !modalElement.contains(target)) {
+        closeMenuRef.current?.();
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickAway);
+    return () => {
+      document.removeEventListener('mousedown', handleClickAway);
+    };
+  }, [isMenuOpen]);
 
   const checkForSlashTriggerMatch = useBasicTypeaheadTriggerMatch('/', {
     minLength: 0,
@@ -354,6 +385,8 @@ export default function MCPToolsMentionsPlugin(): JSX.Element | null {
       nodeToReplace: TextNode | null,
       closeMenu: () => void,
     ) => {
+      // Store the close function for click-away handling
+      closeMenuRef.current = closeMenu;
       if (selectedOption instanceof MCPToolTypeaheadOption) {
         // Handle tool selection - create mention node
         editor.update(() => {
@@ -465,6 +498,7 @@ export default function MCPToolsMentionsPlugin(): JSX.Element | null {
       onOpen={() => setIsMenuOpen(true)}
       onClose={() => {
         setIsMenuOpen(false);
+        closeMenuRef.current = null;
         setMenuState({
           currentMenu: 'main',
           searchQuery: '',
