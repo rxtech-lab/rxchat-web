@@ -91,7 +91,7 @@ jobs:
           SRH_TOKEN: example_token
           SRH_CONNECTION_STRING: "redis://redis:6379"
     env:
-      MCP_ROUTER_SERVER_URL: https://router.mcprouter.app/sse
+      MCP_ROUTER_SERVER_URL: https://router.mcprouter.app/stream
       MCP_ROUTER_SERVER_API_KEY: ${{ secrets.MCP_ROUTER_SERVER_API_KEY }}
       QSTASH_TOKEN: eyJVc2VySUQiOiJkZWZhdWx0VXNlciIsIlBhc3N3b3JkIjoiZGVmYXVsdFBhc3N3b3JkIn0
       QSTASH_URL: http://localhost:8080

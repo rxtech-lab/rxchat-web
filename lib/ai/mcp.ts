@@ -1,14 +1,16 @@
 import { experimental_createMCPClient as createMCPClientSDK } from 'ai';
 
-export const createMCPClient = () =>
-  createMCPClientSDK({
-    transport: {
-      type: 'sse',
-      // biome-ignore lint/style/noNonNullAssertion: <explanation>
-      url: process.env.MCP_ROUTER_SERVER_URL!,
-      headers: {
-        // biome-ignore lint/style/noNonNullAssertion: <explanation>
-        'x-api-key': process.env.MCP_ROUTER_SERVER_API_KEY!,
-      },
-    },
+import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
+
+export const createMCPClient = () => {
+  // biome-ignore lint/style/noNonNullAssertion: <explanation>
+  const url = new URL(process.env.MCP_ROUTER_SERVER_URL!);
+  // add x-api-key to the url
+  // biome-ignore lint/style/noNonNullAssertion: <explanation>
+  url.searchParams.set('x-api-key', process.env.MCP_ROUTER_SERVER_API_KEY!);
+
+  const transport = new StreamableHTTPClientTransport(url, {});
+  return createMCPClientSDK({
+    transport,
   });
+};
