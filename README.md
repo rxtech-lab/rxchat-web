@@ -25,6 +25,10 @@
 - **Tailwind CSS** + **shadcn/ui** for modern UI components
 - **SWR** for efficient data fetching and caching
 - **Drizzle ORM** with PostgreSQL for robust data persistence
+- **Internationalization (i18n)** - Multi-language support with next-intl
+  - English (default)
+  - Chinese Simplified (简体中文)
+  - Chinese Traditional (繁體中文)
 
 ### 🤖 Advanced AI Capabilities
 
@@ -418,7 +422,9 @@ For commercial licensing inquiries, please contact us through GitHub Issues.
 
 - **Issues**: [GitHub Issues](https://github.com/rxtech-lab/rxchat-web/issues)
 - **Discussions**: [GitHub Discussions](https://github.com/rxtech-lab/rxchat-web/discussions)
-- **Documentation**: See component READMEs in `components/` directories
+- **Documentation**: 
+  - See component READMEs in `components/` directories
+  - [Internationalization Guide](./docs/i18n.md) - Multi-language support documentation
 
 ## Acknowledgments
 
