@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
-import { auth } from '@/app/(auth)/auth';
+import { auth } from '@/app/[locale]/(auth)/auth';
 import { createS3Client } from '@/lib/s3';
 import {
   isImageType,

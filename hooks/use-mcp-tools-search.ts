@@ -1,6 +1,6 @@
 'use client';
 
-import { searchMCPTools } from '@/app/(chat)/actions-mcp';
+import { searchMCPTools } from '@/app/[locale]/(chat)/actions-mcp';
 import type { Tool } from '@/lib/api/mcp-router/client';
 import useSWR from 'swr';
 import { useDebounceValue } from 'usehooks-ts';

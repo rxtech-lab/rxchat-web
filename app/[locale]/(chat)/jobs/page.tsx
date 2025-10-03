@@ -1,4 +1,4 @@
-import { auth } from '@/app/(auth)/auth';
+import { auth } from '@/app/[locale]/(auth)/auth';
 import { JobsList } from '@/components/jobs-list';
 import { getJobs } from './actions';
 import { Suspense } from 'react';

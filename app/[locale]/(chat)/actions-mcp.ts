@@ -1,6 +1,6 @@
 'use server';
 
-import { auth } from '@/app/(auth)/auth';
+import { auth } from '@/app/[locale]/(auth)/auth';
 import { getMCPRouterClient } from '@/lib/api/mcp-router/api';
 import type { Tool } from '@/lib/api/mcp-router/client';
 

@@ -1,6 +1,6 @@
 'server-only';
 
-import type { UserType } from '@/app/(auth)/auth';
+import type { UserType } from '@/app/[locale]/(auth)/auth';
 import { isTestEnvironment } from '../constants';
 
 export interface Entitlements {

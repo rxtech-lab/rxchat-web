@@ -30,7 +30,7 @@ import {
   deleteJobAction,
   updateJobRunningStatusAction,
   triggerJobAction,
-} from '@/app/(chat)/jobs/actions';
+} from '@/app/[locale]/(chat)/jobs/actions';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 import { DocumentViewerDialog } from './document-viewer-dialog';

@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
-import { auth } from '@/app/(auth)/auth';
+import { auth } from '@/app/[locale]/(auth)/auth';
 import { AccountTab } from '@/components/profile/account-tab';
 import { LinkingTab } from '@/components/profile/linking-tab';
 import { ProfileHeader } from '@/components/profile-header';

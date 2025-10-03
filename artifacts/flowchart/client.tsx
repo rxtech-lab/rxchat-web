@@ -5,7 +5,7 @@ import { toast } from 'sonner';
 import { getSuggestions } from '../actions';
 
 // React Flow imports
-import { createWorkflowJob } from '@/app/(chat)/actions';
+import { createWorkflowJob } from '@/app/[locale]/(chat)/actions';
 import { ClockRewind } from '@/components/icons';
 import type { Suggestion } from '@/lib/db/schema';
 import OnStepView from '@/lib/workflow/onstep-view';

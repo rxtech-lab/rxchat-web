@@ -1,4 +1,4 @@
-import { auth } from '@/app/(auth)/auth';
+import { auth } from '@/app/[locale]/(auth)/auth';
 import { getPresignedDownloadUrl } from '@/lib/document/actions/action_server';
 import { ChatSDKError } from '@/lib/errors';
 import { z } from 'zod';

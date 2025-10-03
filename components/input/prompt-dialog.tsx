@@ -11,7 +11,7 @@ import { Button } from '../ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
 import { PromptSchema } from './prompt.schema';
 import { useRouter } from 'next/navigation';
-import { selectPrompt } from '@/app/(chat)/actions';
+import { selectPrompt } from '@/app/[locale]/(chat)/actions';
 
 interface PromptDialogProps {
   currentPrompt?: Prompt;

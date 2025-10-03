@@ -22,7 +22,10 @@ import {
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { registerPasskey, isWebAuthnSupported } from '@/lib/webauthn-client';
-import { getUserPasskeys, deletePasskey } from '@/app/(chat)/profile/actions';
+import {
+  getUserPasskeys,
+  deletePasskey,
+} from '@/app/[locale]/(chat)/profile/actions';
 import { toast } from 'sonner';
 import { PasskeyNameDialog } from './passkey-name-dialog';
 

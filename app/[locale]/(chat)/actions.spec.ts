@@ -62,7 +62,7 @@ jest.mock('next/headers', () => ({
   cookies: jest.fn(),
 }));
 
-import { auth } from '@/app/(auth)/auth';
+import { auth } from '@/app/[locale]/(auth)/auth';
 import { createPromptRunner } from '@/lib/agent/prompt-runner/runner';
 import { createMCPClient } from '@/lib/ai/mcp';
 import { db } from '@/lib/db/queries/client';

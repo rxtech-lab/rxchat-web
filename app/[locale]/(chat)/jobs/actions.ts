@@ -1,6 +1,6 @@
 'use server';
 
-import { auth } from '@/app/(auth)/auth';
+import { auth } from '@/app/[locale]/(auth)/auth';
 import { db } from '@/lib/db/queries/client';
 import {
   deleteJob,

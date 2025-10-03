@@ -1,4 +1,4 @@
-import { auth } from '@/app/(auth)/auth';
+import { auth } from '@/app/[locale]/(auth)/auth';
 import { JobResultCard } from '@/components/job-result-card';
 import { JobResultsFilter } from '@/components/job-results-filter';
 import { Badge } from '@/components/ui/badge';

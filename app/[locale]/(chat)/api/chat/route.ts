@@ -1,4 +1,4 @@
-import { auth } from '@/app/(auth)/auth';
+import { auth } from '@/app/[locale]/(auth)/auth';
 import { createPromptRunner } from '@/lib/agent/prompt-runner/runner';
 import { entitlementsByUserRole } from '@/lib/ai/entitlements';
 import { createMCPClient } from '@/lib/ai/mcp';

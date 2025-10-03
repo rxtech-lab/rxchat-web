@@ -1,4 +1,4 @@
-import { auth } from '@/app/(auth)/auth';
+import { auth } from '@/app/[locale]/(auth)/auth';
 import { getSuggestionsByDocumentId } from '@/lib/db/queries/queries';
 import { ChatSDKError } from '@/lib/errors';
 

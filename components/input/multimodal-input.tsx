@@ -15,7 +15,7 @@ import {
 import { useScrollToBottom } from '@/hooks/use-scroll-to-bottom';
 import type { UseChatHelpers } from '@ai-sdk/react';
 import equal from 'fast-deep-equal';
-import { saveWebSearchPreferenceAsCookie } from '@/app/(chat)/actions';
+import { saveWebSearchPreferenceAsCookie } from '@/app/[locale]/(chat)/actions';
 import { SuggestedActions } from '../suggested-actions';
 import { AttachmentsPreview } from './attachments-preview';
 import { useDocumentManager } from './document-manager';

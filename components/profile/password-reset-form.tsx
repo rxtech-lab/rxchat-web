@@ -1,6 +1,9 @@
 'use client';
 
-import { resetPassword, type ActionResult } from '@/app/(chat)/profile/actions';
+import {
+  resetPassword,
+  type ActionResult,
+} from '@/app/[locale]/(chat)/profile/actions';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
   Card,

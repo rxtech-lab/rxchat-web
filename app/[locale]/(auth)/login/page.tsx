@@ -73,9 +73,7 @@ export default function Page() {
           </p>
         </div>
         <AuthForm action={handleSubmit} defaultEmail={email}>
-          <SubmitButton isSuccessful={isSuccessful}>
-            {t('signIn')}
-          </SubmitButton>
+          <SubmitButton isSuccessful={isSuccessful}>{t('signIn')}</SubmitButton>
         </AuthForm>
       </div>
     </div>

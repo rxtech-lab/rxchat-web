@@ -14,7 +14,7 @@ jest.mock('@/app/(auth)/auth', () => ({
 }));
 
 import { PATCH } from './route';
-import { auth } from '@/app/(auth)/auth';
+import { auth } from '@/app/[locale]/(auth)/auth';
 import { createUser, deleteUserAccount } from '@/lib/db/queries/queries';
 import { createPrompt } from '@/lib/db/queries/prompts';
 import { generateRandomTestUser } from '@/tests/helpers';

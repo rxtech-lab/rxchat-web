@@ -10,7 +10,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 
-import { deleteJobsAction } from '@/app/(chat)/jobs/actions';
+import { deleteJobsAction } from '@/app/[locale]/(chat)/jobs/actions';
 import type { Job as JobType } from '@/lib/db/schema';
 import { useDebounce } from '@uidotdev/usehooks';
 import {

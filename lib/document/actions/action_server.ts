@@ -1,6 +1,6 @@
 'use server';
 
-import { auth } from '@/app/(auth)/auth';
+import { auth } from '@/app/[locale]/(auth)/auth';
 import { DEFAULT_CHAT_MODEL } from '@/lib/ai/models';
 import { getModelProvider } from '@/lib/ai/providers';
 import { CHUNK_SIZE } from '@/lib/constants';

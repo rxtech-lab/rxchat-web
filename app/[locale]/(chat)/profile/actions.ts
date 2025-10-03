@@ -1,6 +1,6 @@
 'use server';
 
-import { auth, signOut } from '@/app/(auth)/auth';
+import { auth, signOut } from '@/app/[locale]/(auth)/auth';
 import {
   deleteUserAccount,
   updateUserPassword,
