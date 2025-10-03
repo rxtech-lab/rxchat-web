@@ -1,7 +1,7 @@
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
-import { auth, signIn } from '@/app/(auth)/auth';
+import { auth, signIn } from '@/app/[locale]/(auth)/auth';
 import { verifyPasskeyRegistration } from '@/lib/webauthn';
 import { ChatSDKError } from '@/lib/errors';
 

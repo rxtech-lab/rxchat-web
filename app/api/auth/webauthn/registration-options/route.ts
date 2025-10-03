@@ -1,7 +1,7 @@
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
-import { auth } from '@/app/(auth)/auth';
+import { auth } from '@/app/[locale]/(auth)/auth';
 import { generatePasskeyRegistrationOptions } from '@/lib/webauthn';
 import { getPasskeyAuthenticatorsByUserId } from '@/lib/db/queries/queries';
 

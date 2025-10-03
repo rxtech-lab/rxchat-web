@@ -5,6 +5,7 @@ import { Button } from './ui/button';
 import { memo } from 'react';
 import type { UseChatHelpers } from '@ai-sdk/react';
 import type { VisibilityType } from './visibility-selector';
+import { useTranslations } from 'next-intl';
 
 interface SuggestedActionsProps {
   chatId: string;
@@ -17,26 +18,29 @@ function PureSuggestedActions({
   append,
   selectedVisibilityType,
 }: SuggestedActionsProps) {
+  // Use translations from the suggestedActions namespace
+  const t = useTranslations('suggestedActions');
+
   const suggestedActions = [
     {
-      title: 'What are the advantages',
-      label: 'of using Next.js?',
-      action: 'What are the advantages of using Next.js?',
+      title: t('nextjs.title'),
+      label: t('nextjs.label'),
+      action: t('nextjs.action'),
     },
     {
-      title: 'Write code to',
-      label: `demonstrate djikstra's algorithm`,
-      action: `Write code to demonstrate djikstra's algorithm`,
+      title: t('algorithm.title'),
+      label: t('algorithm.label'),
+      action: t('algorithm.action'),
     },
     {
-      title: 'Help me write an essay',
-      label: `about silicon valley`,
-      action: `Help me write an essay about silicon valley`,
+      title: t('essay.title'),
+      label: t('essay.label'),
+      action: t('essay.action'),
     },
     {
-      title: 'What is the weather',
-      label: 'in San Francisco?',
-      action: 'What is the weather in San Francisco?',
+      title: t('weather.title'),
+      label: t('weather.label'),
+      action: t('weather.action'),
     },
   ];
 

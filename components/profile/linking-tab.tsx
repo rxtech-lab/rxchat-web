@@ -16,7 +16,7 @@ import {
   generateTelegramLink,
   getTelegramStatus,
   unlinkTelegramAccount,
-} from '@/app/(auth)/api/auth/link/telegram/actions';
+} from '@/app/[locale]/(auth)/api/auth/link/telegram/actions';
 
 interface TelegramLinkStatus {
   isLinked: boolean;

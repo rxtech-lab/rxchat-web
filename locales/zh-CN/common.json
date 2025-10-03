@@ -1,0 +1,52 @@
+{
+  "greeting": {
+    "hello": "您好！",
+    "help": "我今天能帮您什么忙？"
+  },
+  "suggestedActions": {
+    "nextjs": {
+      "title": "使用 Next.js 的",
+      "label": "优势有哪些？",
+      "action": "使用 Next.js 的优势有哪些？"
+    },
+    "algorithm": {
+      "title": "编写代码来",
+      "label": "演示 Dijkstra 算法",
+      "action": "编写代码来演示 Dijkstra 算法"
+    },
+    "essay": {
+      "title": "帮我写一篇关于",
+      "label": "硅谷的文章",
+      "action": "帮我写一篇关于硅谷的文章"
+    },
+    "weather": {
+      "title": "旧金山的",
+      "label": "天气如何？",
+      "action": "旧金山的天气如何？"
+    }
+  },
+  "auth": {
+    "signIn": "登录",
+    "signUp": "注册",
+    "signOut": "退出",
+    "noAccount": "还没有账户？",
+    "forFree": "免费注册。",
+    "hasAccount": "已有账户？",
+    "instead": "立即登录。",
+    "invalidCredentials": "凭据无效！",
+    "invalidData": "验证提交失败！",
+    "userExists": "账户已存在！",
+    "failedToCreate": "创建账户失败！",
+    "passwordsDontMatch": "密码不匹配！",
+    "accountCreated": "账户创建成功！",
+    "email": "邮箱",
+    "password": "密码",
+    "register": "注册"
+  },
+  "language": {
+    "select": "选择语言",
+    "en": "English",
+    "zh-CN": "简体中文",
+    "zh-TW": "繁體中文"
+  }
+}

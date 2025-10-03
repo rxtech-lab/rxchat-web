@@ -114,6 +114,7 @@
     "nanoid": "^5.0.8",
     "next": "15.4.0-canary.92",
     "next-auth": "5.0.0-beta.29",
+    "next-intl": "^4.3.9",
     "next-themes": "^0.3.0",
     "nunjucks": "^3.2.4",
     "orderedmap": "^2.1.1",

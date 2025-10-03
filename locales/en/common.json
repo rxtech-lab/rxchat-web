@@ -1,0 +1,52 @@
+{
+  "greeting": {
+    "hello": "Hello there!",
+    "help": "How can I help you today?"
+  },
+  "suggestedActions": {
+    "nextjs": {
+      "title": "What are the advantages",
+      "label": "of using Next.js?",
+      "action": "What are the advantages of using Next.js?"
+    },
+    "algorithm": {
+      "title": "Write code to",
+      "label": "demonstrate djikstra's algorithm",
+      "action": "Write code to demonstrate djikstra's algorithm"
+    },
+    "essay": {
+      "title": "Help me write an essay",
+      "label": "about silicon valley",
+      "action": "Help me write an essay about silicon valley"
+    },
+    "weather": {
+      "title": "What is the weather",
+      "label": "in San Francisco?",
+      "action": "What is the weather in San Francisco?"
+    }
+  },
+  "auth": {
+    "signIn": "Sign In",
+    "signUp": "Sign up",
+    "signOut": "Sign Out",
+    "noAccount": "Don't have an account? ",
+    "forFree": " for free.",
+    "hasAccount": "Already have an account? ",
+    "instead": " instead.",
+    "invalidCredentials": "Invalid credentials!",
+    "invalidData": "Failed validating your submission!",
+    "userExists": "Account already exists!",
+    "failedToCreate": "Failed to create account!",
+    "passwordsDontMatch": "Passwords do not match!",
+    "accountCreated": "Account created successfully!",
+    "email": "Email",
+    "password": "Password",
+    "register": "Register"
+  },
+  "language": {
+    "select": "Select Language",
+    "en": "English",
+    "zh-CN": "简体中文",
+    "zh-TW": "繁體中文"
+  }
+}

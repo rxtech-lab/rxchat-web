@@ -9,7 +9,7 @@ import {
   useEffect,
 } from 'react';
 
-import { saveChatModelAsCookie } from '@/app/(chat)/actions';
+import { saveChatModelAsCookie } from '@/app/[locale]/(chat)/actions';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';

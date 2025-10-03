@@ -22,6 +22,7 @@ import { useRouter } from 'next/navigation';
 import { toast } from './toast';
 import { LoaderIcon } from './icons';
 import { guestRegex } from '@/lib/constants';
+import { LanguageSelector } from './language-selector';
 
 export function SidebarUserNav({ user }: { user: User }) {
   const router = useRouter();
@@ -71,6 +72,13 @@ export function SidebarUserNav({ user }: { user: User }) {
             side="top"
             className="w-[--radix-popper-anchor-width]"
           >
+            <DropdownMenuItem
+              data-testid="user-nav-item-language"
+              className="cursor-pointer"
+              onSelect={(e) => e.preventDefault()}
+            >
+              <LanguageSelector />
+            </DropdownMenuItem>
             <DropdownMenuItem
               data-testid="user-nav-item-theme"
               className="cursor-pointer"

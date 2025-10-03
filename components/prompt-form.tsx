@@ -1,6 +1,6 @@
 'use client';
 
-import { testPrompt } from '@/app/(chat)/actions';
+import { testPrompt } from '@/app/[locale]/(chat)/actions';
 import type { Prompt } from '@/lib/db/schema';
 import { useCallback, useState } from 'react';
 import { toast } from 'sonner';

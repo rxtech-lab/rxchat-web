@@ -31,7 +31,7 @@ import {
   EyeOff,
 } from 'lucide-react';
 import { useState } from 'react';
-import { deleteJobResultAction } from '@/app/(chat)/jobs/[id]/results/actions';
+import { deleteJobResultAction } from '@/app/[locale]/(chat)/jobs/[id]/results/actions';
 import { toast } from 'sonner';
 import { OnStepView } from '@/lib/workflow/onstep-view';
 import { OnStepSchema } from '@/lib/workflow/types';

@@ -1,6 +1,9 @@
 'use client';
 
-import { deleteAccount, type ActionResult } from '@/app/(chat)/profile/actions';
+import {
+  deleteAccount,
+  type ActionResult,
+} from '@/app/[locale]/(chat)/profile/actions';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import {
